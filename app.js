@@ -59,12 +59,13 @@ const sectionMeta = {
   maps: ["Device settings", "Maps"],
   vehicle: ["Device settings", "Vehicle"],
   software: ["Device settings", "Software"],
+  safetyLab: ["Device settings", "Safety Lab"],
   developer: ["Device settings", "Developer"],
   migration: ["Device settings", "Migration Wizard"]
 };
 
 const defaultProfile = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   activeSection: "device",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -134,6 +135,20 @@ const defaultProfile = {
     replayReview: false,
     eventSnapshot: true,
     cabanaExport: false,
+    labMode: "disabled",
+    testStage: "design",
+    safetyEnvelope: "conservative",
+    driverMonitoringMode: "strict",
+    manualOverrideMode: "instant",
+    actuationSafetyMode: "strict",
+    pandaSafetyReviewMode: "readonly",
+    faultInjectionMode: "none",
+    scenarioSet: "lane-assist",
+    labResultGate: "block-on-warn",
+    labOffroadOnlyAck: false,
+    labNoLiveApplyAck: false,
+    testDriverReady: false,
+    closedCourseAck: false,
     migrationSource: "manual",
     backupSlot: "slot-a"
   },
@@ -155,7 +170,17 @@ const defaultProfile = {
     turnSpeedMargin: 6,
     screenBrightness: 70,
     mapBrightness: 60,
-    routePreviewDistance: 1.5
+    routePreviewDistance: 1.5,
+    labMaxSpeed: 35,
+    labSteerTorqueCap: 60,
+    labSteerRateCap: 65,
+    labAccelCap: 45,
+    labBrakeCap: 55,
+    labFollowGapMin: 2.5,
+    labTakeoverTime: 1,
+    labAlertEscalationTime: 2,
+    labDisengageLatency: 0.3,
+    labModelConfidenceMin: 70
   },
   safetyPolicy: {
     driverMonitoringRequired: true,
@@ -216,6 +241,16 @@ const selectBindings = [
   ["powertrainProfile", ["controllers", "powertrainProfile"]],
   ["testRouteMode", ["controllers", "testRouteMode"]],
   ["parameterPreviewMode", ["controllers", "parameterPreviewMode"]],
+  ["labMode", ["controllers", "labMode"]],
+  ["testStage", ["controllers", "testStage"]],
+  ["safetyEnvelope", ["controllers", "safetyEnvelope"]],
+  ["driverMonitoringMode", ["controllers", "driverMonitoringMode"]],
+  ["manualOverrideMode", ["controllers", "manualOverrideMode"]],
+  ["actuationSafetyMode", ["controllers", "actuationSafetyMode"]],
+  ["pandaSafetyReviewMode", ["controllers", "pandaSafetyReviewMode"]],
+  ["faultInjectionMode", ["controllers", "faultInjectionMode"]],
+  ["scenarioSet", ["controllers", "scenarioSet"]],
+  ["labResultGate", ["controllers", "labResultGate"]],
   ["migrationSource", ["controllers", "migrationSource"]],
   ["backupSlot", ["controllers", "backupSlot"]]
 ];
@@ -242,7 +277,11 @@ const checkboxBindings = [
   ["developerMode", ["controllers", "developerMode"]],
   ["replayReview", ["controllers", "replayReview"]],
   ["eventSnapshot", ["controllers", "eventSnapshot"]],
-  ["cabanaExport", ["controllers", "cabanaExport"]]
+  ["cabanaExport", ["controllers", "cabanaExport"]],
+  ["labOffroadOnlyAck", ["controllers", "labOffroadOnlyAck"]],
+  ["labNoLiveApplyAck", ["controllers", "labNoLiveApplyAck"]],
+  ["testDriverReady", ["controllers", "testDriverReady"]],
+  ["closedCourseAck", ["controllers", "closedCourseAck"]]
 ];
 
 const rangeBindings = [
@@ -263,7 +302,17 @@ const rangeBindings = [
   { id: "turnSpeedMargin", path: ["tuning", "turnSpeedMargin"], min: 3, max: 12, valueId: "turnSpeedMarginValue", format: (v) => `${v} mph` },
   { id: "screenBrightness", path: ["tuning", "screenBrightness"], min: 25, max: 100, valueId: "screenBrightnessValue", format: (v) => `${v}%` },
   { id: "mapBrightness", path: ["tuning", "mapBrightness"], min: 25, max: 100, valueId: "mapBrightnessValue", format: (v) => `${v}%` },
-  { id: "routePreviewDistance", path: ["tuning", "routePreviewDistance"], min: 0.5, max: 5, valueId: "routePreviewDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` }
+  { id: "routePreviewDistance", path: ["tuning", "routePreviewDistance"], min: 0.5, max: 5, valueId: "routePreviewDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` },
+  { id: "labMaxSpeed", path: ["tuning", "labMaxSpeed"], min: 5, max: 65, valueId: "labMaxSpeedValue", format: (v) => `${v} mph` },
+  { id: "labSteerTorqueCap", path: ["tuning", "labSteerTorqueCap"], min: 20, max: 100, valueId: "labSteerTorqueCapValue", format: (v) => `${v}%` },
+  { id: "labSteerRateCap", path: ["tuning", "labSteerRateCap"], min: 20, max: 100, valueId: "labSteerRateCapValue", format: (v) => `${v}%` },
+  { id: "labAccelCap", path: ["tuning", "labAccelCap"], min: 10, max: 80, valueId: "labAccelCapValue", format: (v) => `${v}%` },
+  { id: "labBrakeCap", path: ["tuning", "labBrakeCap"], min: 10, max: 90, valueId: "labBrakeCapValue", format: (v) => `${v}%` },
+  { id: "labFollowGapMin", path: ["tuning", "labFollowGapMin"], min: 2, max: 4, valueId: "labFollowGapMinValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "labTakeoverTime", path: ["tuning", "labTakeoverTime"], min: 0.3, max: 2.5, valueId: "labTakeoverTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "labAlertEscalationTime", path: ["tuning", "labAlertEscalationTime"], min: 0.5, max: 5, valueId: "labAlertEscalationTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "labDisengageLatency", path: ["tuning", "labDisengageLatency"], min: 0.1, max: 1, valueId: "labDisengageLatencyValue", format: (v) => `${Number(v).toFixed(2)}s` },
+  { id: "labModelConfidenceMin", path: ["tuning", "labModelConfidenceMin"], min: 50, max: 95, valueId: "labModelConfidenceMinValue", format: (v) => `${v}%` }
 ];
 
 let profile = loadProfile();
@@ -276,6 +325,10 @@ const els = {
   safetyBadge: document.querySelector("#safetyBadge"),
   controllerBadge: document.querySelector("#controllerBadge"),
   moduleBadge: document.querySelector("#moduleBadge"),
+  labResultBadge: document.querySelector("#labResultBadge"),
+  labScore: document.querySelector("#labScore"),
+  labScoreMeter: document.querySelector("#labScoreMeter"),
+  labResults: document.querySelector("#labResults"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
@@ -288,6 +341,8 @@ const els = {
   jsonPreview: document.querySelector("#jsonPreview"),
   resetProfile: document.querySelector("#resetProfile"),
   copyInstallUrl: document.querySelector("#copyInstallUrl"),
+  runSafetyLab: document.querySelector("#runSafetyLab"),
+  exportSafetyPlan: document.querySelector("#exportSafetyPlan"),
   downloadProfile: document.querySelector("#downloadProfile"),
   downloadProfileSecondary: document.querySelector("#downloadProfileSecondary"),
   importButton: document.querySelector("#importButton"),
@@ -371,6 +426,12 @@ function computeSafetyScore() {
   if (c.parameterPreviewMode !== "readonly") score -= 4;
   if (c.trafficLightReview) score -= 4;
   if (c.radarInteropReview) score -= 8;
+  if (c.labMode === "closed-course") score -= 4;
+  if (c.safetyEnvelope === "expanded-review") score -= 8;
+  if (c.driverMonitoringMode === "lab-relaxed") score -= 12;
+  if (c.manualOverrideMode === "measured-review") score -= 6;
+  if (c.actuationSafetyMode === "expanded-review") score -= 10;
+  if (c.faultInjectionMode !== "none") score -= 4;
   if (c.testRouteMode === "closed-course") score -= 4;
   if (!c.handsOnReminder) score -= 10;
   if (!c.modelUncertaintyAlert) score -= 8;
@@ -383,6 +444,8 @@ function computeSafetyScore() {
   if (Math.abs(Number(t.laneBias)) > 10) score -= 6;
   if (Number(t.promptLeadTime) < 1) score -= 5;
   if (Number(t.modelConfidenceGate) < 60) score -= 8;
+  if (Number(t.labMaxSpeed) > 45 && c.labMode !== "disabled") score -= 6;
+  if (Number(t.labDisengageLatency) > 0.5 && c.labMode !== "disabled") score -= 8;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
   return Math.max(0, Math.min(100, score));
@@ -537,6 +600,7 @@ function render() {
   setText(els.previewTitle, previewTitle());
   setText(els.previewText, previewText());
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
+  renderSafetyLab();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
   renderSection(profile.activeSection);
@@ -551,6 +615,58 @@ function updateRangeLabels() {
     const label = byId(binding.valueId);
     if (label) label.textContent = binding.format(getPath(profile, binding.path));
   }
+}
+
+function computeLabReadiness() {
+  const c = profile.controllers;
+  const t = profile.tuning;
+  const checks = [];
+  let score = 100;
+
+  addLabCheck(checks, c.labMode !== "disabled", "Lab mode enabled", "Choose simulation, bench, or closed-course mode.", 25);
+  addLabCheck(checks, c.labOffroadOnlyAck, "Offroad/simulation acknowledgement", "Confirm this is not a live-car safety bypass.", 20);
+  addLabCheck(checks, c.labNoLiveApplyAck, "Live apply blocked", "Confirm lab settings will not be applied live.", 20);
+  addLabCheck(checks, c.testDriverReady, "Takeover readiness", "Driver readiness must be confirmed before any physical test.", 15);
+  addLabCheck(checks, c.closedCourseAck || ["design", "replay", "bench"].includes(c.testStage), "Controlled test environment", "Closed-course acknowledgement is required beyond bench testing.", 15);
+  addLabCheck(checks, c.driverMonitoringMode !== "lab-relaxed" || c.testStage !== "road-review", "Driver monitoring gate", "Relaxed driver monitoring cannot move to road review.", 20);
+  addLabCheck(checks, c.manualOverrideMode !== "measured-review" || Number(t.labTakeoverTime) <= 1.2, "Manual override target", "Measured override review requires takeover target at or below 1.2s.", 12);
+  addLabCheck(checks, c.actuationSafetyMode !== "expanded-review" || Number(t.labMaxSpeed) <= 35, "Expanded cap speed gate", "Expanded actuation caps require speed cap at or below 35 mph.", 12);
+  addLabCheck(checks, Number(t.labDisengageLatency) <= 0.5, "Disengage latency", "Disengage latency must stay at or below 0.50s.", 10);
+  addLabCheck(checks, Number(t.labFollowGapMin) >= 2.2, "Follow gap floor", "Minimum follow gap should stay at or above 2.2s.", 8);
+  addLabCheck(checks, Number(t.labModelConfidenceMin) >= 60, "Model confidence floor", "Model confidence gate should stay at or above 60%.", 8);
+
+  for (const check of checks) {
+    if (!check.pass) score -= check.penalty;
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const blocked = checks.some((check) => !check.pass && check.penalty >= 15);
+  const state = blocked || score < 70 ? "Blocked" : score < 90 ? "Review" : "Pass";
+
+  return { score, state, checks };
+}
+
+function addLabCheck(checks, pass, label, detail, penalty) {
+  checks.push({ pass, label, detail, penalty });
+}
+
+function renderSafetyLab() {
+  const result = computeLabReadiness();
+  const stateClass = result.state === "Pass" ? "pass" : result.state === "Review" ? "warn" : "stop";
+
+  setText(els.labScore, String(result.score));
+  if (els.labScoreMeter) els.labScoreMeter.style.width = `${result.score}%`;
+  setBadge(els.labResultBadge, result.state, stateClass);
+  if (!els.labResults) return;
+
+  els.labResults.innerHTML = result.checks
+    .map((check) => `
+      <div class="lab-check ${check.pass ? "pass" : "fail"}">
+        <strong>${check.pass ? "PASS" : "CHECK"} - ${check.label}</strong>
+        <span>${check.detail}</span>
+      </div>
+    `)
+    .join("");
 }
 
 function previewTitle() {
@@ -585,7 +701,17 @@ function activeControllerCount() {
     "mapMode",
     "routeAssistMode",
     "vehicleHarnessMode",
-    "parameterPreviewMode"
+    "parameterPreviewMode",
+    "labMode",
+    "testStage",
+    "safetyEnvelope",
+    "driverMonitoringMode",
+    "manualOverrideMode",
+    "actuationSafetyMode",
+    "pandaSafetyReviewMode",
+    "faultInjectionMode",
+    "scenarioSet",
+    "labResultGate"
   ];
   const toggleModules = checkboxBindings
     .map(([, path]) => path[path.length - 1])
@@ -657,6 +783,7 @@ function labelFor(group, value) {
 }
 
 function exportProfile() {
+  const labReadiness = computeLabReadiness();
   return {
     ...profile,
     computed: {
@@ -664,6 +791,10 @@ function exportProfile() {
       installUrl: activeInstallUrl(),
       controllerState: controllerLabel(),
       activeControllerModules: activeControllerCount(),
+      safetyLabReadiness: {
+        score: labReadiness.score,
+        state: labReadiness.state
+      },
       generatedAt: new Date().toISOString()
     }
   };
@@ -678,6 +809,71 @@ function downloadProfile() {
   link.click();
   URL.revokeObjectURL(url);
   showToast("Profile downloaded");
+}
+
+function buildSafetyPlan() {
+  const labReadiness = computeLabReadiness();
+  return {
+    planVersion: 1,
+    generatedAt: new Date().toISOString(),
+    vehicle: {
+      profileName: profile.profileName,
+      model: profile.vehicleModel,
+      year: profile.vehicleYear,
+      device: profile.deviceTarget
+    },
+    installUrl: activeInstallUrl(),
+    liveSafetyBoundary: {
+      driverMonitoringRequired: true,
+      excessiveActuationChecksLocked: true,
+      pandaSafetyReadOnly: true,
+      manualOverrideRequired: true,
+      liveVehicleParamWritesAllowed: false,
+      phoneSafetyLimitEditingAllowed: false
+    },
+    labControls: {
+      mode: profile.controllers.labMode,
+      stage: profile.controllers.testStage,
+      safetyEnvelope: profile.controllers.safetyEnvelope,
+      driverMonitoringMode: profile.controllers.driverMonitoringMode,
+      manualOverrideMode: profile.controllers.manualOverrideMode,
+      actuationSafetyMode: profile.controllers.actuationSafetyMode,
+      pandaSafetyReviewMode: profile.controllers.pandaSafetyReviewMode,
+      faultInjectionMode: profile.controllers.faultInjectionMode,
+      scenarioSet: profile.controllers.scenarioSet,
+      resultGate: profile.controllers.labResultGate,
+      speedCapMph: profile.tuning.labMaxSpeed,
+      steerTorqueCapPercent: profile.tuning.labSteerTorqueCap,
+      steerRateCapPercent: profile.tuning.labSteerRateCap,
+      accelCapPercent: profile.tuning.labAccelCap,
+      brakeCapPercent: profile.tuning.labBrakeCap,
+      minimumFollowGapSeconds: profile.tuning.labFollowGapMin,
+      takeoverTargetSeconds: profile.tuning.labTakeoverTime,
+      alertEscalationSeconds: profile.tuning.labAlertEscalationTime,
+      disengageLatencyMaxSeconds: profile.tuning.labDisengageLatency,
+      modelConfidenceMinPercent: profile.tuning.labModelConfidenceMin
+    },
+    readiness: labReadiness,
+    manual: [
+      "Design review: choose conservative lab defaults, keep live safety policy locked, and export this JSON plan.",
+      "Replay logs: run the scenario set against saved routes or synthetic logs. Any warning blocks progression.",
+      "Bench/offroad: verify alerts, manual override, disengage latency, driver monitoring, and actuator caps without public-road risk.",
+      "Closed-course: use a driver, spotter, low speed cap, and an empty controlled area. Brake/cancel/steering takeover must pass every time.",
+      "Road review gate: only after all previous stages pass and the exported plan is reviewed. Do not weaken panda safety, driver monitoring, or override behavior."
+    ],
+    profile: exportProfile()
+  };
+}
+
+function downloadSafetyPlan() {
+  const blob = new Blob([JSON.stringify(buildSafetyPlan(), null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-safety-lab-plan.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Safety test plan downloaded");
 }
 
 function importProfile(file) {
@@ -785,6 +981,14 @@ function wireActions() {
     copyText(activeInstallUrl(), "Installer URL copied");
   });
 
+  els.runSafetyLab?.addEventListener("click", () => {
+    readForm();
+    renderSafetyLab();
+    const result = computeLabReadiness();
+    showToast(`Safety Lab ${result.state}: ${result.score}/100`);
+  });
+
+  els.exportSafetyPlan?.addEventListener("click", downloadSafetyPlan);
   els.downloadProfile?.addEventListener("click", downloadProfile);
   els.downloadProfileSecondary?.addEventListener("click", downloadProfile);
   els.importButton?.addEventListener("click", () => els.importInput?.click());

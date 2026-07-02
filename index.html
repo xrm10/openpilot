@@ -56,6 +56,9 @@
           <button class="nav-item" type="button" data-section-target="software">
             <i data-lucide="download"></i><span>Software</span>
           </button>
+          <button class="nav-item" type="button" data-section-target="safetyLab">
+            <i data-lucide="shield-check"></i><span>Safety Lab</span>
+          </button>
           <button class="nav-item" type="button" data-section-target="developer">
             <i data-lucide="wrench"></i><span>Developer</span>
           </button>
@@ -684,6 +687,199 @@
               <span>Custom installer URL</span>
               <input id="customInstallUrl" placeholder="https://installer.comma.ai/xrm10/dev">
             </label>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="safetyLab" aria-label="Safety lab">
+          <article class="settings-card warning-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Safety Lab</p>
+                <h2>Simulation controls</h2>
+              </div>
+              <span class="status-badge warn" id="labResultBadge">Not run</span>
+            </div>
+            <div class="warning-copy">
+              These controls are for simulation, offroad review, bench tests, and exported test plans. They do not disable live driver monitoring, panda safety, excessive actuation checks, or manual override in the real car.
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="labOffroadOnlyAck" type="checkbox"> I understand this lab is offroad/simulation only</label>
+              <label><input id="labNoLiveApplyAck" type="checkbox"> Do not apply these settings live in the real car</label>
+              <label><input id="testDriverReady" type="checkbox"> Test driver ready and able to take over</label>
+              <label><input id="closedCourseAck" type="checkbox"> Closed-course or bench test selected before real-road review</label>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Full lab controls</p>
+                <h2>Safety measures</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Lab mode</span>
+                <select id="labMode">
+                  <option value="disabled">Disabled</option>
+                  <option value="simulation">Simulation</option>
+                  <option value="bench">Bench/offroad</option>
+                  <option value="closed-course">Closed-course review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Test stage</span>
+                <select id="testStage">
+                  <option value="design">Design review</option>
+                  <option value="replay">Replay logs</option>
+                  <option value="bench">Bench test</option>
+                  <option value="closed-course">Closed course</option>
+                  <option value="road-review">Road review gate</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Safety envelope</span>
+                <select id="safetyEnvelope">
+                  <option value="conservative">Conservative</option>
+                  <option value="balanced">Balanced lab</option>
+                  <option value="expanded-review">Expanded review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Driver monitoring</span>
+                <select id="driverMonitoringMode">
+                  <option value="strict">Strict</option>
+                  <option value="standard">Standard</option>
+                  <option value="lab-relaxed">Lab relaxed review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Manual override</span>
+                <select id="manualOverrideMode">
+                  <option value="instant">Instant takeover</option>
+                  <option value="standard">Standard takeover</option>
+                  <option value="measured-review">Measured review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Actuation safety</span>
+                <select id="actuationSafetyMode">
+                  <option value="strict">Strict caps</option>
+                  <option value="bounded">Bounded lab caps</option>
+                  <option value="expanded-review">Expanded review caps</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Panda safety review</span>
+                <select id="pandaSafetyReviewMode">
+                  <option value="readonly">Read-only</option>
+                  <option value="replay-check">Replay check</option>
+                  <option value="bench-compare">Bench compare</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Fault injection</span>
+                <select id="faultInjectionMode">
+                  <option value="none">None</option>
+                  <option value="alerts">Alerts only</option>
+                  <option value="sensor-dropout">Sensor dropout</option>
+                  <option value="can-delay">CAN delay</option>
+                  <option value="actuator-lag">Actuator lag</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Scenario set</span>
+                <select id="scenarioSet">
+                  <option value="lane-assist">Lane assist</option>
+                  <option value="stop-go">Stop and go</option>
+                  <option value="cut-in">Lead cut-in</option>
+                  <option value="curves">Curves</option>
+                  <option value="mixed">Mixed regression</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Result gate</span>
+                <select id="labResultGate">
+                  <option value="block-on-warn">Block on warning</option>
+                  <option value="manual-review">Manual review</option>
+                  <option value="export-only">Export only</option>
+                </select>
+              </label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Test speed cap <strong id="labMaxSpeedValue">35 mph</strong></span>
+                <input id="labMaxSpeed" type="range" min="5" max="65" step="1" value="35">
+              </label>
+              <label class="range-field">
+                <span>Steer torque cap <strong id="labSteerTorqueCapValue">60%</strong></span>
+                <input id="labSteerTorqueCap" type="range" min="20" max="100" step="1" value="60">
+              </label>
+              <label class="range-field">
+                <span>Steer rate cap <strong id="labSteerRateCapValue">65%</strong></span>
+                <input id="labSteerRateCap" type="range" min="20" max="100" step="1" value="65">
+              </label>
+              <label class="range-field">
+                <span>Acceleration cap <strong id="labAccelCapValue">45%</strong></span>
+                <input id="labAccelCap" type="range" min="10" max="80" step="1" value="45">
+              </label>
+              <label class="range-field">
+                <span>Brake cap <strong id="labBrakeCapValue">55%</strong></span>
+                <input id="labBrakeCap" type="range" min="10" max="90" step="1" value="55">
+              </label>
+              <label class="range-field">
+                <span>Minimum follow gap <strong id="labFollowGapMinValue">2.5s</strong></span>
+                <input id="labFollowGapMin" type="range" min="2" max="4" step="0.1" value="2.5">
+              </label>
+              <label class="range-field">
+                <span>Takeover target <strong id="labTakeoverTimeValue">1.0s</strong></span>
+                <input id="labTakeoverTime" type="range" min="0.3" max="2.5" step="0.1" value="1.0">
+              </label>
+              <label class="range-field">
+                <span>Alert escalation <strong id="labAlertEscalationTimeValue">2.0s</strong></span>
+                <input id="labAlertEscalationTime" type="range" min="0.5" max="5" step="0.1" value="2.0">
+              </label>
+              <label class="range-field">
+                <span>Disengage latency max <strong id="labDisengageLatencyValue">0.30s</strong></span>
+                <input id="labDisengageLatency" type="range" min="0.1" max="1" step="0.01" value="0.30">
+              </label>
+              <label class="range-field">
+                <span>Model confidence min <strong id="labModelConfidenceMinValue">70%</strong></span>
+                <input id="labModelConfidenceMin" type="range" min="50" max="95" step="1" value="70">
+              </label>
+            </div>
+            <div class="migration-actions">
+              <button class="primary-button" id="runSafetyLab" type="button">Run lab check</button>
+              <button class="ghost-button" id="exportSafetyPlan" type="button">Download test plan</button>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Simulation result</p>
+                <h2>Readiness score</h2>
+              </div>
+              <strong class="lab-score" id="labScore">0</strong>
+            </div>
+            <div class="meter lab-meter"><i id="labScoreMeter"></i></div>
+            <div class="lab-results" id="labResults"></div>
+          </article>
+
+          <article class="settings-card manual-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Manual</p>
+                <h2>Testing workflow before real-car review</h2>
+              </div>
+            </div>
+            <ol class="manual-list">
+              <li><strong>Design review:</strong> choose conservative lab defaults, keep live safety policy locked, and export the JSON plan.</li>
+              <li><strong>Replay logs:</strong> run the scenario set against saved routes or synthetic logs. Any warning blocks progression.</li>
+              <li><strong>Bench/offroad:</strong> verify alerts, manual override, disengage latency, driver monitoring, and actuator caps without public-road risk.</li>
+              <li><strong>Closed-course:</strong> use a driver, spotter, low speed cap, and an empty controlled area. Brake/cancel/steering takeover must pass every time.</li>
+              <li><strong>Road review gate:</strong> only after all previous stages pass and the exported plan is reviewed. Do not weaken panda safety, driver monitoring, or override behavior.</li>
+            </ol>
           </article>
         </section>
 

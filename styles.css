@@ -379,6 +379,23 @@ button:focus-visible {
   gap: 8px;
 }
 
+.warning-card {
+  border-color: rgba(240, 185, 79, 0.36);
+  background:
+    linear-gradient(180deg, rgba(240, 185, 79, 0.07), transparent 170px),
+    var(--panel);
+}
+
+.warning-copy {
+  margin-bottom: 14px;
+  border: 1px solid rgba(240, 185, 79, 0.28);
+  border-radius: var(--radius);
+  background: var(--amber-dim);
+  color: #f4d79b;
+  padding: 12px;
+  line-height: 1.45;
+}
+
 .status-badge {
   min-width: 92px;
   min-height: 34px;
@@ -444,6 +461,74 @@ button:focus-visible {
   height: 100%;
   border-radius: inherit;
   background: var(--green);
+}
+
+.lab-score {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.lab-meter {
+  margin-bottom: 14px;
+}
+
+.lab-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.lab-check {
+  min-height: 78px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.lab-check.pass {
+  border-color: rgba(117, 213, 107, 0.3);
+}
+
+.lab-check.fail {
+  border-color: rgba(242, 107, 97, 0.42);
+  background: rgba(242, 107, 97, 0.07);
+}
+
+.lab-check strong,
+.lab-check span {
+  display: block;
+}
+
+.lab-check strong {
+  line-height: 1.2;
+}
+
+.lab-check span {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.manual-card {
+  border-color: rgba(82, 214, 200, 0.28);
+}
+
+.manual-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.manual-list li {
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.manual-list strong {
+  color: var(--text);
 }
 
 .route-card {
