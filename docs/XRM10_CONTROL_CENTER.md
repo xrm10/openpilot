@@ -12,10 +12,13 @@ It is designed for development workflow, not direct vehicle actuation.
 ## Capabilities
 
 - Use a sunnypilot-style section sidebar with Device, Toggles, Models,
-  Steering, Cruise, Visuals, Display, Maps, Vehicle, Software, Safety Lab,
-  Developer, and Migration Wizard views.
+  Steering, Cruise, Visuals, Display, Maps, Nav Pilot, Vehicle, Software,
+  Safety Lab, Developer, and Migration Wizard views.
 - Keep Safety Lab in the same app for simulation, replay, bench/offroad, and
   closed-course review before any real-car test.
+- Keep Nav Pilot Lab in the same app for map-camera route intent, highway
+  exits, highway merges, route lane selection, U-turn review, roundabout review,
+  and surface street turn planning.
 - Select an install target for upgrade or rollback.
 - Copy the current installer URL.
 - Configure bounded core controller preferences.
@@ -31,6 +34,8 @@ It is designed for development workflow, not direct vehicle actuation.
 - Export and import reviewable JSON profiles.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
   review steps.
+- Export Nav Pilot plans with maneuver confidence checks, map-camera agreement
+  requirements, driver-confirm policy, and fallback gates.
 - Show locked safety policies that must not be bypassed.
 
 ## Safety boundary
@@ -43,6 +48,11 @@ preserve those limits and add tests before install use.
 Safety Lab controls represent simulation/offroad review values. They are not a
 live-car safety bypass and must not be wired into real vehicle behavior without
 separate reviewed code, bench tests, closed-course tests, and safety validation.
+
+Nav Pilot controls represent planning and simulation values. They are not live
+automated-driving enablement and must not be wired into real steering, exits,
+roundabouts, or U-turn behavior without separate reviewed code, simulator
+coverage, bench tests, closed-course tests, and safety validation.
 
 ## Safety Lab manual
 
@@ -57,6 +67,20 @@ separate reviewed code, bench tests, closed-course tests, and safety validation.
 5. Road review gate: only after all previous stages pass and the exported plan
    is reviewed. Do not weaken panda safety, driver monitoring, or override
    behavior.
+
+## Nav Pilot manual
+
+1. Map intent: route instruction must be stable before the vehicle approaches a
+   maneuver.
+2. Camera agreement: lane lines, road edge, signs, arrows, and drivable path
+   must agree with the route.
+3. Driver confirmation: lane-route actions require signal, nudge, or explicit
+   confirmation.
+4. Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only
+   until separately validated.
+5. Fallback: any blind spot, low confidence, missing lane, unclear yield
+   condition, or missing confirmation blocks the maneuver and asks the driver to
+   take over.
 
 ## Current install URL
 

@@ -14,8 +14,8 @@ tools/xrm10_control_center/index.html
 - Tesla Model 3/Model Y HW4 profile metadata.
 - comma four install target selection.
 - Sectioned settings for Device, Toggles, Models, Steering, Cruise, Visuals,
-  Display, Maps, Vehicle, Software, Safety Lab, Developer, and Migration
-  Wizard.
+  Display, Maps, Nav Pilot, Vehicle, Software, Safety Lab, Developer, and
+  Migration Wizard.
 - Controller preferences for lateral mode, MADS, lane-change mode, speed
   assist, steering guardrails, cruise behavior, model policy, map guidance,
   display behavior, and developer review logging.
@@ -29,8 +29,13 @@ tools/xrm10_control_center/index.html
 - Upgrade and rollback installer URLs.
 - Safety Lab profiles for simulation, replay, bench/offroad, and closed-course
   review before any real-car test.
+- Nav Pilot Lab profiles for map-camera route intent, highway exits, highway
+  merges, route lane selection, U-turn review, roundabout review, and surface
+  street turns.
 - Safety Lab test-plan export with readiness score, checklist, lab controls,
   and the staged testing manual.
+- Nav Pilot plan export with maneuver confidence score, confidence gates,
+  driver-confirm policy, and map-camera agreement requirements.
 - JSON import/export for profile review.
 
 ## What it does not control
@@ -41,6 +46,9 @@ profile and are shown as read-only policy.
 
 Safety Lab controls are simulation/offroad review controls. They do not unlock
 live vehicle safety limits from the phone app.
+
+Nav Pilot controls are planning and simulation controls. They do not enable live
+automated driving from the phone app.
 
 The exported JSON is a review artifact. Wiring it into on-device params requires
 a separate reviewed implementation and tests.
@@ -54,6 +62,18 @@ a separate reviewed implementation and tests.
 4. Closed-course: use a driver, spotter, low speed cap, and controlled area.
 5. Road review gate: only after previous stages pass and the exported plan is
    reviewed.
+
+## Nav Pilot workflow
+
+1. Map intent: route instruction must be stable before approaching a maneuver.
+2. Camera agreement: lane lines, road edge, signs, arrows, and drivable path
+   must agree with the route.
+3. Driver confirmation: lane-route actions require signal, nudge, or explicit
+   confirmation.
+4. Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only
+   until separately validated.
+5. Fallback: blind spots, low confidence, missing lanes, unclear yield
+   conditions, or missing confirmation block the maneuver.
 
 ## Active installer target
 

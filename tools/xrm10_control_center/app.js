@@ -57,6 +57,7 @@ const sectionMeta = {
   visuals: ["Device settings", "Visuals"],
   display: ["Device settings", "Display"],
   maps: ["Device settings", "Maps"],
+  navPilot: ["Device settings", "Nav Pilot"],
   vehicle: ["Device settings", "Vehicle"],
   software: ["Device settings", "Software"],
   safetyLab: ["Device settings", "Safety Lab"],
@@ -65,7 +66,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   activeSection: "device",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -123,6 +124,22 @@ const defaultProfile = {
     mapRegion: "us",
     offlineMaps: false,
     mapLaneGuidance: true,
+    navMode: "off",
+    routeIntentMode: "prompt",
+    maneuverType: "highway-exit",
+    navMapSourceMode: "mapbox-review",
+    cameraFusionMode: "map-camera-agree",
+    navSteeringMode: "advisory",
+    roundaboutPolicy: "yield-and-prompt",
+    uTurnPolicy: "closed-course-only",
+    exitLanePolicy: "early-confirm",
+    driverConfirmMode: "required",
+    navRequireSignal: true,
+    navRequireDriverNudge: true,
+    navBlindSpotBlock: true,
+    navMapCameraAgree: true,
+    navNoAutoUturnRoad: true,
+    navRecordManeuver: true,
     tireSizePreset: "stock-18",
     vehicleHarnessMode: "review",
     regionProfile: "us",
@@ -180,7 +197,15 @@ const defaultProfile = {
     labTakeoverTime: 1,
     labAlertEscalationTime: 2,
     labDisengageLatency: 0.3,
-    labModelConfidenceMin: 70
+    labModelConfidenceMin: 70,
+    navMapConfidence: 80,
+    navCameraConfidence: 82,
+    navLaneConfidence: 78,
+    navManeuverSpeed: 35,
+    navExitDistance: 0.8,
+    navRoundaboutYieldGap: 4,
+    navSteerAuthority: 45,
+    navDriverConfirmTime: 5
   },
   safetyPolicy: {
     driverMonitoringRequired: true,
@@ -235,6 +260,16 @@ const selectBindings = [
   ["routeAssistMode", ["controllers", "routeAssistMode"]],
   ["speedLimitSource", ["controllers", "speedLimitSource"]],
   ["mapRegion", ["controllers", "mapRegion"]],
+  ["navMode", ["controllers", "navMode"]],
+  ["routeIntentMode", ["controllers", "routeIntentMode"]],
+  ["maneuverType", ["controllers", "maneuverType"]],
+  ["navMapSourceMode", ["controllers", "navMapSourceMode"]],
+  ["cameraFusionMode", ["controllers", "cameraFusionMode"]],
+  ["navSteeringMode", ["controllers", "navSteeringMode"]],
+  ["roundaboutPolicy", ["controllers", "roundaboutPolicy"]],
+  ["uTurnPolicy", ["controllers", "uTurnPolicy"]],
+  ["exitLanePolicy", ["controllers", "exitLanePolicy"]],
+  ["driverConfirmMode", ["controllers", "driverConfirmMode"]],
   ["tireSizePreset", ["controllers", "tireSizePreset"]],
   ["vehicleHarnessMode", ["controllers", "vehicleHarnessMode"]],
   ["regionProfile", ["controllers", "regionProfile"]],
@@ -273,6 +308,12 @@ const checkboxBindings = [
   ["reduceMotion", ["controllers", "reduceMotion"]],
   ["offlineMaps", ["controllers", "offlineMaps"]],
   ["mapLaneGuidance", ["controllers", "mapLaneGuidance"]],
+  ["navRequireSignal", ["controllers", "navRequireSignal"]],
+  ["navRequireDriverNudge", ["controllers", "navRequireDriverNudge"]],
+  ["navBlindSpotBlock", ["controllers", "navBlindSpotBlock"]],
+  ["navMapCameraAgree", ["controllers", "navMapCameraAgree"]],
+  ["navNoAutoUturnRoad", ["controllers", "navNoAutoUturnRoad"]],
+  ["navRecordManeuver", ["controllers", "navRecordManeuver"]],
   ["radarInteropReview", ["controllers", "radarInteropReview"]],
   ["developerMode", ["controllers", "developerMode"]],
   ["replayReview", ["controllers", "replayReview"]],
@@ -312,7 +353,15 @@ const rangeBindings = [
   { id: "labTakeoverTime", path: ["tuning", "labTakeoverTime"], min: 0.3, max: 2.5, valueId: "labTakeoverTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "labAlertEscalationTime", path: ["tuning", "labAlertEscalationTime"], min: 0.5, max: 5, valueId: "labAlertEscalationTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "labDisengageLatency", path: ["tuning", "labDisengageLatency"], min: 0.1, max: 1, valueId: "labDisengageLatencyValue", format: (v) => `${Number(v).toFixed(2)}s` },
-  { id: "labModelConfidenceMin", path: ["tuning", "labModelConfidenceMin"], min: 50, max: 95, valueId: "labModelConfidenceMinValue", format: (v) => `${v}%` }
+  { id: "labModelConfidenceMin", path: ["tuning", "labModelConfidenceMin"], min: 50, max: 95, valueId: "labModelConfidenceMinValue", format: (v) => `${v}%` },
+  { id: "navMapConfidence", path: ["tuning", "navMapConfidence"], min: 40, max: 100, valueId: "navMapConfidenceValue", format: (v) => `${v}%` },
+  { id: "navCameraConfidence", path: ["tuning", "navCameraConfidence"], min: 40, max: 100, valueId: "navCameraConfidenceValue", format: (v) => `${v}%` },
+  { id: "navLaneConfidence", path: ["tuning", "navLaneConfidence"], min: 40, max: 100, valueId: "navLaneConfidenceValue", format: (v) => `${v}%` },
+  { id: "navManeuverSpeed", path: ["tuning", "navManeuverSpeed"], min: 5, max: 75, valueId: "navManeuverSpeedValue", format: (v) => `${v} mph` },
+  { id: "navExitDistance", path: ["tuning", "navExitDistance"], min: 0.1, max: 2.5, valueId: "navExitDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` },
+  { id: "navRoundaboutYieldGap", path: ["tuning", "navRoundaboutYieldGap"], min: 2, max: 8, valueId: "navRoundaboutYieldGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "navSteerAuthority", path: ["tuning", "navSteerAuthority"], min: 0, max: 75, valueId: "navSteerAuthorityValue", format: (v) => `${v}%` },
+  { id: "navDriverConfirmTime", path: ["tuning", "navDriverConfirmTime"], min: 2, max: 12, valueId: "navDriverConfirmTimeValue", format: (v) => `${Number(v).toFixed(1)}s` }
 ];
 
 let profile = loadProfile();
@@ -329,6 +378,10 @@ const els = {
   labScore: document.querySelector("#labScore"),
   labScoreMeter: document.querySelector("#labScoreMeter"),
   labResults: document.querySelector("#labResults"),
+  navResultBadge: document.querySelector("#navResultBadge"),
+  navScore: document.querySelector("#navScore"),
+  navScoreMeter: document.querySelector("#navScoreMeter"),
+  navResults: document.querySelector("#navResults"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
@@ -343,6 +396,8 @@ const els = {
   copyInstallUrl: document.querySelector("#copyInstallUrl"),
   runSafetyLab: document.querySelector("#runSafetyLab"),
   exportSafetyPlan: document.querySelector("#exportSafetyPlan"),
+  runNavPilot: document.querySelector("#runNavPilot"),
+  exportNavPlan: document.querySelector("#exportNavPlan"),
   downloadProfile: document.querySelector("#downloadProfile"),
   downloadProfileSecondary: document.querySelector("#downloadProfileSecondary"),
   importButton: document.querySelector("#importButton"),
@@ -426,6 +481,10 @@ function computeSafetyScore() {
   if (c.parameterPreviewMode !== "readonly") score -= 4;
   if (c.trafficLightReview) score -= 4;
   if (c.radarInteropReview) score -= 8;
+  if (c.navMode === "closed-course") score -= 5;
+  if (c.routeIntentMode === "lab-auto-plan") score -= 8;
+  if (c.navSteeringMode === "closed-course-plan") score -= 8;
+  if (c.maneuverType === "u-turn" || c.maneuverType === "roundabout") score -= 6;
   if (c.labMode === "closed-course") score -= 4;
   if (c.safetyEnvelope === "expanded-review") score -= 8;
   if (c.driverMonitoringMode === "lab-relaxed") score -= 12;
@@ -446,6 +505,8 @@ function computeSafetyScore() {
   if (Number(t.modelConfidenceGate) < 60) score -= 8;
   if (Number(t.labMaxSpeed) > 45 && c.labMode !== "disabled") score -= 6;
   if (Number(t.labDisengageLatency) > 0.5 && c.labMode !== "disabled") score -= 8;
+  if (Number(t.navSteerAuthority) > 55 && c.navMode !== "off") score -= 8;
+  if (Number(t.navManeuverSpeed) > 45 && c.navMode !== "off") score -= 6;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
   return Math.max(0, Math.min(100, score));
@@ -601,6 +662,7 @@ function render() {
   setText(els.previewText, previewText());
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
   renderSafetyLab();
+  renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
   renderSection(profile.activeSection);
@@ -669,6 +731,58 @@ function renderSafetyLab() {
     .join("");
 }
 
+function computeNavReadiness() {
+  const c = profile.controllers;
+  const t = profile.tuning;
+  const checks = [];
+  let score = 100;
+
+  addLabCheck(checks, c.navMode !== "off", "Navigation lab enabled", "Choose advisory, simulation, or closed-course review.", 20);
+  addLabCheck(checks, Number(t.navMapConfidence) >= 75, "Map confidence", "Map confidence should be at least 75%.", 12);
+  addLabCheck(checks, Number(t.navCameraConfidence) >= 75, "Camera confidence", "Camera confidence should be at least 75%.", 12);
+  addLabCheck(checks, Number(t.navLaneConfidence) >= 70, "Lane confidence", "Lane confidence should be at least 70%.", 10);
+  addLabCheck(checks, !c.navMapCameraAgree || Math.abs(Number(t.navMapConfidence) - Number(t.navCameraConfidence)) <= 20, "Map-camera agreement", "Map and camera confidence disagree too much.", 12);
+  addLabCheck(checks, c.driverConfirmMode !== "required" || Number(t.navDriverConfirmTime) >= 3, "Driver confirm window", "Driver confirmation window should be at least 3.0s.", 8);
+  addLabCheck(checks, c.navRequireDriverNudge || c.navSteeringMode === "advisory", "Driver nudge gate", "Steering plans require driver nudge outside advisory mode.", 18);
+  addLabCheck(checks, c.navRequireSignal || !["highway-exit", "highway-merge", "lane-route"].includes(c.maneuverType), "Signal gate", "Lane-route maneuvers require turn signal gate.", 12);
+  addLabCheck(checks, c.navBlindSpotBlock, "Blind spot block", "Blind spot block must stay enabled.", 18);
+  addLabCheck(checks, c.maneuverType !== "u-turn" || c.uTurnPolicy !== "block", "U-turn policy", "U-turn is currently blocked by policy.", 20);
+  addLabCheck(checks, c.maneuverType !== "u-turn" || c.navNoAutoUturnRoad, "U-turn road gate", "U-turn must stay blocked outside closed-course review.", 18);
+  addLabCheck(checks, c.maneuverType !== "roundabout" || Number(t.navRoundaboutYieldGap) >= 3.5, "Roundabout yield gap", "Roundabout yield gap should be at least 3.5s.", 14);
+  addLabCheck(checks, c.maneuverType !== "highway-exit" || Number(t.navExitDistance) >= 0.4, "Exit prep distance", "Exit preparation should start at least 0.4 mi before the exit.", 10);
+  addLabCheck(checks, Number(t.navManeuverSpeed) <= 55 || c.navMode === "advisory", "Maneuver speed", "Non-advisory maneuver review should stay at or below 55 mph.", 12);
+  addLabCheck(checks, Number(t.navSteerAuthority) <= 55 || c.navSteeringMode === "advisory", "Steering authority", "Non-advisory steering authority should stay at or below 55%.", 14);
+
+  for (const check of checks) {
+    if (!check.pass) score -= check.penalty;
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  const blocked = checks.some((check) => !check.pass && check.penalty >= 18);
+  const state = blocked || score < 70 ? "Blocked" : score < 90 ? "Review" : "Pass";
+
+  return { score, state, checks };
+}
+
+function renderNavPilot() {
+  const result = computeNavReadiness();
+  const stateClass = result.state === "Pass" ? "pass" : result.state === "Review" ? "warn" : "stop";
+
+  setText(els.navScore, String(result.score));
+  if (els.navScoreMeter) els.navScoreMeter.style.width = `${result.score}%`;
+  setBadge(els.navResultBadge, result.state, stateClass);
+  if (!els.navResults) return;
+
+  els.navResults.innerHTML = result.checks
+    .map((check) => `
+      <div class="lab-check ${check.pass ? "pass" : "fail"}">
+        <strong>${check.pass ? "PASS" : "CHECK"} - ${check.label}</strong>
+        <span>${check.detail}</span>
+      </div>
+    `)
+    .join("");
+}
+
 function previewTitle() {
   if (profile.controllers.laneChangeMode === "off") return "Lane changes off";
   if (profile.controllers.blindSpotDelay) return "Guarded lane assist";
@@ -700,6 +814,16 @@ function activeControllerCount() {
     "visionPolicyMode",
     "mapMode",
     "routeAssistMode",
+    "navMode",
+    "routeIntentMode",
+    "maneuverType",
+    "navMapSourceMode",
+    "cameraFusionMode",
+    "navSteeringMode",
+    "roundaboutPolicy",
+    "uTurnPolicy",
+    "exitLanePolicy",
+    "driverConfirmMode",
     "vehicleHarnessMode",
     "parameterPreviewMode",
     "labMode",
@@ -784,6 +908,7 @@ function labelFor(group, value) {
 
 function exportProfile() {
   const labReadiness = computeLabReadiness();
+  const navReadiness = computeNavReadiness();
   return {
     ...profile,
     computed: {
@@ -794,6 +919,10 @@ function exportProfile() {
       safetyLabReadiness: {
         score: labReadiness.score,
         state: labReadiness.state
+      },
+      navPilotReadiness: {
+        score: navReadiness.score,
+        state: navReadiness.state
       },
       generatedAt: new Date().toISOString()
     }
@@ -874,6 +1003,72 @@ function downloadSafetyPlan() {
   link.click();
   URL.revokeObjectURL(url);
   showToast("Safety test plan downloaded");
+}
+
+function buildNavPlan() {
+  const navReadiness = computeNavReadiness();
+  return {
+    planVersion: 1,
+    generatedAt: new Date().toISOString(),
+    vehicle: {
+      profileName: profile.profileName,
+      model: profile.vehicleModel,
+      year: profile.vehicleYear,
+      device: profile.deviceTarget
+    },
+    liveAutomationBoundary: {
+      automatedDrivingEnabledByThisApp: false,
+      driverConfirmationRequired: true,
+      manualOverrideRequired: true,
+      blindSpotBlockRequired: true,
+      lowConfidenceBlocksManeuver: true
+    },
+    navControls: {
+      mode: profile.controllers.navMode,
+      routeIntentMode: profile.controllers.routeIntentMode,
+      maneuverType: profile.controllers.maneuverType,
+      mapSource: profile.controllers.navMapSourceMode,
+      cameraFusionMode: profile.controllers.cameraFusionMode,
+      steeringMode: profile.controllers.navSteeringMode,
+      roundaboutPolicy: profile.controllers.roundaboutPolicy,
+      uTurnPolicy: profile.controllers.uTurnPolicy,
+      exitLanePolicy: profile.controllers.exitLanePolicy,
+      driverConfirmMode: profile.controllers.driverConfirmMode,
+      requireSignal: profile.controllers.navRequireSignal,
+      requireDriverNudge: profile.controllers.navRequireDriverNudge,
+      blindSpotBlock: profile.controllers.navBlindSpotBlock,
+      requireMapCameraAgreement: profile.controllers.navMapCameraAgree,
+      blockRoadUturn: profile.controllers.navNoAutoUturnRoad,
+      recordManeuver: profile.controllers.navRecordManeuver,
+      mapConfidencePercent: profile.tuning.navMapConfidence,
+      cameraConfidencePercent: profile.tuning.navCameraConfidence,
+      laneConfidencePercent: profile.tuning.navLaneConfidence,
+      maneuverSpeedMph: profile.tuning.navManeuverSpeed,
+      exitPrepDistanceMiles: profile.tuning.navExitDistance,
+      roundaboutYieldGapSeconds: profile.tuning.navRoundaboutYieldGap,
+      steeringAuthorityPercent: profile.tuning.navSteerAuthority,
+      driverConfirmTimeoutSeconds: profile.tuning.navDriverConfirmTime
+    },
+    readiness: navReadiness,
+    manual: [
+      "Map intent: route instruction must be stable before the car approaches the maneuver.",
+      "Camera agreement: lane lines, road edge, signs, arrows, and drivable path must agree with the route.",
+      "Driver confirmation: lane route actions require signal, nudge, or explicit confirmation.",
+      "Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only until separately validated.",
+      "Fallback: any blind spot, low confidence, missing lane, or unclear yield condition blocks the maneuver and asks the driver to take over."
+    ]
+  };
+}
+
+function downloadNavPlan() {
+  const blob = new Blob([JSON.stringify(buildNavPlan(), null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-nav-pilot-plan.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Nav plan downloaded");
 }
 
 function importProfile(file) {
@@ -989,6 +1184,14 @@ function wireActions() {
   });
 
   els.exportSafetyPlan?.addEventListener("click", downloadSafetyPlan);
+  els.runNavPilot?.addEventListener("click", () => {
+    readForm();
+    renderNavPilot();
+    const result = computeNavReadiness();
+    showToast(`Nav Pilot ${result.state}: ${result.score}/100`);
+  });
+
+  els.exportNavPlan?.addEventListener("click", downloadNavPlan);
   els.downloadProfile?.addEventListener("click", downloadProfile);
   els.downloadProfileSecondary?.addEventListener("click", downloadProfile);
   els.importButton?.addEventListener("click", () => els.importInput?.click());
