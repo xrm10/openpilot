@@ -49,6 +49,7 @@ const installTargets = [
 ];
 
 const sectionMeta = {
+  home: ["XRM10", "Home"],
   device: ["Device settings", "Device"],
   toggles: ["Device settings", "Toggles"],
   models: ["Device settings", "Models"],
@@ -66,8 +67,8 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 5,
-  activeSection: "device",
+  schemaVersion: 6,
+  activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
   vehicleYear: "2024",
@@ -382,6 +383,11 @@ const els = {
   navScore: document.querySelector("#navScore"),
   navScoreMeter: document.querySelector("#navScoreMeter"),
   navResults: document.querySelector("#navResults"),
+  settingsSearch: document.querySelector("#settingsSearch"),
+  homeDeviceName: document.querySelector("#homeDeviceName"),
+  homeVersion: document.querySelector("#homeVersion"),
+  homeBranch: document.querySelector("#homeBranch"),
+  homeCommit: document.querySelector("#homeCommit"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
@@ -655,6 +661,10 @@ function render() {
   setBadge(els.controllerBadge, controllerLabel(), stateClass);
   setBadge(els.moduleBadge, `${activeControllerCount()} modules`, stateClass);
   setText(els.sidebarStatus, controllerLabel());
+  setText(els.homeDeviceName, profile.deviceTarget);
+  setText(els.homeVersion, "2026.07.02-xrm10");
+  setText(els.homeBranch, "dev");
+  setText(els.homeCommit, "344ec6a");
   setText(els.activeBranchLabel, branchLabel);
   setText(els.activeBranchMeta, activeInstallUrl());
   if (els.branchStatusDot) els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
@@ -666,6 +676,7 @@ function render() {
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
   renderSection(profile.activeSection);
+  filterHomeTiles();
 
   if (window.lucide) {
     window.lucide.createIcons();
@@ -1120,6 +1131,7 @@ function setSection(section) {
 function renderSection(section) {
   const nextSection = sectionMeta[section] ? section : "device";
   const [eyebrow, title] = sectionMeta[nextSection];
+  document.body.dataset.activeSection = nextSection;
   document.querySelectorAll("[data-section]").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.section === nextSection);
   });
@@ -1128,6 +1140,15 @@ function renderSection(section) {
   });
   setText(els.sectionEyebrow, eyebrow);
   setText(els.sectionTitle, title);
+}
+
+function filterHomeTiles() {
+  if (!els.settingsSearch) return;
+  const query = els.settingsSearch.value.trim().toLowerCase();
+  document.querySelectorAll(".home-tile").forEach((tile) => {
+    const text = `${tile.textContent} ${tile.dataset.search || ""}`.toLowerCase();
+    tile.hidden = query !== "" && !text.includes(query);
+  });
 }
 
 function wireFormEvents() {
@@ -1153,6 +1174,13 @@ function wireFormEvents() {
 function wireActions() {
   document.querySelectorAll("[data-section-target]").forEach((button) => {
     button.addEventListener("click", () => setSection(button.dataset.sectionTarget));
+  });
+
+  els.settingsSearch?.addEventListener("input", filterHomeTiles);
+  els.settingsSearch?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const firstVisibleTile = [...document.querySelectorAll(".home-tile")].find((tile) => !tile.hidden);
+    if (firstVisibleTile) setSection(firstVisibleTile.dataset.sectionTarget);
   });
 
   els.targetList?.addEventListener("click", (event) => {

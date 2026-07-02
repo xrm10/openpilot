@@ -11,6 +11,8 @@ It is designed for development workflow, not direct vehicle actuation.
 
 ## Capabilities
 
+- Use a realistic Home dashboard with device status, search, offline sync state,
+  version, branch, commit, and category tiles.
 - Use a sunnypilot-style section sidebar with Device, Toggles, Models,
   Steering, Cruise, Visuals, Display, Maps, Nav Pilot, Vehicle, Software,
   Safety Lab, Developer, and Migration Wizard views.

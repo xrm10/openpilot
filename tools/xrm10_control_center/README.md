@@ -11,6 +11,8 @@ tools/xrm10_control_center/index.html
 
 ## What it controls
 
+- A realistic Home dashboard with device status, search, offline sync state,
+  version, branch, commit, and category tiles.
 - Tesla Model 3/Model Y HW4 profile metadata.
 - comma four install target selection.
 - Sectioned settings for Device, Toggles, Models, Steering, Cruise, Visuals,
