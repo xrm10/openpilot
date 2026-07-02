@@ -13,6 +13,7 @@ const port = Number(args.get("port") || 8787);
 const stateDir = path.join(root, ".sync_state");
 const latestProfilePath = path.join(stateDir, "latest_profile.json");
 const sectionStatusPath = path.join(stateDir, "section_status.json");
+const carRoutePath = path.join(stateDir, "car_route.json");
 
 const device = {
   name: "comma four",
@@ -90,6 +91,52 @@ function writeSectionStatuses(statuses) {
   fs.writeFileSync(sectionStatusPath, JSON.stringify(statuses, null, 2));
 }
 
+function defaultCarRoute() {
+  return {
+    active: false,
+    source: "car-screen",
+    provider: "car-screen-maps",
+    status: "waiting",
+    destination: "",
+    routeId: "",
+    nextInstruction: "Waiting for destination",
+    confidence: 0,
+    updatedAt: null
+  };
+}
+
+function readCarRoute() {
+  try {
+    return normalizeCarRoute(JSON.parse(fs.readFileSync(carRoutePath, "utf8")));
+  } catch {
+    return defaultCarRoute();
+  }
+}
+
+function writeCarRoute(route) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(carRoutePath, JSON.stringify(normalizeCarRoute(route), null, 2));
+}
+
+function normalizeCarRoute(route = {}) {
+  const next = defaultCarRoute();
+  const destination = String(route.destination || "").trim();
+  const confidence = Number(route.confidence ?? next.confidence);
+  return {
+    ...next,
+    ...route,
+    active: Boolean(route.active && destination),
+    source: String(route.source || next.source),
+    provider: String(route.provider || next.provider),
+    status: String(route.status || (destination ? "active" : next.status)),
+    destination,
+    routeId: String(route.routeId || ""),
+    nextInstruction: String(route.nextInstruction || (destination ? "Route intent ready for driver-confirmed Nav Pilot" : next.nextInstruction)),
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : next.confidence,
+    updatedAt: route.updatedAt || null
+  };
+}
+
 function runSshStatus(target, keyPath) {
   return new Promise((resolve, reject) => {
     const command = "echo xrm10-ssh-ok; uname -a";
@@ -153,7 +200,8 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       online: true,
       device,
-      latestProfile: latestProfileMeta()
+      latestProfile: latestProfileMeta(),
+      route: readCarRoute()
     });
     return;
   }
@@ -240,6 +288,61 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid road-state payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/car-route") {
+    sendJson(res, 200, {
+      ok: true,
+      device,
+      route: readCarRoute()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/car-route") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Car-route bridge accepts route intent only. liveVehicleApplyAllowed must be false."
+        });
+        return;
+      }
+
+      const destination = String(payload.destination || "").trim();
+      const active = payload.active !== false && Boolean(destination);
+      const route = normalizeCarRoute({
+        active,
+        source: String(payload.source || "car-screen"),
+        provider: String(payload.provider || "car-screen-maps"),
+        status: active ? "active" : "waiting",
+        destination,
+        routeId: String(payload.routeId || `car-route-${Date.now()}`),
+        nextInstruction: String(payload.nextInstruction || (active
+          ? "Route intent ready for driver-confirmed Nav Pilot"
+          : "Waiting for destination")),
+        confidence: Number(payload.confidence ?? 82),
+        updatedAt: new Date().toISOString()
+      });
+      writeCarRoute(route);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "car-route-intent-staged",
+        liveVehicleApplyAllowed: false,
+        device,
+        route
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid car-route payload"
       });
     }
     return;

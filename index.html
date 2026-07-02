@@ -118,6 +118,10 @@
             <span>Pending</span>
             <strong id="topPendingCount">0</strong>
           </div>
+          <div class="live-stat">
+            <span>Route</span>
+            <strong id="topRouteState">No route</strong>
+          </div>
           <div class="road-state-control" role="group" aria-label="Road state control">
             <button class="road-state-button active" id="setOffroad" type="button" data-road-state="offroad">
               Offroad
@@ -363,6 +367,10 @@
               <div class="summary-row">
                 <span>SSH</span>
                 <strong id="liveSshState">Not checked</strong>
+              </div>
+              <div class="summary-row">
+                <span>Car route</span>
+                <strong id="liveRouteState">No route</strong>
               </div>
             </div>
             <div class="button-row">
@@ -878,6 +886,67 @@
         </section>
 
         <section class="section-panel" data-section="maps" aria-label="Map settings">
+          <article class="settings-card route-live-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Car screen route</p>
+                <h2>Live destination source</h2>
+              </div>
+              <span class="status-badge warn" id="carRouteStatus">Waiting</span>
+            </div>
+            <div class="route-status-grid">
+              <div class="summary-row">
+                <span>Destination</span>
+                <strong id="carRouteDestination">No car route</strong>
+              </div>
+              <div class="summary-row">
+                <span>Source</span>
+                <strong id="carRouteSource">Car screen maps</strong>
+              </div>
+              <div class="summary-row">
+                <span>Updated</span>
+                <strong id="carRouteUpdated">Never</strong>
+              </div>
+              <div class="summary-row">
+                <span>Next</span>
+                <strong id="carRouteNext">Waiting for destination</strong>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Route source</span>
+                <select id="mapRouteSourceMode">
+                  <option value="car-screen">Car screen maps</option>
+                  <option value="app-route">Control center route</option>
+                  <option value="offline-cache">Offline map cache</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Car route mode</span>
+                <select id="carScreenRouteMode">
+                  <option value="detect-destination">Detect destination</option>
+                  <option value="manual-demo">Manual demo</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Demo destination</span>
+                <input id="carScreenDestination" placeholder="Destination from car screen">
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="carScreenRouteSync" type="checkbox" checked> Sync destination changes from car screen</label>
+              <label><input id="carScreenRouteNavPilot" type="checkbox" checked> Share car route with Nav Pilot</label>
+              <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Require driver confirmation for route maneuvers</label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="readCarRoute" type="button">Read car route</button>
+              <button class="ghost-button" id="setDemoCarRoute" type="button">Set demo route</button>
+              <button class="ghost-button" id="useCarRouteForNav" type="button">Use in Nav Pilot</button>
+            </div>
+          </article>
+
           <article class="settings-card">
             <div class="card-heading">
               <div>
@@ -983,6 +1052,7 @@
               <label class="field">
                 <span>Map source</span>
                 <select id="navMapSourceMode">
+                  <option value="car-screen-map">Car screen maps</option>
                   <option value="mapbox-review">Mapbox review</option>
                   <option value="osm-review">OSM review</option>
                   <option value="offline-cache">Offline cache</option>

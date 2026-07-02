@@ -17,7 +17,7 @@ tools/xrm10_control_center/index.html
   changes, demo bridge testing, and an HTTP bridge mode for a future device
   service.
 - A top live stats bar with connection state, Offroad/Inroad state, last seen
-  time, pending changes, and road-state controls.
+  time, pending changes, live car route state, and road-state controls.
 - Tesla Model 3/Model Y HW4 profile metadata.
 - comma four install target selection.
 - Sectioned settings for Device, Toggles, Models, Steering, Cruise, Visuals,
@@ -39,6 +39,9 @@ tools/xrm10_control_center/index.html
 - Nav Pilot Lab profiles for map-camera route intent, highway exits, highway
   merges, route lane selection, U-turn review, roundabout review, and surface
   street turns.
+- Car-screen maps route intake for reading a destination shown on the vehicle
+  screen, staging that destination as route intent, and sharing it with Nav
+  Pilot under driver-confirm gates.
 - Safety Lab test-plan export with readiness score, checklist, lab controls,
   and the staged testing manual.
 - Nav Pilot plan export with maneuver confidence score, confidence gates,
@@ -100,6 +103,8 @@ HTTP bridge contract:
 GET  /api/xrm10/status
 POST /api/xrm10/profile
 POST /api/xrm10/road-state
+GET  /api/xrm10/car-route
+POST /api/xrm10/car-route
 POST /api/xrm10/section-apply
 GET  /api/xrm10/section-status?section=device
 POST /api/xrm10/ssh-status
@@ -145,6 +150,27 @@ The included bridge updates the demo device state immediately. A real comma-side
 bridge should reject unsafe Onroad/Inroad requests unless the device and vehicle
 state make that transition valid.
 
+`GET /api/xrm10/car-route` returns the latest route intent from the car-screen
+maps source. `POST /api/xrm10/car-route` stages a destination for local testing
+or for a future comma-side route reader:
+
+```json
+{
+  "active": true,
+  "source": "car-screen",
+  "provider": "car-screen-maps",
+  "destination": "Example destination",
+  "policy": {
+    "routeIntentOnly": true,
+    "liveVehicleApplyAllowed": false,
+    "driverConfirmationRequired": true
+  }
+}
+```
+
+The route endpoint is route-intent sync only. It does not actuate steering,
+change lanes, or start automated navigation from the phone.
+
 `POST /api/xrm10/section-apply` receives one section and the current profile.
 The bridge returns whether that section is staged and working. `GET
 /api/xrm10/section-status` checks the last known result.
@@ -166,6 +192,7 @@ host and a valid local key path; the app does not expose private key contents.
 ## Nav Pilot workflow
 
 1. Map intent: route instruction must be stable before approaching a maneuver.
+   If car-screen maps is selected, the bridge must report an active destination.
 2. Camera agreement: lane lines, road edge, signs, arrows, and drivable path
    must agree with the route.
 3. Driver confirmation: lane-route actions require signal, nudge, or explicit
