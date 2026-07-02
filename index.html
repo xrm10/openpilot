@@ -50,6 +50,9 @@
           <button class="nav-item" type="button" data-section-target="maps">
             <i data-lucide="map"></i><span>Maps</span>
           </button>
+          <button class="nav-item" type="button" data-section-target="navPilot">
+            <i data-lucide="route"></i><span>Nav Pilot</span>
+          </button>
           <button class="nav-item" type="button" data-section-target="vehicle">
             <i data-lucide="car"></i><span>Vehicle</span>
           </button>
@@ -596,6 +599,192 @@
               <span>Route preview distance <strong id="routePreviewDistanceValue">1.5 mi</strong></span>
               <input id="routePreviewDistance" type="range" min="0.5" max="5" step="0.1" value="1.5">
             </label>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="navPilot" aria-label="Navigation pilot lab">
+          <article class="settings-card warning-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Nav Pilot Lab</p>
+                <h2>Map, camera, and steering planner</h2>
+              </div>
+              <span class="status-badge warn" id="navResultBadge">Not run</span>
+            </div>
+            <div class="warning-copy">
+              This is a planning lab for exits, highway merges, U-turns, and roundabouts. It does not enable live automated driving. The plan stays advisory unless the driver-confirm and confidence gates pass.
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Route intelligence</p>
+                <h2>Maneuver controls</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Navigation mode</span>
+                <select id="navMode">
+                  <option value="off">Off</option>
+                  <option value="advisory">Advisory only</option>
+                  <option value="simulation">Simulation</option>
+                  <option value="closed-course">Closed-course review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Route intent</span>
+                <select id="routeIntentMode">
+                  <option value="prompt">Prompt driver</option>
+                  <option value="confirm-nudge">Confirm by nudge</option>
+                  <option value="lab-auto-plan">Lab auto-plan</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Maneuver</span>
+                <select id="maneuverType">
+                  <option value="highway-exit">Highway exit</option>
+                  <option value="highway-merge">Highway merge</option>
+                  <option value="lane-route">Route lane selection</option>
+                  <option value="roundabout">Roundabout</option>
+                  <option value="u-turn">U-turn</option>
+                  <option value="surface-turn">Surface street turn</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Map source</span>
+                <select id="navMapSourceMode">
+                  <option value="mapbox-review">Mapbox review</option>
+                  <option value="osm-review">OSM review</option>
+                  <option value="offline-cache">Offline cache</option>
+                  <option value="manual-route">Manual route file</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Camera fusion</span>
+                <select id="cameraFusionMode">
+                  <option value="map-camera-agree">Map and camera agree</option>
+                  <option value="camera-priority">Camera priority</option>
+                  <option value="map-advisory">Map advisory</option>
+                  <option value="blocked-low-confidence">Block low confidence</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Steering plan</span>
+                <select id="navSteeringMode">
+                  <option value="advisory">Advisory only</option>
+                  <option value="driver-confirmed">Driver confirmed</option>
+                  <option value="closed-course-plan">Closed-course plan</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Roundabout policy</span>
+                <select id="roundaboutPolicy">
+                  <option value="yield-and-prompt">Yield and prompt</option>
+                  <option value="crawl-review">Crawl review</option>
+                  <option value="block">Block</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>U-turn policy</span>
+                <select id="uTurnPolicy">
+                  <option value="closed-course-only">Closed-course only</option>
+                  <option value="prompt-only">Prompt only</option>
+                  <option value="block">Block</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Exit lane policy</span>
+                <select id="exitLanePolicy">
+                  <option value="early-confirm">Early confirm</option>
+                  <option value="hold-current-lane">Hold current lane</option>
+                  <option value="driver-nudge">Driver nudge required</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Driver confirm</span>
+                <select id="driverConfirmMode">
+                  <option value="required">Required</option>
+                  <option value="nudge-required">Nudge required</option>
+                  <option value="voice-and-nudge">Voice and nudge</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="navRequireSignal" type="checkbox" checked> Require turn signal before lane route action</label>
+              <label><input id="navRequireDriverNudge" type="checkbox" checked> Require driver nudge before steering plan</label>
+              <label><input id="navBlindSpotBlock" type="checkbox" checked> Block maneuver on blind spot</label>
+              <label><input id="navMapCameraAgree" type="checkbox" checked> Require map and camera agreement</label>
+              <label><input id="navNoAutoUturnRoad" type="checkbox" checked> Block U-turn outside closed-course review</label>
+              <label><input id="navRecordManeuver" type="checkbox" checked> Record maneuver review log</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Map confidence <strong id="navMapConfidenceValue">80%</strong></span>
+                <input id="navMapConfidence" type="range" min="40" max="100" step="1" value="80">
+              </label>
+              <label class="range-field">
+                <span>Camera confidence <strong id="navCameraConfidenceValue">82%</strong></span>
+                <input id="navCameraConfidence" type="range" min="40" max="100" step="1" value="82">
+              </label>
+              <label class="range-field">
+                <span>Lane confidence <strong id="navLaneConfidenceValue">78%</strong></span>
+                <input id="navLaneConfidence" type="range" min="40" max="100" step="1" value="78">
+              </label>
+              <label class="range-field">
+                <span>Maneuver speed <strong id="navManeuverSpeedValue">35 mph</strong></span>
+                <input id="navManeuverSpeed" type="range" min="5" max="75" step="1" value="35">
+              </label>
+              <label class="range-field">
+                <span>Exit prep distance <strong id="navExitDistanceValue">0.8 mi</strong></span>
+                <input id="navExitDistance" type="range" min="0.1" max="2.5" step="0.1" value="0.8">
+              </label>
+              <label class="range-field">
+                <span>Roundabout yield gap <strong id="navRoundaboutYieldGapValue">4.0s</strong></span>
+                <input id="navRoundaboutYieldGap" type="range" min="2" max="8" step="0.1" value="4.0">
+              </label>
+              <label class="range-field">
+                <span>Steering authority <strong id="navSteerAuthorityValue">45%</strong></span>
+                <input id="navSteerAuthority" type="range" min="0" max="75" step="1" value="45">
+              </label>
+              <label class="range-field">
+                <span>Driver confirm timeout <strong id="navDriverConfirmTimeValue">5.0s</strong></span>
+                <input id="navDriverConfirmTime" type="range" min="2" max="12" step="0.5" value="5.0">
+              </label>
+            </div>
+            <div class="migration-actions">
+              <button class="primary-button" id="runNavPilot" type="button">Run nav check</button>
+              <button class="ghost-button" id="exportNavPlan" type="button">Download nav plan</button>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Navigation result</p>
+                <h2>Maneuver confidence</h2>
+              </div>
+              <strong class="lab-score" id="navScore">0</strong>
+            </div>
+            <div class="meter lab-meter"><i id="navScoreMeter"></i></div>
+            <div class="lab-results" id="navResults"></div>
+          </article>
+
+          <article class="settings-card manual-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Manual</p>
+                <h2>Route maneuver workflow</h2>
+              </div>
+            </div>
+            <ol class="manual-list">
+              <li><strong>Map intent:</strong> route instruction must be stable before the car approaches the maneuver.</li>
+              <li><strong>Camera agreement:</strong> lane lines, road edge, signs, arrows, and drivable path must agree with the route.</li>
+              <li><strong>Driver confirmation:</strong> lane route actions require signal, nudge, or explicit confirmation.</li>
+              <li><strong>Special maneuvers:</strong> U-turns and roundabouts stay closed-course or prompt-only until separately validated.</li>
+              <li><strong>Fallback:</strong> any blind spot, low confidence, missing lane, or unclear yield condition blocks the maneuver and asks the driver to take over.</li>
+            </ol>
           </article>
         </section>
 
