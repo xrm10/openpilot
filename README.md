@@ -46,6 +46,10 @@ tools/xrm10_control_center/index.html
 - JSON import/export for profile review.
 - Queued parameter sync: changes made offline are stored locally and sent when
   the device bridge reports online.
+- Save section and Check status controls on every settings section, with live
+  Applied/Changed/Failed status returned by the bridge.
+- Traffic/LWC controls for faster-lane suggestions, traffic gap checks, and lane
+  width control with driver-confirmation and blind-spot gates.
 
 ## What it does not control
 
@@ -58,6 +62,10 @@ live vehicle safety limits from the phone app.
 
 Nav Pilot controls are planning and simulation controls. They do not enable live
 automated driving from the phone app.
+
+Traffic/LWC controls are suggestions and driver-confirmed planning controls.
+They do not enable unconfirmed automatic lane changes between cars or autonomous
+lane weaving to reach a faster lane.
 
 The exported JSON and live sync payloads are review/profile artifacts. Wiring
 them into on-device params requires a separate reviewed implementation and
@@ -92,6 +100,9 @@ HTTP bridge contract:
 GET  /api/xrm10/status
 POST /api/xrm10/profile
 POST /api/xrm10/road-state
+POST /api/xrm10/section-apply
+GET  /api/xrm10/section-status?section=device
+POST /api/xrm10/ssh-status
 ```
 
 `GET /api/xrm10/status` should return JSON:
@@ -133,6 +144,14 @@ those parameters.
 The included bridge updates the demo device state immediately. A real comma-side
 bridge should reject unsafe Onroad/Inroad requests unless the device and vehicle
 state make that transition valid.
+
+`POST /api/xrm10/section-apply` receives one section and the current profile.
+The bridge returns whether that section is staged and working. `GET
+/api/xrm10/section-status` checks the last known result.
+
+`POST /api/xrm10/ssh-status` receives `target` and `keyPath`. The included local
+bridge uses OpenSSH to run a short status command. This requires a real device
+host and a valid local key path; the app does not expose private key contents.
 
 ## Safety Lab workflow
 

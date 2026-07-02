@@ -41,6 +41,9 @@
           <button class="nav-item" type="button" data-section-target="cruise">
             <i data-lucide="wind"></i><span>Cruise</span>
           </button>
+          <button class="nav-item" type="button" data-section-target="traffic">
+            <i data-lucide="waypoints"></i><span>Traffic</span>
+          </button>
           <button class="nav-item" type="button" data-section-target="visuals">
             <i data-lucide="palette"></i><span>Visuals</span>
           </button>
@@ -197,6 +200,9 @@
               <button class="home-tile" type="button" data-section-target="cruise" data-search="cruise longitudinal speed follow">
                 <i data-lucide="wind"></i><span>Cruise</span>
               </button>
+              <button class="home-tile" type="button" data-section-target="traffic" data-search="traffic lane faster lane lwc lane width control">
+                <i data-lucide="waypoints"></i><span>Traffic</span>
+              </button>
               <button class="home-tile" type="button" data-section-target="visuals" data-search="visuals alerts overlay theme">
                 <i data-lucide="palette"></i><span>Visuals</span>
               </button>
@@ -320,6 +326,14 @@
                 <span>Bridge token</span>
                 <input id="bridgeToken" type="password" placeholder="Optional local token">
               </label>
+              <label class="field">
+                <span>SSH target</span>
+                <input id="sshTarget" placeholder="comma@192.168.x.x">
+              </label>
+              <label class="field">
+                <span>SSH key path</span>
+                <input id="sshKeyPath" placeholder="C:\\Users\\Hp\\.ssh\\xrm10">
+              </label>
             </div>
             <div class="toggle-stack switch-grid">
               <label><input id="autoSync" type="checkbox" checked> Sync parameter changes immediately when online</label>
@@ -346,9 +360,14 @@
                 <span>Bridge</span>
                 <strong id="liveEndpointState">Demo bridge</strong>
               </div>
+              <div class="summary-row">
+                <span>SSH</span>
+                <strong id="liveSshState">Not checked</strong>
+              </div>
             </div>
             <div class="button-row">
               <button class="primary-button" id="syncNow" type="button">Sync now</button>
+              <button class="ghost-button" id="checkSsh" type="button">Check SSH</button>
               <button class="ghost-button" id="requestOffroad" type="button">Set offroad</button>
               <button class="ghost-button" id="requestOnroad" type="button">Set inroad</button>
               <button class="ghost-button" id="demoOnlineToggle" type="button">Demo online</button>
@@ -625,6 +644,123 @@
               <label class="range-field">
                 <span>Turn speed margin <strong id="turnSpeedMarginValue">6 mph</strong></span>
                 <input id="turnSpeedMargin" type="range" min="3" max="12" step="1" value="6">
+              </label>
+            </div>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="traffic" aria-label="Traffic and LWC settings">
+          <article class="settings-card warning-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Traffic</p>
+                <h2>Lane traffic planner</h2>
+              </div>
+              <span class="status-badge warn">Driver confirm</span>
+            </div>
+            <div class="warning-copy">
+              Faster-lane planning stays advisory or driver-confirmed. The app does not enable unconfirmed lane changes between cars.
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Traffic planner</span>
+                <select id="trafficPlannerMode">
+                  <option value="off">Off</option>
+                  <option value="advisory">Advisory</option>
+                  <option value="driver-confirmed">Driver confirmed</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Faster lane strategy</span>
+                <select id="fasterLaneMode">
+                  <option value="off">Off</option>
+                  <option value="suggest">Suggest faster lane</option>
+                  <option value="driver-confirmed">Signal/nudge required</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Maneuver behavior</span>
+                <select id="trafficManeuverMode">
+                  <option value="driver-confirmed">Driver confirmed</option>
+                  <option value="suggest-only">Suggest only</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="fasterLaneSuggestions" type="checkbox" checked> Show faster-lane suggestions</label>
+              <label><input id="trafficAutoManeuverBlock" type="checkbox" checked> Block unconfirmed traffic maneuvers</label>
+              <label><input id="trafficRequireConfirmation" type="checkbox" checked> Require driver confirmation</label>
+              <label><input id="trafficRequireSignal" type="checkbox" checked> Require turn signal before lane action</label>
+              <label><input id="trafficBlindSpotBlock" type="checkbox" checked> Block when blind spot or adjacent traffic is unsafe</label>
+              <label><input id="trafficRecordReview" type="checkbox" checked> Record traffic maneuver review events</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Faster lane delta <strong id="fasterLaneSpeedDeltaValue">7 mph</strong></span>
+                <input id="fasterLaneSpeedDelta" type="range" min="3" max="15" step="1" value="7">
+              </label>
+              <label class="range-field">
+                <span>Minimum traffic gap <strong id="trafficGapMinValue">3.5s</strong></span>
+                <input id="trafficGapMin" type="range" min="2" max="6" step="0.1" value="3.5">
+              </label>
+              <label class="range-field">
+                <span>Traffic lookahead <strong id="trafficLookaheadDistanceValue">0.6 mi</strong></span>
+                <input id="trafficLookaheadDistance" type="range" min="0.2" max="1.5" step="0.1" value="0.6">
+              </label>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">LWC</p>
+                <h2>Lane width control</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>LWC mode</span>
+                <select id="lwcMode">
+                  <option value="off">Off</option>
+                  <option value="comfort">Comfort</option>
+                  <option value="strict">Strict lane width</option>
+                  <option value="review">Review only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lane width source</span>
+                <select id="lwcLaneWidthMode">
+                  <option value="camera-estimate">Camera estimate</option>
+                  <option value="map-camera">Map and camera</option>
+                  <option value="fixed-review">Fixed review width</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Road edge LWC</span>
+                <select id="lwcRoadEdgeMode">
+                  <option value="guarded">Guarded</option>
+                  <option value="wide-cushion">Wide cushion</option>
+                  <option value="review">Review only</option>
+                </select>
+              </label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Lane width <strong id="lwcLaneWidthValue">3.7 m</strong></span>
+                <input id="lwcLaneWidth" type="range" min="3.0" max="4.4" step="0.1" value="3.7">
+              </label>
+              <label class="range-field">
+                <span>Left cushion <strong id="lwcLeftCushionValue">0.45 m</strong></span>
+                <input id="lwcLeftCushion" type="range" min="0.20" max="1.00" step="0.05" value="0.45">
+              </label>
+              <label class="range-field">
+                <span>Right cushion <strong id="lwcRightCushionValue">0.45 m</strong></span>
+                <input id="lwcRightCushion" type="range" min="0.20" max="1.00" step="0.05" value="0.45">
+              </label>
+              <label class="range-field">
+                <span>Adjacent traffic buffer <strong id="lwcTrafficBufferValue">1.2s</strong></span>
+                <input id="lwcTrafficBuffer" type="range" min="0.6" max="2.5" step="0.1" value="1.2">
               </label>
             </div>
           </article>

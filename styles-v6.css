@@ -1181,6 +1181,63 @@ button:focus-visible {
   padding: 12px;
 }
 
+.section-apply-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #0c0e0f;
+  padding: 14px;
+}
+
+.section-apply-bar[data-apply-status="changed"] {
+  border-color: rgba(240, 185, 79, 0.45);
+  background: rgba(240, 185, 79, 0.08);
+}
+
+.section-apply-bar[data-apply-status="applied"] {
+  border-color: rgba(117, 213, 107, 0.35);
+  background: rgba(117, 213, 107, 0.07);
+}
+
+.section-apply-bar[data-apply-status="failed"] {
+  border-color: rgba(242, 107, 97, 0.42);
+  background: rgba(242, 107, 97, 0.07);
+}
+
+.section-apply-kicker,
+.section-apply-bar small,
+.section-apply-bar strong {
+  display: block;
+}
+
+.section-apply-kicker {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.section-apply-bar strong {
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+.section-apply-bar small {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.section-apply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
 .controller-summary {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-top: 16px;
@@ -1428,5 +1485,15 @@ button:focus-visible {
 
   .sync-status-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .section-apply-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .section-apply-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-content: stretch;
   }
 }
