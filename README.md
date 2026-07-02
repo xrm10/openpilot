@@ -16,6 +16,8 @@ tools/xrm10_control_center/index.html
 - Live sync status for online/offline device state, last seen time, pending
   changes, demo bridge testing, and an HTTP bridge mode for a future device
   service.
+- A top live stats bar with connection state, Offroad/Inroad state, last seen
+  time, pending changes, and road-state controls.
 - Tesla Model 3/Model Y HW4 profile metadata.
 - comma four install target selection.
 - Sectioned settings for Device, Toggles, Models, Steering, Cruise, Visuals,
@@ -89,6 +91,7 @@ HTTP bridge contract:
 ```text
 GET  /api/xrm10/status
 POST /api/xrm10/profile
+POST /api/xrm10/road-state
 ```
 
 `GET /api/xrm10/status` should return JSON:
@@ -111,6 +114,25 @@ POST /api/xrm10/profile
 `profile`, and `policy`. The bridge should reject safety-critical changes unless
 the device is offroad and the on-device implementation has reviewed support for
 those parameters.
+
+`POST /api/xrm10/road-state` receives:
+
+```json
+{
+  "requestedState": "onroad",
+  "offroad": false,
+  "source": "xrm10-control-center",
+  "policy": {
+    "driverControlRequired": true,
+    "bridgeMayRejectUnsafeOnroad": true,
+    "liveVehicleApplyAllowed": false
+  }
+}
+```
+
+The included bridge updates the demo device state immediately. A real comma-side
+bridge should reject unsafe Onroad/Inroad requests unless the device and vehicle
+state make that transition valid.
 
 ## Safety Lab workflow
 

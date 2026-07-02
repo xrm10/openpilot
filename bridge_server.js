@@ -169,6 +169,45 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/road-state") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (typeof payload.offroad !== "boolean") {
+        sendJson(res, 400, {
+          ok: false,
+          error: "offroad boolean is required."
+        });
+        return;
+      }
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Road-state bridge accepts state sync only. liveVehicleApplyAllowed must be false."
+        });
+        return;
+      }
+
+      device.offroad = payload.offroad;
+
+      sendJson(res, 200, {
+        ok: true,
+        acceptedState: device.offroad ? "offroad" : "onroad",
+        applied: "device-road-state-staged",
+        liveVehicleApplyAllowed: false,
+        device
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid road-state payload"
+      });
+    }
+    return;
+  }
+
   serveFile(req, res);
 });
 
