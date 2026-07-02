@@ -1,4 +1,5 @@
 const STORAGE_KEY = "xrm10-control-center-profile-v1";
+const SYNC_STATE_KEY = "xrm10-control-center-sync-v1";
 
 const safetyLocks = [
   {
@@ -67,7 +68,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -208,6 +209,13 @@ const defaultProfile = {
     navSteerAuthority: 45,
     navDriverConfirmTime: 5
   },
+  connection: {
+    mode: "demo",
+    bridgeUrl: "",
+    bridgeToken: "",
+    autoSync: true,
+    syncOffroadOnly: true
+  },
   safetyPolicy: {
     driverMonitoringRequired: true,
     excessiveActuationChecksLocked: true,
@@ -219,10 +227,28 @@ const defaultProfile = {
   }
 };
 
+const defaultSyncState = {
+  status: "offline",
+  lastSeenAt: Date.now() - 39 * 60 * 1000,
+  lastSyncAt: null,
+  lastError: "",
+  pending: [],
+  device: {
+    name: "comma four",
+    id: "6dea66ada857421f",
+    version: "2026.07.02-xrm10",
+    branch: "dev",
+    commit: "344ec6a",
+    offroad: true
+  }
+};
+
 const textBindings = [
   ["profileName", ["profileName"]],
   ["customInstallUrl", ["customInstallUrl"]],
-  ["vinNickname", ["controllers", "vinNickname"]]
+  ["vinNickname", ["controllers", "vinNickname"]],
+  ["bridgeUrl", ["connection", "bridgeUrl"]],
+  ["bridgeToken", ["connection", "bridgeToken"]]
 ];
 
 const selectBindings = [
@@ -288,7 +314,8 @@ const selectBindings = [
   ["scenarioSet", ["controllers", "scenarioSet"]],
   ["labResultGate", ["controllers", "labResultGate"]],
   ["migrationSource", ["controllers", "migrationSource"]],
-  ["backupSlot", ["controllers", "backupSlot"]]
+  ["backupSlot", ["controllers", "backupSlot"]],
+  ["connectionMode", ["connection", "mode"]]
 ];
 
 const checkboxBindings = [
@@ -323,7 +350,9 @@ const checkboxBindings = [
   ["labOffroadOnlyAck", ["controllers", "labOffroadOnlyAck"]],
   ["labNoLiveApplyAck", ["controllers", "labNoLiveApplyAck"]],
   ["testDriverReady", ["controllers", "testDriverReady"]],
-  ["closedCourseAck", ["controllers", "closedCourseAck"]]
+  ["closedCourseAck", ["controllers", "closedCourseAck"]],
+  ["autoSync", ["connection", "autoSync"]],
+  ["syncOffroadOnly", ["connection", "syncOffroadOnly"]]
 ];
 
 const rangeBindings = [
@@ -366,6 +395,9 @@ const rangeBindings = [
 ];
 
 let profile = loadProfile();
+let syncState = loadSyncState();
+let syncDebounceTimer = null;
+let heartbeatTimer = null;
 
 const els = {
   sectionEyebrow: document.querySelector("#sectionEyebrow"),
@@ -385,13 +417,33 @@ const els = {
   navResults: document.querySelector("#navResults"),
   settingsSearch: document.querySelector("#settingsSearch"),
   homeDeviceName: document.querySelector("#homeDeviceName"),
+  homeDeviceId: document.querySelector("#homeDeviceId"),
   homeVersion: document.querySelector("#homeVersion"),
   homeBranch: document.querySelector("#homeBranch"),
   homeCommit: document.querySelector("#homeCommit"),
+  homeStatusDot: document.querySelector("#homeStatusDot"),
+  homeStatusTag: document.querySelector("#homeStatusTag"),
+  homeConnectionPill: document.querySelector("#homeConnectionPill"),
+  homePillStatus: document.querySelector("#homePillStatus"),
+  homePendingChip: document.querySelector("#homePendingChip"),
+  homeSyncNotice: document.querySelector("#homeSyncNotice"),
+  homeSyncTitle: document.querySelector("#homeSyncTitle"),
+  homeSyncText: document.querySelector("#homeSyncText"),
+  homeRefreshSync: document.querySelector("#homeRefreshSync"),
+  toolbarRefreshSync: document.querySelector("#toolbarRefreshSync"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
   sidebarStatus: document.querySelector("#sidebarStatus"),
+  liveStatusBadge: document.querySelector("#liveStatusBadge"),
+  liveDeviceState: document.querySelector("#liveDeviceState"),
+  liveLastSeen: document.querySelector("#liveLastSeen"),
+  livePendingCount: document.querySelector("#livePendingCount"),
+  liveEndpointState: document.querySelector("#liveEndpointState"),
+  liveQueueList: document.querySelector("#liveQueueList"),
+  syncNow: document.querySelector("#syncNow"),
+  demoOnlineToggle: document.querySelector("#demoOnlineToggle"),
+  clearSyncQueue: document.querySelector("#clearSyncQueue"),
   previewTitle: document.querySelector("#previewTitle"),
   previewText: document.querySelector("#previewText"),
   lockList: document.querySelector("#lockList"),
@@ -425,6 +477,15 @@ function loadProfile() {
   }
 }
 
+function loadSyncState() {
+  try {
+    const saved = window.localStorage.getItem(SYNC_STATE_KEY);
+    return saved ? normalizeSyncState(JSON.parse(saved)) : clone(defaultSyncState);
+  } catch {
+    return clone(defaultSyncState);
+  }
+}
+
 function normalizeProfile(input) {
   const next = clone(defaultProfile);
   return {
@@ -440,6 +501,13 @@ function normalizeProfile(input) {
       ...next.tuning,
       ...(input.tuning || {})
     },
+    connection: {
+      ...next.connection,
+      ...(input.connection || {}),
+      mode: ["demo", "http", "offline"].includes(input.connection?.mode) ? input.connection.mode : next.connection.mode,
+      autoSync: input.connection?.autoSync !== false,
+      syncOffroadOnly: input.connection?.syncOffroadOnly !== false
+    },
     safetyPolicy: {
       ...next.safetyPolicy,
       ...(input.safetyPolicy || {}),
@@ -454,8 +522,29 @@ function normalizeProfile(input) {
   };
 }
 
+function normalizeSyncState(input) {
+  const next = clone(defaultSyncState);
+  return {
+    ...next,
+    ...input,
+    status: ["online", "offline", "syncing", "error"].includes(input.status) ? input.status : next.status,
+    lastSeenAt: Number(input.lastSeenAt) || next.lastSeenAt,
+    lastSyncAt: Number(input.lastSyncAt) || null,
+    lastError: String(input.lastError || ""),
+    pending: Array.isArray(input.pending) ? input.pending.slice(0, 60) : [],
+    device: {
+      ...next.device,
+      ...(input.device || {})
+    }
+  };
+}
+
 function saveProfile() {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+}
+
+function saveSyncState() {
+  window.localStorage.setItem(SYNC_STATE_KEY, JSON.stringify(syncState));
 }
 
 function selectedTarget() {
@@ -661,16 +750,13 @@ function render() {
   setBadge(els.controllerBadge, controllerLabel(), stateClass);
   setBadge(els.moduleBadge, `${activeControllerCount()} modules`, stateClass);
   setText(els.sidebarStatus, controllerLabel());
-  setText(els.homeDeviceName, profile.deviceTarget);
-  setText(els.homeVersion, "2026.07.02-xrm10");
-  setText(els.homeBranch, "dev");
-  setText(els.homeCommit, "344ec6a");
   setText(els.activeBranchLabel, branchLabel);
   setText(els.activeBranchMeta, activeInstallUrl());
   if (els.branchStatusDot) els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
   setText(els.previewTitle, previewTitle());
   setText(els.previewText, previewText());
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
+  renderConnection();
   renderSafetyLab();
   renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
@@ -688,6 +774,391 @@ function updateRangeLabels() {
     const label = byId(binding.valueId);
     if (label) label.textContent = binding.format(getPath(profile, binding.path));
   }
+}
+
+function renderConnection() {
+  const status = connectionStatus();
+  const pendingCount = syncState.pending.length;
+  const device = {
+    ...defaultSyncState.device,
+    ...syncState.device,
+    name: syncState.device.name || profile.deviceTarget
+  };
+  const statusLabel = statusLabelFor(status);
+  const lastSeen = formatLastSeen(syncState.lastSeenAt, status);
+  const pendingLabel = `${pendingCount} ${pendingCount === 1 ? "change" : "changes"}`;
+
+  setText(els.homeDeviceName, device.name);
+  setText(els.homeDeviceId, device.id);
+  setText(els.homeVersion, device.version);
+  setText(els.homeBranch, device.branch);
+  setText(els.homeCommit, String(device.commit || "").slice(0, 7));
+  setText(els.homeStatusTag, statusLabel);
+  setText(els.homePillStatus, statusLabel);
+  setText(els.homePendingChip, pendingCount ? String(pendingCount) : "");
+  setText(els.liveDeviceState, `${statusLabel}${device.offroad === false ? " - onroad" : " - offroad"}`);
+  setText(els.liveLastSeen, lastSeen);
+  setText(els.livePendingCount, pendingLabel);
+  setText(els.liveEndpointState, endpointLabel());
+  setText(els.demoOnlineToggle, profile.connection?.mode === "demo"
+    ? status === "online" || status === "syncing" ? "Demo offline" : "Demo online"
+    : "Use demo bridge");
+
+  if (els.homeStatusDot) setStatusClass(els.homeStatusDot, "device-dot", status);
+  if (els.homeStatusTag) setStatusClass(els.homeStatusTag, "offline-tag", status);
+  if (els.homeConnectionPill) setStatusClass(els.homeConnectionPill, "offline-pill", status);
+  if (els.homeSyncNotice) setStatusClass(els.homeSyncNotice, "offline-warning", status);
+  setBadge(els.liveStatusBadge, statusLabel, status === "online" ? "pass" : status === "error" ? "stop" : "warn");
+
+  if (status === "online") {
+    setText(els.homeSyncTitle, `Device online - last seen ${lastSeen}`);
+    setText(els.homeSyncText, pendingCount
+      ? `${pendingLabel} waiting. Press Sync now or keep auto sync enabled. Safety-critical changes stay marked for offroad review.`
+      : "Live profile sync is ready. New parameter changes send to the device bridge immediately when auto sync is enabled.");
+  } else if (status === "syncing") {
+    setText(els.homeSyncTitle, "Syncing profile to device");
+    setText(els.homeSyncText, "The app is sending the latest profile and queued parameter changes to the bridge.");
+  } else if (status === "error") {
+    setText(els.homeSyncTitle, `Bridge error - last seen ${lastSeen}`);
+    setText(els.homeSyncText, syncState.lastError || "The app could not reach the device bridge. Changes are kept in the local queue.");
+  } else {
+    setText(els.homeSyncTitle, `Device offline - last seen ${lastSeen}`);
+    setText(els.homeSyncText, pendingCount
+      ? `${pendingLabel} saved locally. They will sync when the device bridge reports online.`
+      : "Likely parked or bridge not connected. Settings you change here save to the profile and can sync when the device reconnects.");
+  }
+
+  if (els.liveQueueList) {
+    els.liveQueueList.innerHTML = pendingCount
+      ? syncState.pending
+          .slice(-5)
+          .reverse()
+          .map((change) => `
+            <div class="sync-row">
+              <div>
+                <strong>${escapeHtml(change.label)}</strong>
+                <span>${escapeHtml(change.path)} - ${escapeHtml(change.summary)}</span>
+              </div>
+              <em>${change.safetyCritical ? "Review" : "Live"}</em>
+            </div>
+          `)
+          .join("")
+      : `<div class="queue-empty">No pending changes. Online edits will sync immediately.</div>`;
+  }
+}
+
+function setStatusClass(element, baseClass, status) {
+  element.className = `${baseClass} ${connectionStatus(status)}`;
+}
+
+function connectionStatus(status = syncState.status) {
+  return ["online", "offline", "syncing", "error"].includes(status) ? status : "offline";
+}
+
+function statusLabelFor(status = syncState.status) {
+  return {
+    online: "Online",
+    offline: "Offline",
+    syncing: "Syncing",
+    error: "Error"
+  }[connectionStatus(status)];
+}
+
+function endpointLabel() {
+  const mode = profile.connection?.mode || "demo";
+  if (mode === "http") return bridgeBaseUrl() || "HTTP bridge not set";
+  if (mode === "offline") return "Manual offline";
+  return "Demo bridge";
+}
+
+function bridgeBaseUrl() {
+  const custom = profile.connection?.bridgeUrl?.trim().replace(/\/$/, "");
+  if (custom) return custom;
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+    return window.location.origin;
+  }
+  return "";
+}
+
+function formatLastSeen(timestamp, status = syncState.status) {
+  if (status === "online" || status === "syncing") return "now";
+  if (!timestamp) return "never";
+  const seconds = Math.max(0, Math.floor((Date.now() - Number(timestamp)) / 1000));
+  if (seconds < 45) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function markOnline(device = {}) {
+  syncState.status = "online";
+  syncState.lastSeenAt = Date.now();
+  syncState.lastError = "";
+  syncState.device = {
+    ...syncState.device,
+    ...device,
+    name: device.name || device.deviceName || syncState.device.name || profile.deviceTarget,
+    id: device.id || device.deviceId || syncState.device.id,
+    version: device.version || syncState.device.version,
+    branch: device.branch || syncState.device.branch,
+    commit: device.commit || syncState.device.commit,
+    offroad: device.offroad !== undefined ? Boolean(device.offroad) : syncState.device.offroad
+  };
+  saveSyncState();
+  renderConnection();
+}
+
+function markOffline(message = "") {
+  syncState.status = message ? "error" : "offline";
+  syncState.lastError = message;
+  saveSyncState();
+  renderConnection();
+}
+
+async function refreshConnection(showMessage = true) {
+  const mode = profile.connection?.mode || "demo";
+
+  if (mode === "offline") {
+    markOffline("");
+    if (showMessage) showToast("Manual offline mode");
+    return false;
+  }
+
+  if (mode === "demo") {
+    if (connectionStatus() === "online") {
+      markOnline({ offroad: true });
+      if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
+      if (showMessage) showToast("Demo bridge online");
+      return true;
+    }
+    markOffline("");
+    if (showMessage) showToast("Demo bridge offline");
+    return false;
+  }
+
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    markOffline("Set a bridge URL before using HTTP sync.");
+    if (showMessage) showToast("Bridge URL required");
+    return false;
+  }
+
+  try {
+    const status = await fetchJson(`${baseUrl}/api/xrm10/status`, { method: "GET" });
+    if (status.online === false) {
+      syncState.device = { ...syncState.device, ...(status.device || status) };
+      markOffline(status.message || "");
+      return false;
+    }
+    markOnline(status.device || status);
+    if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
+    if (showMessage) showToast("Device online");
+    return true;
+  } catch (error) {
+    markOffline(error.message || "Bridge unavailable");
+    if (showMessage) showToast("Bridge unavailable");
+    return false;
+  }
+}
+
+function toggleDemoOnline() {
+  if (profile.connection.mode !== "demo") {
+    profile.connection.mode = "demo";
+    saveProfile();
+    writeForm();
+    markOnline({ offroad: true });
+    showToast("Demo device online");
+    if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
+    return;
+  }
+
+  if (connectionStatus() === "online" || connectionStatus() === "syncing") {
+    markOffline("");
+    showToast("Demo device offline");
+    return;
+  }
+
+  markOnline({ offroad: true });
+  showToast("Demo device online");
+  if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
+}
+
+function queueProfileChange(inputId) {
+  if (!inputId || isConnectionField(inputId)) {
+    saveSyncState();
+    renderConnection();
+    if (isConnectionField(inputId)) refreshConnection(false);
+    return;
+  }
+
+  const change = buildChange(inputId);
+  const existing = syncState.pending.findIndex((item) => item.id === change.id);
+  if (existing >= 0) {
+    syncState.pending[existing] = change;
+  } else {
+    syncState.pending.push(change);
+  }
+  syncState.pending = syncState.pending.slice(-60);
+  saveSyncState();
+  renderConnection();
+
+  if (profile.connection.autoSync && connectionStatus() === "online") {
+    scheduleSyncNow("auto");
+  }
+}
+
+function buildChange(inputId) {
+  const path = pathForInput(inputId);
+  const value = path ? getPath(profile, path) : undefined;
+  const safetyCritical = isSafetyCriticalInput(inputId, path);
+  return {
+    id: inputId,
+    label: labelForInput(inputId),
+    path: path ? path.join(".") : inputId,
+    value,
+    summary: summarizeValue(value),
+    safetyCritical,
+    applyMode: safetyCritical ? "profile-sync-offroad-review" : "live-profile-sync",
+    liveVehicleApply: false,
+    queuedAt: new Date().toISOString()
+  };
+}
+
+function pathForInput(inputId) {
+  for (const [id, path] of [...textBindings, ...selectBindings, ...checkboxBindings]) {
+    if (id === inputId) return path;
+  }
+  return rangeBindings.find((binding) => binding.id === inputId)?.path || null;
+}
+
+function labelForInput(inputId) {
+  const input = byId(inputId);
+  const label = input?.closest("label");
+  const span = label?.querySelector("span");
+  const labelText = span
+    ? [...span.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent.trim())
+        .join(" ")
+        .trim()
+    : "";
+  return labelText || inputId;
+}
+
+function summarizeValue(value) {
+  if (typeof value === "boolean") return value ? "enabled" : "disabled";
+  if (value === undefined || value === null || value === "") return "empty";
+  return String(value);
+}
+
+function isConnectionField(inputId) {
+  return ["connectionMode", "bridgeUrl", "bridgeToken", "autoSync", "syncOffroadOnly"].includes(inputId);
+}
+
+function isSafetyCriticalInput(inputId, path) {
+  const joined = [inputId, ...(path || [])].join(".");
+  return /lab|nav|steer|torque|brake|accel|panda|driver|manualOverride|safety|lane|lateral|longitudinal|speed|follow|blindSpot|experimental|vehicleHarness/i.test(joined);
+}
+
+function scheduleSyncNow(reason) {
+  window.clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = window.setTimeout(() => syncNow(reason), 650);
+}
+
+async function syncNow(reason = "manual") {
+  if (connectionStatus() === "syncing") return;
+
+  if (connectionStatus() !== "online") {
+    const online = await refreshConnection(false);
+    if (!online) {
+      showToast(syncState.pending.length ? "Device offline - changes queued" : "Device offline");
+      renderConnection();
+      return;
+    }
+  }
+
+  const pending = syncState.pending.slice();
+  syncState.status = "syncing";
+  saveSyncState();
+  renderConnection();
+
+  try {
+    const payload = buildSyncPayload(pending, reason);
+    if (profile.connection.mode === "http") {
+      const baseUrl = bridgeBaseUrl();
+      await fetchJson(`${baseUrl}/api/xrm10/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      await wait(240);
+    }
+
+    syncState.pending = [];
+    syncState.status = "online";
+    syncState.lastSeenAt = Date.now();
+    syncState.lastSyncAt = Date.now();
+    syncState.lastError = "";
+    saveSyncState();
+    renderConnection();
+    showToast(pending.length ? `Synced ${pending.length} changes` : "Profile synced");
+  } catch (error) {
+    syncState.status = "error";
+    syncState.lastError = error.message || "Sync failed";
+    saveSyncState();
+    renderConnection();
+    showToast("Sync failed - changes kept");
+  }
+}
+
+function buildSyncPayload(changes, reason) {
+  return {
+    type: "xrm10.profile.sync",
+    version: 1,
+    reason,
+    generatedAt: new Date().toISOString(),
+    source: "xrm10-control-center",
+    device: {
+      target: profile.deviceTarget,
+      expectedId: syncState.device.id
+    },
+    policy: {
+      profileSyncAllowed: true,
+      liveVehicleApplyAllowed: false,
+      safetyCriticalChangesRequireOffroad: profile.connection.syncOffroadOnly,
+      driverMonitoringRequired: true,
+      pandaSafetyReadOnly: true,
+      manualOverrideRequired: true
+    },
+    changes,
+    profile: exportProfile()
+  };
+}
+
+async function fetchJson(url, options = {}) {
+  const headers = {
+    ...(options.headers || {})
+  };
+  const token = profile.connection?.bridgeToken?.trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(url, { ...options, headers, cache: "no-store" });
+  if (!response.ok) throw new Error(`Bridge HTTP ${response.status}`);
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function clearSyncQueue() {
+  syncState.pending = [];
+  saveSyncState();
+  renderConnection();
+  showToast("Sync queue cleared");
 }
 
 function computeLabReadiness() {
@@ -920,8 +1391,13 @@ function labelFor(group, value) {
 function exportProfile() {
   const labReadiness = computeLabReadiness();
   const navReadiness = computeNavReadiness();
+  const exported = clone(profile);
+  if (exported.connection?.bridgeToken) {
+    exported.connection.bridgeToken = "[stored locally]";
+  }
+
   return {
-    ...profile,
+    ...exported,
     computed: {
       safetyScore: computeSafetyScore(),
       installUrl: activeInstallUrl(),
@@ -1183,12 +1659,20 @@ function wireActions() {
     if (firstVisibleTile) setSection(firstVisibleTile.dataset.sectionTarget);
   });
 
+  els.homeRefreshSync?.addEventListener("click", () => refreshConnection(true));
+  els.toolbarRefreshSync?.addEventListener("click", () => refreshConnection(true));
+  els.homeConnectionPill?.addEventListener("click", () => setSection("device"));
+  els.syncNow?.addEventListener("click", () => syncNow("manual"));
+  els.demoOnlineToggle?.addEventListener("click", toggleDemoOnline);
+  els.clearSyncQueue?.addEventListener("click", clearSyncQueue);
+
   els.targetList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-target]");
     if (!button) return;
     profile.installTarget = button.dataset.target;
     profile.customInstallUrl = "";
     saveProfile();
+    queueProfileChange("installTarget");
     writeForm();
     showToast("Install target selected");
   });
@@ -1230,8 +1714,9 @@ function wireActions() {
   });
 }
 
-function handleInput() {
+function handleInput(event) {
   readForm();
+  queueProfileChange(event?.target?.id || "profile");
   writeForm();
 }
 
@@ -1277,11 +1762,27 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, number));
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 renderLocks();
 wireFormEvents();
 wireActions();
 enforceGuardrails();
 writeForm();
+heartbeatTimer = window.setInterval(() => {
+  if (profile.connection?.mode === "http") {
+    refreshConnection(false);
+  } else {
+    renderConnection();
+  }
+}, 5000);
 window.addEventListener("load", () => {
   if (window.lucide) window.lucide.createIcons();
 });

@@ -104,11 +104,14 @@
               <button class="topbar-icon" type="button" data-section-target="home" aria-label="Menu">
                 <i data-lucide="menu"></i>
               </button>
-              <button class="topbar-icon" type="button" aria-label="Sync status">
+              <button class="topbar-icon" id="toolbarRefreshSync" type="button" aria-label="Refresh device status">
                 <i data-lucide="refresh-cw"></i>
               </button>
-              <button class="offline-pill" type="button">
-                <span></span> Offline <i data-lucide="chevron-down"></i>
+              <button class="offline-pill offline" id="homeConnectionPill" type="button">
+                <span id="homePillDot"></span>
+                <strong id="homePillStatus">Offline</strong>
+                <small id="homePendingChip">0</small>
+                <i data-lucide="chevron-down"></i>
               </button>
             </div>
 
@@ -119,12 +122,12 @@
 
             <article class="home-device-card">
               <div class="device-status-row">
-                <span class="device-dot offline"></span>
+                <span class="device-dot offline" id="homeStatusDot"></span>
                 <div>
                   <h2 id="homeDeviceName">comma four</h2>
                   <p id="homeDeviceId">6dea66ada857421f</p>
                 </div>
-                <span class="offline-tag">Offline</span>
+                <span class="offline-tag" id="homeStatusTag">Offline</span>
               </div>
               <div class="device-meta-grid">
                 <div>
@@ -142,13 +145,13 @@
               </div>
             </article>
 
-            <article class="offline-warning">
+            <article class="offline-warning offline" id="homeSyncNotice">
               <i data-lucide="triangle-alert"></i>
               <div>
-                <h2>Device offline - last seen 39m ago</h2>
-                <p>Likely parked. Settings you change here save to the profile and can be reviewed before device sync.</p>
+                <h2 id="homeSyncTitle">Device offline - last seen 39m ago</h2>
+                <p id="homeSyncText">Likely parked. Settings you change here save to the profile and can be reviewed before device sync.</p>
               </div>
-              <button class="ghost-button" type="button">Refresh</button>
+              <button class="ghost-button" id="homeRefreshSync" type="button">Refresh</button>
             </article>
 
             <div class="home-tile-grid" id="homeTileGrid">
@@ -260,6 +263,65 @@
               <span class="status-badge" id="controllerBadge">Guarded</span>
             </div>
             <div class="lock-list" id="lockList"></div>
+          </article>
+
+          <article class="settings-card live-sync-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Live sync</p>
+                <h2>Device connection</h2>
+              </div>
+              <span class="status-badge warn" id="liveStatusBadge">Offline</span>
+            </div>
+            <div class="warning-copy">
+              Online sync sends profile changes to the device bridge. Safety-critical settings are marked for offroad/device review and are not treated as live vehicle actuation commands.
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Connection mode</span>
+                <select id="connectionMode">
+                  <option value="demo">Demo bridge</option>
+                  <option value="http">HTTP bridge</option>
+                  <option value="offline">Manual offline</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Bridge URL</span>
+                <input id="bridgeUrl" placeholder="http://comma-four.local:8787">
+              </label>
+              <label class="field">
+                <span>Bridge token</span>
+                <input id="bridgeToken" type="password" placeholder="Optional local token">
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="autoSync" type="checkbox" checked> Sync parameter changes immediately when online</label>
+              <label><input id="syncOffroadOnly" type="checkbox" checked> Device bridge must treat safety-critical changes as offroad review</label>
+            </div>
+            <div class="sync-status-grid">
+              <div class="summary-row">
+                <span>Device state</span>
+                <strong id="liveDeviceState">Offline</strong>
+              </div>
+              <div class="summary-row">
+                <span>Last seen</span>
+                <strong id="liveLastSeen">39m ago</strong>
+              </div>
+              <div class="summary-row">
+                <span>Pending</span>
+                <strong id="livePendingCount">0 changes</strong>
+              </div>
+              <div class="summary-row">
+                <span>Bridge</span>
+                <strong id="liveEndpointState">Demo bridge</strong>
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="syncNow" type="button">Sync now</button>
+              <button class="ghost-button" id="demoOnlineToggle" type="button">Demo online</button>
+              <button class="ghost-button" id="clearSyncQueue" type="button">Clear queue</button>
+            </div>
+            <div class="sync-queue" id="liveQueueList"></div>
           </article>
         </section>
 

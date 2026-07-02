@@ -13,6 +13,9 @@ tools/xrm10_control_center/index.html
 
 - A realistic Home dashboard with device status, search, offline sync state,
   version, branch, commit, and category tiles.
+- Live sync status for online/offline device state, last seen time, pending
+  changes, demo bridge testing, and an HTTP bridge mode for a future device
+  service.
 - Tesla Model 3/Model Y HW4 profile metadata.
 - comma four install target selection.
 - Sectioned settings for Device, Toggles, Models, Steering, Cruise, Visuals,
@@ -39,6 +42,8 @@ tools/xrm10_control_center/index.html
 - Nav Pilot plan export with maneuver confidence score, confidence gates,
   driver-confirm policy, and map-camera agreement requirements.
 - JSON import/export for profile review.
+- Queued parameter sync: changes made offline are stored locally and sent when
+  the device bridge reports online.
 
 ## What it does not control
 
@@ -52,8 +57,60 @@ live vehicle safety limits from the phone app.
 Nav Pilot controls are planning and simulation controls. They do not enable live
 automated driving from the phone app.
 
-The exported JSON is a review artifact. Wiring it into on-device params requires
-a separate reviewed implementation and tests.
+The exported JSON and live sync payloads are review/profile artifacts. Wiring
+them into on-device params requires a separate reviewed implementation and
+tests.
+
+## Live sync bridge
+
+The app supports three connection modes in Device > Live sync:
+
+- Demo bridge: local simulation for testing online/offline UI and queue sync.
+- HTTP bridge: calls a device-side bridge service.
+- Manual offline: never attempts network sync.
+
+Run the included local bridge:
+
+```text
+node tools/xrm10_control_center/bridge_server.js --host=0.0.0.0 --port=8787
+```
+
+Then open the app from your phone on the same network:
+
+```text
+http://YOUR-LAPTOP-IP:8787/
+```
+
+In HTTP bridge mode, leaving Bridge URL empty uses the same origin that served
+the app. For a separate device bridge, enter its URL.
+
+HTTP bridge contract:
+
+```text
+GET  /api/xrm10/status
+POST /api/xrm10/profile
+```
+
+`GET /api/xrm10/status` should return JSON:
+
+```json
+{
+  "online": true,
+  "device": {
+    "name": "comma four",
+    "id": "6dea66ada857421f",
+    "version": "2026.07.02-xrm10",
+    "branch": "dev",
+    "commit": "344ec6a",
+    "offroad": true
+  }
+}
+```
+
+`POST /api/xrm10/profile` receives a profile sync payload with `changes`,
+`profile`, and `policy`. The bridge should reject safety-critical changes unless
+the device is offroad and the on-device implementation has reviewed support for
+those parameters.
 
 ## Safety Lab workflow
 

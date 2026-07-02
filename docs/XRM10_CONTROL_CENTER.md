@@ -13,6 +13,8 @@ It is designed for development workflow, not direct vehicle actuation.
 
 - Use a realistic Home dashboard with device status, search, offline sync state,
   version, branch, commit, and category tiles.
+- Track online/offline device state, last seen time, pending profile changes,
+  demo bridge status, and HTTP bridge sync status.
 - Use a sunnypilot-style section sidebar with Device, Toggles, Models,
   Steering, Cruise, Visuals, Display, Maps, Nav Pilot, Vehicle, Software,
   Safety Lab, Developer, and Migration Wizard views.
@@ -34,13 +36,53 @@ It is designed for development workflow, not direct vehicle actuation.
   turn speed margin, screen brightness, map brightness, and route preview
   distance.
 - Export and import reviewable JSON profiles.
+- Queue parameter changes while offline and sync them when the device bridge is
+  online.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
   review steps.
 - Export Nav Pilot plans with maneuver confidence checks, map-camera agreement
   requirements, driver-confirm policy, and fallback gates.
 - Show locked safety policies that must not be bypassed.
 
-## Safety boundary
+## Live Sync
+
+The Device > Live sync panel has three modes:
+
+- Demo bridge: local online/offline simulation for testing the app.
+- HTTP bridge: device-side service used by the app for live profile sync.
+- Manual offline: disables network sync and keeps changes queued locally.
+
+Run the included local bridge:
+
+```text
+node tools/xrm10_control_center/bridge_server.js --host=0.0.0.0 --port=8787
+```
+
+Then open the app from a phone on the same network:
+
+```text
+http://YOUR-LAPTOP-IP:8787/
+```
+
+When HTTP bridge mode is selected and Bridge URL is empty, the app uses the same
+origin that served the page. For a separate comma-side bridge, enter that bridge
+URL explicitly.
+
+Expected HTTP endpoints:
+
+```text
+GET  /api/xrm10/status
+POST /api/xrm10/profile
+```
+
+`GET /api/xrm10/status` should return whether the device is reachable plus
+device metadata such as name, ID, version, branch, commit, and offroad state.
+`POST /api/xrm10/profile` receives the full profile, changed parameters, and a
+policy block. The payload always marks `liveVehicleApplyAllowed` as `false`; the
+bridge must treat safety-critical changes as offroad review unless separate
+on-device code and tests explicitly support them.
+
+## Safety Boundary
 
 The app intentionally does not expose switches that disable driver monitoring,
 weaken excessive actuation checks, modify panda safety, or make manual override
