@@ -1041,6 +1041,16 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.map-package-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
 .lock-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1324,6 +1334,73 @@ button:focus-visible {
 .toast.show {
   opacity: 1;
   transform: translateY(0);
+}
+
+.confirmation-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.confirmation-modal.show {
+  display: grid;
+}
+
+.confirmation-sheet {
+  display: grid;
+  width: min(460px, 100%);
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid rgba(255, 189, 74, 0.42);
+  border-radius: var(--radius);
+  background: #121314;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.confirmation-sheet h2 {
+  margin: 4px 0 8px;
+  font-size: 22px;
+}
+
+.confirmation-sheet p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.confirm-button {
+  display: grid;
+  min-height: 58px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.confirm-button svg {
+  width: 28px;
+  height: 28px;
+}
+
+.confirm-button.reject {
+  background: rgba(255, 93, 93, 0.12);
+  border-color: rgba(255, 93, 93, 0.34);
+}
+
+.confirm-button.accept {
+  background: rgba(82, 214, 200, 0.14);
+  border-color: rgba(82, 214, 200, 0.36);
 }
 
 @media (max-width: 1040px) {

@@ -39,9 +39,13 @@ tools/xrm10_control_center/index.html
 - Nav Pilot Lab profiles for map-camera route intent, highway exits, highway
   merges, route lane selection, U-turn review, roundabout review, and surface
   street turns.
+- Auto-start route review mode for car-screen navigation, with route actions
+  blocked behind an on-screen X/tick confirmation sheet and sound alert.
 - Car-screen maps route intake for reading a destination shown on the vehicle
   screen, staging that destination as route intent, and sharing it with Nav
   Pilot under driver-confirm gates.
+- GCC/UAE map package controls for UAE detailed priority, all GCC country
+  coverage, offline-cache staging, and local map-file metadata upload.
 - Safety Lab test-plan export with readiness score, checklist, lab controls,
   and the staged testing manual.
 - Nav Pilot plan export with maneuver confidence score, confidence gates,
@@ -53,6 +57,7 @@ tools/xrm10_control_center/index.html
   Applied/Changed/Failed status returned by the bridge.
 - Traffic/LWC controls for faster-lane suggestions, traffic gap checks, and lane
   width control with driver-confirmation and blind-spot gates.
+- Faster-lane confirmation prompts with sound, cancel X, and confirm tick.
 
 ## What it does not control
 
@@ -65,6 +70,10 @@ live vehicle safety limits from the phone app.
 
 Nav Pilot controls are planning and simulation controls. They do not enable live
 automated driving from the phone app.
+
+Auto-start route review and auto-confirmed steering review are profile/test
+states only. They require on-screen tick confirmation and do not actuate
+steering by themselves.
 
 Traffic/LWC controls are suggestions and driver-confirmed planning controls.
 They do not enable unconfirmed automatic lane changes between cars or autonomous
@@ -105,6 +114,8 @@ POST /api/xrm10/profile
 POST /api/xrm10/road-state
 GET  /api/xrm10/car-route
 POST /api/xrm10/car-route
+GET  /api/xrm10/map-package
+POST /api/xrm10/map-package
 POST /api/xrm10/section-apply
 GET  /api/xrm10/section-status?section=device
 POST /api/xrm10/ssh-status
@@ -171,6 +182,28 @@ or for a future comma-side route reader:
 The route endpoint is route-intent sync only. It does not actuate steering,
 change lanes, or start automated navigation from the phone.
 
+`POST /api/xrm10/map-package` stages GCC/UAE map package metadata for testing:
+
+```json
+{
+  "mapPackage": {
+    "status": "staged",
+    "name": "UAE detailed + GCC all",
+    "region": "gcc-uae-detailed",
+    "fileCount": 0,
+    "totalBytes": 0
+  },
+  "policy": {
+    "mapDataOnly": true,
+    "liveVehicleApplyAllowed": false,
+    "driverConfirmationRequired": true
+  }
+}
+```
+
+The local upload control records map file metadata such as PMTiles, MBTiles,
+OSM/PBF, or JSON files. It does not bundle proprietary map data into the repo.
+
 `POST /api/xrm10/section-apply` receives one section and the current profile.
 The bridge returns whether that section is staged and working. `GET
 /api/xrm10/section-status` checks the last known result.
@@ -196,7 +229,7 @@ host and a valid local key path; the app does not expose private key contents.
 2. Camera agreement: lane lines, road edge, signs, arrows, and drivable path
    must agree with the route.
 3. Driver confirmation: lane-route actions require signal, nudge, or explicit
-   confirmation.
+   UI tick confirmation with the confirmation sheet.
 4. Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only
    until separately validated.
 5. Fallback: blind spots, low confidence, missing lanes, unclear yield

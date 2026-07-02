@@ -603,6 +603,7 @@
                 <span>Lane change</span>
                 <select id="laneChangeMode">
                   <option value="nudge">Nudge required</option>
+                  <option value="ui-confirmed">UI confirm, no nudge</option>
                   <option value="timer-1">1 second timer</option>
                   <option value="timer-2">2 second timer</option>
                   <option value="off">Off</option>
@@ -697,6 +698,10 @@
             </div>
             <div class="toggle-stack switch-grid">
               <label><input id="fasterLaneSuggestions" type="checkbox" checked> Show faster-lane suggestions</label>
+              <label><input id="fasterLaneConfirmPopup" type="checkbox" checked> Show confirm popup for faster-lane suggestions</label>
+              <label><input id="confirmationPromptEnabled" type="checkbox" checked> Show confirmation popup for route actions</label>
+              <label><input id="confirmationSound" type="checkbox" checked> Play confirmation sound</label>
+              <label><input id="confirmationRequireTick" type="checkbox" checked> Require tick mark before confirmed action</label>
               <label><input id="trafficAutoManeuverBlock" type="checkbox" checked> Block unconfirmed traffic maneuvers</label>
               <label><input id="trafficRequireConfirmation" type="checkbox" checked> Require driver confirmation</label>
               <label><input id="trafficRequireSignal" type="checkbox" checked> Require turn signal before lane action</label>
@@ -716,6 +721,9 @@
                 <span>Traffic lookahead <strong id="trafficLookaheadDistanceValue">0.6 mi</strong></span>
                 <input id="trafficLookaheadDistance" type="range" min="0.2" max="1.5" step="0.1" value="0.6">
               </label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="testFasterLanePrompt" type="button">Test faster-lane prompt</button>
             </div>
           </article>
 
@@ -983,19 +991,61 @@
                 <span>Map region</span>
                 <select id="mapRegion">
                   <option value="us">United States</option>
+                  <option value="gcc-uae-detailed">UAE detailed plus GCC</option>
                   <option value="gcc-review">GCC review</option>
+                  <option value="gcc-all">GCC all countries</option>
+                  <option value="uae-detailed">UAE detailed</option>
                   <option value="custom-review">Custom review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>GCC map pack</span>
+                <select id="gccMapPackMode">
+                  <option value="uae-detailed-priority">UAE detailed priority</option>
+                  <option value="gcc-all">All GCC offline pack</option>
+                  <option value="custom-upload">Custom uploaded files</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Map data freshness</span>
+                <select id="mapDataFreshnessMode">
+                  <option value="prefer-latest">Prefer latest available</option>
+                  <option value="stable-reviewed">Stable reviewed</option>
+                  <option value="manual-only">Manual only</option>
                 </select>
               </label>
             </div>
             <div class="toggle-stack switch-grid">
               <label><input id="offlineMaps" type="checkbox"> Offline map cache</label>
               <label><input id="mapLaneGuidance" type="checkbox" checked> Lane guidance prompts</label>
+              <label><input id="uaeDetailedMap" type="checkbox" checked> UAE detailed map priority</label>
+              <label><input id="gccAllMaps" type="checkbox" checked> GCC all-country map coverage</label>
+              <label><input id="gccSaudiMap" type="checkbox" checked> Saudi Arabia</label>
+              <label><input id="gccOmanMap" type="checkbox" checked> Oman</label>
+              <label><input id="gccQatarMap" type="checkbox" checked> Qatar</label>
+              <label><input id="gccKuwaitMap" type="checkbox" checked> Kuwait</label>
+              <label><input id="gccBahrainMap" type="checkbox" checked> Bahrain</label>
             </div>
             <label class="range-field">
               <span>Route preview distance <strong id="routePreviewDistanceValue">1.5 mi</strong></span>
               <input id="routePreviewDistance" type="range" min="0.5" max="5" step="0.1" value="1.5">
             </label>
+            <div class="map-package-panel">
+              <div class="summary-row">
+                <span>Map package</span>
+                <strong id="gccMapPackageStatus">UAE detailed + GCC all</strong>
+              </div>
+              <div class="summary-row">
+                <span>Files</span>
+                <strong id="gccMapPackageFiles">No files uploaded</strong>
+              </div>
+              <div class="button-row">
+                <button class="primary-button" id="uploadGccMaps" type="button">Upload GCC maps</button>
+                <button class="ghost-button" id="stageUaeMapPack" type="button">Stage UAE detailed pack</button>
+                <input id="gccMapUpload" type="file" accept=".pmtiles,.mbtiles,.pbf,.osm,.json" multiple hidden>
+              </div>
+            </div>
           </article>
         </section>
 
@@ -1026,6 +1076,7 @@
                 <select id="navMode">
                   <option value="off">Off</option>
                   <option value="advisory">Advisory only</option>
+                  <option value="auto-start-review">Auto-start route review</option>
                   <option value="simulation">Simulation</option>
                   <option value="closed-course">Closed-course review</option>
                 </select>
@@ -1034,6 +1085,7 @@
                 <span>Route intent</span>
                 <select id="routeIntentMode">
                   <option value="prompt">Prompt driver</option>
+                  <option value="confirm-ui">Confirm on UI</option>
                   <option value="confirm-nudge">Confirm by nudge</option>
                   <option value="lab-auto-plan">Lab auto-plan</option>
                 </select>
@@ -1072,6 +1124,7 @@
                 <span>Steering plan</span>
                 <select id="navSteeringMode">
                   <option value="advisory">Advisory only</option>
+                  <option value="auto-confirmed-review">Auto-confirmed review</option>
                   <option value="driver-confirmed">Driver confirmed</option>
                   <option value="closed-course-plan">Closed-course plan</option>
                 </select>
@@ -1112,6 +1165,7 @@
             <div class="toggle-stack switch-grid">
               <label><input id="navRequireSignal" type="checkbox" checked> Require turn signal before lane route action</label>
               <label><input id="navRequireDriverNudge" type="checkbox" checked> Require driver nudge before steering plan</label>
+              <label><input id="navStartConfirmPopup" type="checkbox" checked> Confirm automatic route-start on UI</label>
               <label><input id="navBlindSpotBlock" type="checkbox" checked> Block maneuver on blind spot</label>
               <label><input id="navMapCameraAgree" type="checkbox" checked> Require map and camera agreement</label>
               <label><input id="navNoAutoUturnRoad" type="checkbox" checked> Block U-turn outside closed-course review</label>
@@ -1153,6 +1207,7 @@
             </div>
             <div class="migration-actions">
               <button class="primary-button" id="runNavPilot" type="button">Run nav check</button>
+              <button class="ghost-button" id="testNavStartPrompt" type="button">Test route-start prompt</button>
               <button class="ghost-button" id="exportNavPlan" type="button">Download nav plan</button>
             </div>
           </article>
@@ -1559,6 +1614,23 @@
       </section>
     </main>
 
+    <div class="confirmation-modal" id="confirmationModal" aria-hidden="true">
+      <div class="confirmation-sheet" role="dialog" aria-modal="true" aria-labelledby="confirmationTitle">
+        <div>
+          <p class="eyebrow" id="confirmationKicker">Confirm action</p>
+          <h2 id="confirmationTitle">Confirm route action</h2>
+          <p id="confirmationMessage">Review the requested maneuver before confirming.</p>
+        </div>
+        <div class="confirmation-actions">
+          <button class="confirm-button reject" id="confirmationReject" type="button" aria-label="Cancel requested action">
+            <i data-lucide="x"></i>
+          </button>
+          <button class="confirm-button accept" id="confirmationAccept" type="button" aria-label="Confirm requested action">
+            <i data-lucide="check"></i>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
   </body>

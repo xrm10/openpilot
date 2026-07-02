@@ -25,9 +25,13 @@ It is designed for development workflow, not direct vehicle actuation.
 - Keep Nav Pilot Lab in the same app for map-camera route intent, highway
   exits, highway merges, route lane selection, U-turn review, roundabout review,
   and surface street turn planning.
+- Configure auto-start route review for car-screen navigation while keeping
+  route actions behind a sound alert plus X/tick confirmation sheet.
 - Read or stage a car-screen maps destination and share that route intent with
   Nav Pilot while keeping driver confirmation, blind-spot, and camera-agreement
   gates enabled.
+- Stage GCC/UAE map package metadata, with UAE detailed priority and all GCC
+  country coverage controls for offline-cache testing.
 - Select an install target for upgrade or rollback.
 - Copy the current installer URL.
 - Configure bounded core controller preferences.
@@ -47,6 +51,7 @@ It is designed for development workflow, not direct vehicle actuation.
 - Configure Traffic/LWC review controls for faster-lane suggestions, traffic
   gaps, adjacent-traffic buffers, and lane width control with driver-confirm
   gates.
+- Use faster-lane confirmation prompts with sound, cancel X, and confirm tick.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
   review steps.
 - Export Nav Pilot plans with maneuver confidence checks, map-camera agreement
@@ -85,6 +90,8 @@ POST /api/xrm10/profile
 POST /api/xrm10/road-state
 GET  /api/xrm10/car-route
 POST /api/xrm10/car-route
+GET  /api/xrm10/map-package
+POST /api/xrm10/map-package
 POST /api/xrm10/section-apply
 GET  /api/xrm10/section-status?section=device
 POST /api/xrm10/ssh-status
@@ -137,6 +144,28 @@ future comma-side route reader:
 The route endpoint is route-intent sync only. It must not actuate steering,
 change lanes, or start automated navigation from the phone app.
 
+`POST /api/xrm10/map-package` stages GCC/UAE map package metadata for testing:
+
+```json
+{
+  "mapPackage": {
+    "status": "staged",
+    "name": "UAE detailed + GCC all",
+    "region": "gcc-uae-detailed",
+    "fileCount": 0,
+    "totalBytes": 0
+  },
+  "policy": {
+    "mapDataOnly": true,
+    "liveVehicleApplyAllowed": false,
+    "driverConfirmationRequired": true
+  }
+}
+```
+
+Local map uploads record file metadata for PMTiles, MBTiles, OSM/PBF, or JSON
+files. Proprietary or very large map files are not bundled into the repo.
+
 `POST /api/xrm10/section-apply` receives one section plus the current profile
 and returns whether that section is staged and working. `GET
 /api/xrm10/section-status` checks the last known result.
@@ -160,6 +189,10 @@ Nav Pilot controls represent planning and simulation values. They are not live
 automated-driving enablement and must not be wired into real steering, exits,
 roundabouts, or U-turn behavior without separate reviewed code, simulator
 coverage, bench tests, closed-course tests, and safety validation.
+
+Auto-start route review and auto-confirmed steering review are profile/test
+states only. They require the UI confirmation tick and do not actuate steering
+by themselves.
 
 Traffic/LWC controls represent suggestions and driver-confirmed planning. They
 do not enable unconfirmed automatic lane changes between cars or autonomous
@@ -187,7 +220,7 @@ lane weaving to reach a faster lane.
 2. Camera agreement: lane lines, road edge, signs, arrows, and drivable path
    must agree with the route.
 3. Driver confirmation: lane-route actions require signal, nudge, or explicit
-   confirmation.
+   UI tick confirmation with the confirmation sheet.
 4. Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only
    until separately validated.
 5. Fallback: any blind spot, low confidence, missing lane, unclear yield
