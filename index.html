@@ -5,331 +5,773 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>XRM10 Control Center</title>
     <link rel="stylesheet" href="styles.css">
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">XRM10 / sunnypilot dev</p>
-          <h1>Control Center</h1>
+    <main class="settings-app">
+      <aside class="settings-sidebar" aria-label="Settings sections">
+        <div class="brand-lockup">
+          <strong>SUNNYPILOT</strong>
+          <span>XRM10 dev controls</span>
         </div>
-        <div class="branch-pill">
-          <span id="branchStatusDot"></span>
+
+        <nav class="primary-nav">
+          <button class="nav-item active" type="button" data-section-target="device">
+            <i data-lucide="home"></i><span>Home</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="vehicle">
+            <i data-lucide="smartphone"></i><span>My Devices</span>
+          </button>
+        </nav>
+
+        <p class="nav-heading">Device settings</p>
+        <nav class="section-nav">
+          <button class="nav-item active" type="button" data-section-target="device">
+            <i data-lucide="hard-drive"></i><span>Device</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="toggles">
+            <i data-lucide="toggle-left"></i><span>Toggles</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="models">
+            <i data-lucide="box"></i><span>Models</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="steering">
+            <i data-lucide="gauge"></i><span>Steering</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="cruise">
+            <i data-lucide="wind"></i><span>Cruise</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="visuals">
+            <i data-lucide="palette"></i><span>Visuals</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="display">
+            <i data-lucide="monitor"></i><span>Display</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="maps">
+            <i data-lucide="map"></i><span>Maps</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="vehicle">
+            <i data-lucide="car"></i><span>Vehicle</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="software">
+            <i data-lucide="download"></i><span>Software</span>
+          </button>
+          <button class="nav-item" type="button" data-section-target="developer">
+            <i data-lucide="wrench"></i><span>Developer</span>
+          </button>
+        </nav>
+
+        <button class="nav-item migration-link" type="button" data-section-target="migration">
+          <i data-lucide="replace"></i><span>Migration Wizard</span>
+        </button>
+
+        <div class="sidebar-footer">
+          <span class="avatar-mark">X</span>
           <div>
-            <strong id="activeBranchLabel">xrm10/dev</strong>
-            <small id="activeBranchMeta">installer ready</small>
+            <strong>xrm10</strong>
+            <span id="sidebarStatus">Guarded</span>
           </div>
         </div>
-      </header>
+      </aside>
 
-      <section class="layout-grid" aria-label="XRM10 control center dashboard">
-        <aside class="panel profile-panel">
-          <div class="panel-heading">
+      <section class="settings-content">
+        <header class="content-topbar">
+          <div>
+            <p class="eyebrow" id="sectionEyebrow">Device settings</p>
+            <h1 id="sectionTitle">Device</h1>
+          </div>
+          <div class="branch-pill">
+            <span id="branchStatusDot"></span>
             <div>
-              <p class="eyebrow">Vehicle profile</p>
-              <h2>Tesla HW4</h2>
-            </div>
-            <button class="ghost-button" id="resetProfile" type="button">Reset</button>
-          </div>
-
-          <label class="field">
-            <span>Profile name</span>
-            <input id="profileName" maxlength="40" value="XRM10 Model 3 HW4">
-          </label>
-
-          <div class="split">
-            <label class="field">
-              <span>Model</span>
-              <select id="vehicleModel">
-                <option value="Tesla Model 3">Model 3</option>
-                <option value="Tesla Model Y">Model Y</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Year</span>
-              <select id="vehicleYear">
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="field">
-            <span>Device</span>
-            <select id="deviceTarget">
-              <option value="comma four">comma four</option>
-              <option value="comma 3X">comma 3X review only</option>
-            </select>
-          </label>
-
-          <div class="route-visual" aria-label="Lane assist state preview">
-            <div class="road">
-              <span class="lane lane-left"></span>
-              <span class="lane lane-right"></span>
-              <span class="ego-car"></span>
-              <span class="lead-car"></span>
-            </div>
-            <div class="route-copy">
-              <strong id="previewTitle">Guarded lane assist</strong>
-              <span id="previewText">Confirm lane changes. Keep safety locked.</span>
+              <strong id="activeBranchLabel">xrm10/dev</strong>
+              <small id="activeBranchMeta">installer ready</small>
             </div>
           </div>
-        </aside>
+        </header>
 
-        <section class="panel safety-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Safety policy</p>
-              <h2>Hard limits</h2>
-            </div>
-            <span class="status-badge pass" id="safetyBadge">Locked</span>
+        <section class="section-panel active" data-section="device" aria-label="Device settings">
+          <div class="section-grid two-one">
+            <article class="settings-card">
+              <div class="card-heading">
+                <div>
+                  <p class="eyebrow">Device</p>
+                  <h2>comma four profile</h2>
+                </div>
+                <span class="status-badge pass" id="safetyBadge">Locked</span>
+              </div>
+
+              <label class="field">
+                <span>Profile name</span>
+                <input id="profileName" maxlength="40" value="XRM10 Model 3 HW4">
+              </label>
+
+              <div class="split">
+                <label class="field">
+                  <span>Device target</span>
+                  <select id="deviceTarget">
+                    <option value="comma four">comma four</option>
+                    <option value="comma 3X">comma 3X review only</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Device guard</span>
+                  <select id="deviceGuardMode">
+                    <option value="balanced">Balanced</option>
+                    <option value="cooling">Cooling priority</option>
+                    <option value="diagnostic">Diagnostic review</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="audit-band">
+                <div>
+                  <span>Safety score</span>
+                  <strong id="safetyScore">100</strong>
+                </div>
+                <div class="meter"><i id="safetyMeter"></i></div>
+              </div>
+            </article>
+
+            <article class="settings-card route-card">
+              <div class="route-visual" aria-label="Lane assist state preview">
+                <div class="road">
+                  <span class="lane lane-left"></span>
+                  <span class="lane lane-right"></span>
+                  <span class="ego-car"></span>
+                  <span class="lead-car"></span>
+                </div>
+                <div class="route-copy">
+                  <strong id="previewTitle">Guarded lane assist</strong>
+                  <span id="previewText">Confirm lane changes. Keep safety locked.</span>
+                </div>
+              </div>
+            </article>
           </div>
 
-          <div class="lock-list" id="lockList"></div>
-
-          <div class="audit-band">
-            <div>
-              <span>Safety score</span>
-              <strong id="safetyScore">100</strong>
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Safety policy</p>
+                <h2>Locked boundaries</h2>
+              </div>
+              <span class="status-badge" id="controllerBadge">Guarded</span>
             </div>
-            <div class="meter"><i id="safetyMeter"></i></div>
-          </div>
+            <div class="lock-list" id="lockList"></div>
+          </article>
         </section>
 
-        <section class="panel controller-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Controllers</p>
-              <h2>Core assist</h2>
+        <section class="section-panel" data-section="toggles" aria-label="Toggle settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Toggles</p>
+                <h2>Assist switches</h2>
+              </div>
+              <span class="status-badge pass" id="moduleBadge">16 modules</span>
             </div>
-            <span class="status-badge" id="controllerBadge">Balanced</span>
-          </div>
-
-          <div class="control-grid">
-            <label class="field">
-              <span>Lateral mode</span>
-              <select id="lateralMode">
-                <option value="standard">Standard sunnypilot</option>
-                <option value="torque">Torque preference</option>
-                <option value="nnlc-review">NNLC review only</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>MADS mode</span>
-              <select id="madsMode">
-                <option value="stock">Stock engagement</option>
-                <option value="unified">Unified engagement</option>
-                <option value="manual">Manual lateral only</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Lane change</span>
-              <select id="laneChangeMode">
-                <option value="nudge">Nudge required</option>
-                <option value="timer-1">1 second timer</option>
-                <option value="timer-2">2 second timer</option>
-                <option value="off">Off</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Speed assist</span>
-              <select id="speedAssistMode">
-                <option value="info">Info only</option>
-                <option value="warning">Warning only</option>
-                <option value="off">Off</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="toggle-stack">
-            <label><input id="blindSpotDelay" type="checkbox" checked> Delay lane change when blind spot is detected</label>
-            <label><input id="laneTurnDesire" type="checkbox"> Use lane turn desires below selected speed</label>
-            <label><input id="coopSteering" type="checkbox"> Tesla cooperative steering beta review</label>
-            <label><input id="experimentalControls" type="checkbox"> Experimental controls review only</label>
-          </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="blindSpotDelay" type="checkbox" checked> Delay lane change on blind spot</label>
+              <label><input id="laneTurnDesire" type="checkbox"> Lane turn desires below selected speed</label>
+              <label><input id="stopGoSmoothing" type="checkbox"> Stop-and-go smoothing review</label>
+              <label><input id="modelUncertaintyAlert" type="checkbox" checked> Early weak-lane confidence alert</label>
+              <label><input id="reviewLogCapture" type="checkbox" checked> Capture controller review logs</label>
+              <label><input id="thermalGuard" type="checkbox" checked> Conservative thermal guard</label>
+              <label><input id="handsOnReminder" type="checkbox" checked> Hands-on reminder escalation</label>
+              <label><input id="metricUnits" type="checkbox"> Metric units profile</label>
+            </div>
+          </article>
         </section>
 
-        <section class="panel advanced-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">More controllers</p>
-              <h2>Advanced modules</h2>
+        <section class="section-panel" data-section="models" aria-label="Model settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Models</p>
+                <h2>Vision and planner review</h2>
+              </div>
             </div>
-            <span class="status-badge pass" id="moduleBadge">16 modules</span>
-          </div>
-
-          <div class="control-grid dense-grid">
-            <label class="field">
-              <span>Longitudinal</span>
-              <select id="longitudinalMode">
-                <option value="stock">Stock openpilot</option>
-                <option value="smooth">Smooth follow</option>
-                <option value="traffic-review">Traffic review</option>
-              </select>
+            <div class="control-grid">
+              <label class="field">
+                <span>Model stack</span>
+                <select id="modelStackMode">
+                  <option value="sunnypilot-dev">sunnypilot dev</option>
+                  <option value="openpilot-compare">openpilot compare</option>
+                  <option value="xrm10-review">XRM10 review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Vision policy</span>
+                <select id="visionPolicyMode">
+                  <option value="guarded">Guarded</option>
+                  <option value="early-alert">Early alert</option>
+                  <option value="review">Review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lane model</span>
+                <select id="laneModelMode">
+                  <option value="hw4-review">HW4 review</option>
+                  <option value="strict-lines">Strict lane lines</option>
+                  <option value="wide-road">Wide road comfort</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lead model</span>
+                <select id="leadModelMode">
+                  <option value="standard">Standard</option>
+                  <option value="early-gap">Early gap</option>
+                  <option value="smooth-stop">Smooth stop</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Fallback</span>
+                <select id="modelFallbackMode">
+                  <option value="safe-revert">Safe revert</option>
+                  <option value="alert-only">Alert only</option>
+                  <option value="manual-review">Manual review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Model cache</span>
+                <select id="modelCacheMode">
+                  <option value="stable">Stable</option>
+                  <option value="fast-refresh">Fast refresh</option>
+                  <option value="offline-safe">Offline safe</option>
+                </select>
+              </label>
+            </div>
+            <label class="range-field">
+              <span>Model confidence gate <strong id="modelConfidenceGateValue">65%</strong></span>
+              <input id="modelConfidenceGate" type="range" min="50" max="90" step="1" value="65">
             </label>
-
-            <label class="field">
-              <span>Lane centering</span>
-              <select id="laneCenterMode">
-                <option value="center">Centered</option>
-                <option value="curve-cautious">Curve cautious</option>
-                <option value="road-edge-cautious">Road-edge cautious</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Curve speed</span>
-              <select id="curveSpeedMode">
-                <option value="advisory">Advisory only</option>
-                <option value="bounded">Bounded comfort</option>
-                <option value="off">Off</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Lead behavior</span>
-              <select id="leadBehaviorMode">
-                <option value="stock">Stock lead tracking</option>
-                <option value="early-gap">Early gap build</option>
-                <option value="smooth-brake">Smooth braking</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Road-edge guard</span>
-              <select id="roadEdgeMode">
-                <option value="warn">Warn</option>
-                <option value="conservative">Conservative</option>
-                <option value="off">Off</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Prompt timing</span>
-              <select id="promptMode">
-                <option value="standard">Standard</option>
-                <option value="early">Early prompts</option>
-                <option value="quiet">Quiet review</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Review logging</span>
-              <select id="logMode">
-                <option value="summary">Summary</option>
-                <option value="detailed">Detailed</option>
-                <option value="minimal">Minimal</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Device guard</span>
-              <select id="deviceGuardMode">
-                <option value="balanced">Balanced</option>
-                <option value="cooling">Cooling priority</option>
-                <option value="diagnostic">Diagnostic review</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="toggle-stack compact-stack">
-            <label><input id="stopGoSmoothing" type="checkbox"> Stop-and-go smoothing review</label>
-            <label><input id="modelUncertaintyAlert" type="checkbox" checked> Alert early on weak lane confidence</label>
-            <label><input id="reviewLogCapture" type="checkbox" checked> Capture controller review logs</label>
-            <label><input id="thermalGuard" type="checkbox" checked> Conservative thermal/device guard</label>
-          </div>
-
-          <div class="controller-summary" id="controllerSummary"></div>
+          </article>
         </section>
 
-        <section class="panel tuning-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Bounded tuning</p>
-              <h2>Comfort envelope</h2>
+        <section class="section-panel" data-section="steering" aria-label="Steering settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Steering</p>
+                <h2>Lateral controller</h2>
+              </div>
             </div>
-          </div>
-
-          <label class="range-field">
-            <span>Follow gap <strong id="followGapValue">2.5s</strong></span>
-            <input id="followGap" type="range" min="2.0" max="3.8" step="0.1" value="2.5">
-          </label>
-
-          <label class="range-field">
-            <span>Speed offset cap <strong id="speedOffsetValue">+1 mph</strong></span>
-            <input id="speedOffset" type="range" min="0" max="4" step="1" value="1">
-          </label>
-
-          <label class="range-field">
-            <span>Lane-change delay <strong id="laneDelayValue">1.0s</strong></span>
-            <input id="laneDelay" type="range" min="0" max="3" step="0.5" value="1">
-          </label>
-
-          <label class="range-field">
-            <span>Curve comfort <strong id="curveComfortValue">72</strong></span>
-            <input id="curveComfort" type="range" min="50" max="90" step="1" value="72">
-          </label>
-
-          <label class="range-field">
-            <span>Steering smoothness <strong id="steerSmoothnessValue">70</strong></span>
-            <input id="steerSmoothness" type="range" min="50" max="90" step="1" value="70">
-          </label>
-
-          <label class="range-field">
-            <span>Lane position bias <strong id="laneBiasValue">0 cm</strong></span>
-            <input id="laneBias" type="range" min="-20" max="20" step="1" value="0">
-          </label>
-
-          <label class="range-field">
-            <span>Brake comfort <strong id="brakeComfortValue">72</strong></span>
-            <input id="brakeComfort" type="range" min="50" max="90" step="1" value="72">
-          </label>
-
-          <label class="range-field">
-            <span>Prompt lead time <strong id="promptLeadTimeValue">1.2s</strong></span>
-            <input id="promptLeadTime" type="range" min="0.5" max="2.5" step="0.1" value="1.2">
-          </label>
-
-          <label class="range-field">
-            <span>Model confidence gate <strong id="modelConfidenceGateValue">65%</strong></span>
-            <input id="modelConfidenceGate" type="range" min="50" max="90" step="1" value="65">
-          </label>
+            <div class="control-grid">
+              <label class="field">
+                <span>Lateral mode</span>
+                <select id="lateralMode">
+                  <option value="standard">Standard sunnypilot</option>
+                  <option value="torque">Torque preference</option>
+                  <option value="nnlc-review">NNLC review only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>MADS mode</span>
+                <select id="madsMode">
+                  <option value="stock">Stock engagement</option>
+                  <option value="unified">Unified engagement</option>
+                  <option value="manual">Manual lateral only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lane centering</span>
+                <select id="laneCenterMode">
+                  <option value="center">Centered</option>
+                  <option value="curve-cautious">Curve cautious</option>
+                  <option value="road-edge-cautious">Road-edge cautious</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Road-edge guard</span>
+                <select id="roadEdgeMode">
+                  <option value="warn">Warn</option>
+                  <option value="conservative">Conservative</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Torque limit mode</span>
+                <select id="torqueLimitMode">
+                  <option value="stock">Stock limits</option>
+                  <option value="comfort">Comfort limited</option>
+                  <option value="review">Review only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Steer cooldown</span>
+                <select id="steerFaultCooldown">
+                  <option value="2">2 seconds</option>
+                  <option value="3">3 seconds</option>
+                  <option value="5">5 seconds</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="coopSteering" type="checkbox"> Tesla cooperative steering beta review</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Steering smoothness <strong id="steerSmoothnessValue">70</strong></span>
+                <input id="steerSmoothness" type="range" min="50" max="90" step="1" value="70">
+              </label>
+              <label class="range-field">
+                <span>Lane position bias <strong id="laneBiasValue">0 cm</strong></span>
+                <input id="laneBias" type="range" min="-20" max="20" step="1" value="0">
+              </label>
+              <label class="range-field">
+                <span>Steer rate guard <strong id="steerRateLimitValue">70</strong></span>
+                <input id="steerRateLimit" type="range" min="50" max="90" step="1" value="70">
+              </label>
+              <label class="range-field">
+                <span>Actuator delay <strong id="steerActuatorDelayValue">0.20s</strong></span>
+                <input id="steerActuatorDelay" type="range" min="0.10" max="0.50" step="0.01" value="0.20">
+              </label>
+              <label class="range-field">
+                <span>Auto nudge strength <strong id="autoNudgeStrengthValue">50</strong></span>
+                <input id="autoNudgeStrength" type="range" min="0" max="80" step="1" value="50">
+              </label>
+            </div>
+          </article>
         </section>
 
-        <section class="panel software-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Upgrade / rollback</p>
-              <h2>Install targets</h2>
+        <section class="section-panel" data-section="cruise" aria-label="Cruise settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Cruise</p>
+                <h2>Longitudinal controller</h2>
+              </div>
             </div>
-            <button class="ghost-button" id="copyInstallUrl" type="button">Copy URL</button>
-          </div>
-
-          <div class="target-list" id="targetList"></div>
-
-          <label class="field">
-            <span>Custom installer URL</span>
-            <input id="customInstallUrl" placeholder="https://installer.comma.ai/xrm10/dev">
-          </label>
+            <div class="control-grid">
+              <label class="field">
+                <span>Longitudinal</span>
+                <select id="longitudinalMode">
+                  <option value="stock">Stock openpilot</option>
+                  <option value="smooth">Smooth follow</option>
+                  <option value="traffic-review">Traffic review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Curve speed</span>
+                <select id="curveSpeedMode">
+                  <option value="advisory">Advisory only</option>
+                  <option value="bounded">Bounded comfort</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lead behavior</span>
+                <select id="leadBehaviorMode">
+                  <option value="stock">Stock lead tracking</option>
+                  <option value="early-gap">Early gap build</option>
+                  <option value="smooth-brake">Smooth braking</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Speed assist</span>
+                <select id="speedAssistMode">
+                  <option value="info">Info only</option>
+                  <option value="warning">Warning only</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lane change</span>
+                <select id="laneChangeMode">
+                  <option value="nudge">Nudge required</option>
+                  <option value="timer-1">1 second timer</option>
+                  <option value="timer-2">2 second timer</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Cruise source</span>
+                <select id="cruiseSourceMode">
+                  <option value="set-speed">Set speed</option>
+                  <option value="map-advisory">Map advisory</option>
+                  <option value="vision-advisory">Vision advisory</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="trafficLightReview" type="checkbox"> Traffic light and stop sign review prompts</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Follow gap <strong id="followGapValue">2.5s</strong></span>
+                <input id="followGap" type="range" min="2.0" max="3.8" step="0.1" value="2.5">
+              </label>
+              <label class="range-field">
+                <span>Speed offset cap <strong id="speedOffsetValue">+1 mph</strong></span>
+                <input id="speedOffset" type="range" min="0" max="4" step="1" value="1">
+              </label>
+              <label class="range-field">
+                <span>Lane-change delay <strong id="laneDelayValue">1.0s</strong></span>
+                <input id="laneDelay" type="range" min="0" max="3" step="0.5" value="1">
+              </label>
+              <label class="range-field">
+                <span>Curve comfort <strong id="curveComfortValue">72</strong></span>
+                <input id="curveComfort" type="range" min="50" max="90" step="1" value="72">
+              </label>
+              <label class="range-field">
+                <span>Brake comfort <strong id="brakeComfortValue">72</strong></span>
+                <input id="brakeComfort" type="range" min="50" max="90" step="1" value="72">
+              </label>
+              <label class="range-field">
+                <span>Accel comfort <strong id="accelComfortValue">70</strong></span>
+                <input id="accelComfort" type="range" min="50" max="90" step="1" value="70">
+              </label>
+              <label class="range-field">
+                <span>Stop resume delay <strong id="stopResumeDelayValue">1.0s</strong></span>
+                <input id="stopResumeDelay" type="range" min="0" max="3" step="0.1" value="1.0">
+              </label>
+              <label class="range-field">
+                <span>Turn speed margin <strong id="turnSpeedMarginValue">6 mph</strong></span>
+                <input id="turnSpeedMargin" type="range" min="3" max="12" step="1" value="6">
+              </label>
+            </div>
+          </article>
         </section>
 
-        <section class="panel export-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Profile artifact</p>
-              <h2>Export</h2>
+        <section class="section-panel" data-section="visuals" aria-label="Visual settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Visuals</p>
+                <h2>On-road interface</h2>
+              </div>
             </div>
-            <div class="button-row">
-              <button class="ghost-button" id="importButton" type="button">Import</button>
-              <button class="primary-button" id="downloadProfile" type="button">Download</button>
+            <div class="control-grid">
+              <label class="field">
+                <span>Prompt timing</span>
+                <select id="promptMode">
+                  <option value="standard">Standard</option>
+                  <option value="early">Early prompts</option>
+                  <option value="quiet">Quiet review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Visual theme</span>
+                <select id="visualTheme">
+                  <option value="sunnypilot-dark">sunnypilot dark</option>
+                  <option value="xrm10-high-contrast">XRM10 high contrast</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Alert density</span>
+                <select id="alertDensity">
+                  <option value="normal">Normal</option>
+                  <option value="early">Early</option>
+                  <option value="quiet">Quiet</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Lane overlay</span>
+                <select id="laneOverlay">
+                  <option value="standard">Standard</option>
+                  <option value="wide">Wide road</option>
+                  <option value="precision">Precision</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Event banner</span>
+                <select id="eventBannerStyle">
+                  <option value="compact">Compact</option>
+                  <option value="full">Full width</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </label>
             </div>
-          </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="roadEdgeOverlay" type="checkbox" checked> Road-edge overlay</label>
+              <label><input id="showDebugHud" type="checkbox"> Debug HUD review</label>
+            </div>
+            <label class="range-field">
+              <span>Prompt lead time <strong id="promptLeadTimeValue">1.2s</strong></span>
+              <input id="promptLeadTime" type="range" min="0.5" max="2.5" step="0.1" value="1.2">
+            </label>
+          </article>
+        </section>
 
-          <pre id="jsonPreview" tabindex="0"></pre>
-          <input id="importInput" type="file" accept="application/json" hidden>
+        <section class="section-panel" data-section="display" aria-label="Display settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Display</p>
+                <h2>Screen behavior</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Display theme</span>
+                <select id="displayTheme">
+                  <option value="auto">Auto</option>
+                  <option value="dark">Dark</option>
+                  <option value="high-contrast">High contrast</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Keep awake</span>
+                <select id="keepAwakeMode">
+                  <option value="plugged">When powered</option>
+                  <option value="always-review">Always review</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Units</span>
+                <select id="unitsMode">
+                  <option value="imperial">Imperial</option>
+                  <option value="metric">Metric</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="largeText" type="checkbox"> Large text</label>
+              <label><input id="reduceMotion" type="checkbox"> Reduce motion</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Screen brightness <strong id="screenBrightnessValue">70%</strong></span>
+                <input id="screenBrightness" type="range" min="25" max="100" step="1" value="70">
+              </label>
+              <label class="range-field">
+                <span>Map brightness <strong id="mapBrightnessValue">60%</strong></span>
+                <input id="mapBrightness" type="range" min="25" max="100" step="1" value="60">
+              </label>
+            </div>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="maps" aria-label="Map settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Maps</p>
+                <h2>Route assistance</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Map mode</span>
+                <select id="mapMode">
+                  <option value="online">Online</option>
+                  <option value="offline-cache">Offline cache</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Route assist</span>
+                <select id="routeAssistMode">
+                  <option value="advisory">Advisory</option>
+                  <option value="prompted">Prompted</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Speed limit source</span>
+                <select id="speedLimitSource">
+                  <option value="map-vision">Map plus vision</option>
+                  <option value="map">Map only</option>
+                  <option value="vision">Vision only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Map region</span>
+                <select id="mapRegion">
+                  <option value="us">United States</option>
+                  <option value="gcc-review">GCC review</option>
+                  <option value="custom-review">Custom review</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="offlineMaps" type="checkbox"> Offline map cache</label>
+              <label><input id="mapLaneGuidance" type="checkbox" checked> Lane guidance prompts</label>
+            </div>
+            <label class="range-field">
+              <span>Route preview distance <strong id="routePreviewDistanceValue">1.5 mi</strong></span>
+              <input id="routePreviewDistance" type="range" min="0.5" max="5" step="0.1" value="1.5">
+            </label>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="vehicle" aria-label="Vehicle settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Vehicle</p>
+                <h2>Tesla HW4 profile</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Model</span>
+                <select id="vehicleModel">
+                  <option value="Tesla Model 3">Model 3</option>
+                  <option value="Tesla Model Y">Model Y</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Year</span>
+                <select id="vehicleYear">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Tire preset</span>
+                <select id="tireSizePreset">
+                  <option value="stock-18">Stock 18</option>
+                  <option value="stock-19">Stock 19</option>
+                  <option value="stock-20">Stock 20 review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Harness mode</span>
+                <select id="vehicleHarnessMode">
+                  <option value="review">Review</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="bench">Bench only</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Region profile</span>
+                <select id="regionProfile">
+                  <option value="us">US</option>
+                  <option value="uae-review">UAE review</option>
+                  <option value="custom-review">Custom review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Powertrain</span>
+                <select id="powertrainProfile">
+                  <option value="awd-review">AWD review</option>
+                  <option value="rwd-review">RWD review</option>
+                  <option value="performance-review">Performance review</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>VIN nickname</span>
+                <input id="vinNickname" maxlength="32" placeholder="Optional">
+              </label>
+              <label class="field">
+                <span>Test route mode</span>
+                <select id="testRouteMode">
+                  <option value="off">Off</option>
+                  <option value="parking-lot">Parking lot</option>
+                  <option value="closed-course">Closed course</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="radarInteropReview" type="checkbox"> Radar interoperability review</label>
+            </div>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="software" aria-label="Software settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Software</p>
+                <h2>Upgrade and rollback</h2>
+              </div>
+              <button class="ghost-button" id="copyInstallUrl" type="button">Copy URL</button>
+            </div>
+            <div class="target-list" id="targetList"></div>
+            <label class="field">
+              <span>Custom installer URL</span>
+              <input id="customInstallUrl" placeholder="https://installer.comma.ai/xrm10/dev">
+            </label>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="developer" aria-label="Developer settings">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Developer</p>
+                <h2>Review and diagnostics</h2>
+              </div>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Review logging</span>
+                <select id="logMode">
+                  <option value="summary">Summary</option>
+                  <option value="detailed">Detailed</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Param preview</span>
+                <select id="parameterPreviewMode">
+                  <option value="readonly">Read only</option>
+                  <option value="staged-json">Staged JSON</option>
+                  <option value="blocked-live">Live writes blocked</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="developerMode" type="checkbox"> Developer mode review</label>
+              <label><input id="experimentalControls" type="checkbox"> Experimental controls review only</label>
+              <label><input id="replayReview" type="checkbox"> Replay review mode</label>
+              <label><input id="eventSnapshot" type="checkbox" checked> Event snapshot capture</label>
+              <label><input id="cabanaExport" type="checkbox"> Cabana export hints</label>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Profile artifact</p>
+                <h2>JSON preview</h2>
+              </div>
+              <div class="button-row">
+                <button class="ghost-button" id="importButton" type="button">Import</button>
+                <button class="primary-button" id="downloadProfile" type="button">Download</button>
+              </div>
+            </div>
+            <pre id="jsonPreview" tabindex="0"></pre>
+            <input id="importInput" type="file" accept="application/json" hidden>
+          </article>
+        </section>
+
+        <section class="section-panel" data-section="migration" aria-label="Migration wizard">
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Migration Wizard</p>
+                <h2>Move profiles safely</h2>
+              </div>
+              <button class="ghost-button" id="resetProfile" type="button">Reset</button>
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Migration source</span>
+                <select id="migrationSource">
+                  <option value="manual">Manual profile</option>
+                  <option value="sunnypilot">sunnypilot profile</option>
+                  <option value="openpilot">openpilot compare</option>
+                  <option value="backup-json">Backup JSON</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Backup slot</span>
+                <select id="backupSlot">
+                  <option value="slot-a">Slot A</option>
+                  <option value="slot-b">Slot B</option>
+                  <option value="slot-c">Slot C</option>
+                </select>
+              </label>
+            </div>
+            <div class="migration-actions">
+              <button class="primary-button" id="downloadProfileSecondary" type="button">Download profile</button>
+              <button class="ghost-button" id="importButtonSecondary" type="button">Import profile</button>
+            </div>
+            <div class="controller-summary" id="controllerSummary"></div>
+          </article>
         </section>
       </section>
     </main>

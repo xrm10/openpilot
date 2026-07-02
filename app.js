@@ -48,8 +48,24 @@ const installTargets = [
   }
 ];
 
+const sectionMeta = {
+  device: ["Device settings", "Device"],
+  toggles: ["Device settings", "Toggles"],
+  models: ["Device settings", "Models"],
+  steering: ["Device settings", "Steering"],
+  cruise: ["Device settings", "Cruise"],
+  visuals: ["Device settings", "Visuals"],
+  display: ["Device settings", "Display"],
+  maps: ["Device settings", "Maps"],
+  vehicle: ["Device settings", "Vehicle"],
+  software: ["Device settings", "Software"],
+  developer: ["Device settings", "Developer"],
+  migration: ["Device settings", "Migration Wizard"]
+};
+
 const defaultProfile = {
-  schemaVersion: 2,
+  schemaVersion: 3,
+  activeSection: "device",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
   vehicleYear: "2024",
@@ -76,7 +92,50 @@ const defaultProfile = {
     stopGoSmoothing: false,
     modelUncertaintyAlert: true,
     reviewLogCapture: true,
-    thermalGuard: true
+    thermalGuard: true,
+    handsOnReminder: true,
+    metricUnits: false,
+    modelStackMode: "sunnypilot-dev",
+    visionPolicyMode: "guarded",
+    laneModelMode: "hw4-review",
+    leadModelMode: "standard",
+    modelFallbackMode: "safe-revert",
+    modelCacheMode: "stable",
+    torqueLimitMode: "stock",
+    steerFaultCooldown: "2",
+    cruiseSourceMode: "set-speed",
+    trafficLightReview: false,
+    visualTheme: "sunnypilot-dark",
+    alertDensity: "normal",
+    laneOverlay: "standard",
+    eventBannerStyle: "compact",
+    roadEdgeOverlay: true,
+    showDebugHud: false,
+    displayTheme: "auto",
+    keepAwakeMode: "plugged",
+    unitsMode: "imperial",
+    largeText: false,
+    reduceMotion: false,
+    mapMode: "online",
+    routeAssistMode: "advisory",
+    speedLimitSource: "map-vision",
+    mapRegion: "us",
+    offlineMaps: false,
+    mapLaneGuidance: true,
+    tireSizePreset: "stock-18",
+    vehicleHarnessMode: "review",
+    regionProfile: "us",
+    powertrainProfile: "awd-review",
+    vinNickname: "",
+    testRouteMode: "off",
+    radarInteropReview: false,
+    parameterPreviewMode: "readonly",
+    developerMode: false,
+    replayReview: false,
+    eventSnapshot: true,
+    cabanaExport: false,
+    migrationSource: "manual",
+    backupSlot: "slot-a"
   },
   tuning: {
     followGap: 2.5,
@@ -87,62 +146,131 @@ const defaultProfile = {
     laneBias: 0,
     brakeComfort: 72,
     promptLeadTime: 1.2,
-    modelConfidenceGate: 65
+    modelConfidenceGate: 65,
+    steerRateLimit: 70,
+    steerActuatorDelay: 0.2,
+    autoNudgeStrength: 50,
+    accelComfort: 70,
+    stopResumeDelay: 1,
+    turnSpeedMargin: 6,
+    screenBrightness: 70,
+    mapBrightness: 60,
+    routePreviewDistance: 1.5
   },
   safetyPolicy: {
     driverMonitoringRequired: true,
     excessiveActuationChecksLocked: true,
     pandaSafetyReadOnly: true,
     manualOverrideRequired: true,
-    unsafeSafetyLimitEditingAllowed: false
+    unsafeSafetyLimitEditingAllowed: false,
+    liveVehicleParamWritesAllowed: false,
+    phoneSafetyLimitEditingAllowed: false
   }
 };
+
+const textBindings = [
+  ["profileName", ["profileName"]],
+  ["customInstallUrl", ["customInstallUrl"]],
+  ["vinNickname", ["controllers", "vinNickname"]]
+];
+
+const selectBindings = [
+  ["deviceTarget", ["deviceTarget"]],
+  ["vehicleModel", ["vehicleModel"]],
+  ["vehicleYear", ["vehicleYear"]],
+  ["lateralMode", ["controllers", "lateralMode"]],
+  ["madsMode", ["controllers", "madsMode"]],
+  ["laneChangeMode", ["controllers", "laneChangeMode"]],
+  ["speedAssistMode", ["controllers", "speedAssistMode"]],
+  ["longitudinalMode", ["controllers", "longitudinalMode"]],
+  ["laneCenterMode", ["controllers", "laneCenterMode"]],
+  ["curveSpeedMode", ["controllers", "curveSpeedMode"]],
+  ["leadBehaviorMode", ["controllers", "leadBehaviorMode"]],
+  ["roadEdgeMode", ["controllers", "roadEdgeMode"]],
+  ["promptMode", ["controllers", "promptMode"]],
+  ["logMode", ["controllers", "logMode"]],
+  ["deviceGuardMode", ["controllers", "deviceGuardMode"]],
+  ["modelStackMode", ["controllers", "modelStackMode"]],
+  ["visionPolicyMode", ["controllers", "visionPolicyMode"]],
+  ["laneModelMode", ["controllers", "laneModelMode"]],
+  ["leadModelMode", ["controllers", "leadModelMode"]],
+  ["modelFallbackMode", ["controllers", "modelFallbackMode"]],
+  ["modelCacheMode", ["controllers", "modelCacheMode"]],
+  ["torqueLimitMode", ["controllers", "torqueLimitMode"]],
+  ["steerFaultCooldown", ["controllers", "steerFaultCooldown"]],
+  ["cruiseSourceMode", ["controllers", "cruiseSourceMode"]],
+  ["visualTheme", ["controllers", "visualTheme"]],
+  ["alertDensity", ["controllers", "alertDensity"]],
+  ["laneOverlay", ["controllers", "laneOverlay"]],
+  ["eventBannerStyle", ["controllers", "eventBannerStyle"]],
+  ["displayTheme", ["controllers", "displayTheme"]],
+  ["keepAwakeMode", ["controllers", "keepAwakeMode"]],
+  ["unitsMode", ["controllers", "unitsMode"]],
+  ["mapMode", ["controllers", "mapMode"]],
+  ["routeAssistMode", ["controllers", "routeAssistMode"]],
+  ["speedLimitSource", ["controllers", "speedLimitSource"]],
+  ["mapRegion", ["controllers", "mapRegion"]],
+  ["tireSizePreset", ["controllers", "tireSizePreset"]],
+  ["vehicleHarnessMode", ["controllers", "vehicleHarnessMode"]],
+  ["regionProfile", ["controllers", "regionProfile"]],
+  ["powertrainProfile", ["controllers", "powertrainProfile"]],
+  ["testRouteMode", ["controllers", "testRouteMode"]],
+  ["parameterPreviewMode", ["controllers", "parameterPreviewMode"]],
+  ["migrationSource", ["controllers", "migrationSource"]],
+  ["backupSlot", ["controllers", "backupSlot"]]
+];
+
+const checkboxBindings = [
+  ["blindSpotDelay", ["controllers", "blindSpotDelay"]],
+  ["laneTurnDesire", ["controllers", "laneTurnDesire"]],
+  ["coopSteering", ["controllers", "coopSteering"]],
+  ["experimentalControls", ["controllers", "experimentalControls"]],
+  ["stopGoSmoothing", ["controllers", "stopGoSmoothing"]],
+  ["modelUncertaintyAlert", ["controllers", "modelUncertaintyAlert"]],
+  ["reviewLogCapture", ["controllers", "reviewLogCapture"]],
+  ["thermalGuard", ["controllers", "thermalGuard"]],
+  ["handsOnReminder", ["controllers", "handsOnReminder"]],
+  ["metricUnits", ["controllers", "metricUnits"]],
+  ["trafficLightReview", ["controllers", "trafficLightReview"]],
+  ["roadEdgeOverlay", ["controllers", "roadEdgeOverlay"]],
+  ["showDebugHud", ["controllers", "showDebugHud"]],
+  ["largeText", ["controllers", "largeText"]],
+  ["reduceMotion", ["controllers", "reduceMotion"]],
+  ["offlineMaps", ["controllers", "offlineMaps"]],
+  ["mapLaneGuidance", ["controllers", "mapLaneGuidance"]],
+  ["radarInteropReview", ["controllers", "radarInteropReview"]],
+  ["developerMode", ["controllers", "developerMode"]],
+  ["replayReview", ["controllers", "replayReview"]],
+  ["eventSnapshot", ["controllers", "eventSnapshot"]],
+  ["cabanaExport", ["controllers", "cabanaExport"]]
+];
+
+const rangeBindings = [
+  { id: "followGap", path: ["tuning", "followGap"], min: 2, max: 3.8, valueId: "followGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "speedOffset", path: ["tuning", "speedOffset"], min: 0, max: 4, valueId: "speedOffsetValue", format: (v) => `+${v} mph` },
+  { id: "laneDelay", path: ["tuning", "laneDelay"], min: 0, max: 3, valueId: "laneDelayValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "curveComfort", path: ["tuning", "curveComfort"], min: 50, max: 90, valueId: "curveComfortValue", format: String },
+  { id: "steerSmoothness", path: ["tuning", "steerSmoothness"], min: 50, max: 90, valueId: "steerSmoothnessValue", format: String },
+  { id: "laneBias", path: ["tuning", "laneBias"], min: -20, max: 20, valueId: "laneBiasValue", format: (v) => `${signed(v)} cm` },
+  { id: "brakeComfort", path: ["tuning", "brakeComfort"], min: 50, max: 90, valueId: "brakeComfortValue", format: String },
+  { id: "promptLeadTime", path: ["tuning", "promptLeadTime"], min: 0.5, max: 2.5, valueId: "promptLeadTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "modelConfidenceGate", path: ["tuning", "modelConfidenceGate"], min: 50, max: 90, valueId: "modelConfidenceGateValue", format: (v) => `${v}%` },
+  { id: "steerRateLimit", path: ["tuning", "steerRateLimit"], min: 50, max: 90, valueId: "steerRateLimitValue", format: String },
+  { id: "steerActuatorDelay", path: ["tuning", "steerActuatorDelay"], min: 0.1, max: 0.5, valueId: "steerActuatorDelayValue", format: (v) => `${Number(v).toFixed(2)}s` },
+  { id: "autoNudgeStrength", path: ["tuning", "autoNudgeStrength"], min: 0, max: 80, valueId: "autoNudgeStrengthValue", format: String },
+  { id: "accelComfort", path: ["tuning", "accelComfort"], min: 50, max: 90, valueId: "accelComfortValue", format: String },
+  { id: "stopResumeDelay", path: ["tuning", "stopResumeDelay"], min: 0, max: 3, valueId: "stopResumeDelayValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "turnSpeedMargin", path: ["tuning", "turnSpeedMargin"], min: 3, max: 12, valueId: "turnSpeedMarginValue", format: (v) => `${v} mph` },
+  { id: "screenBrightness", path: ["tuning", "screenBrightness"], min: 25, max: 100, valueId: "screenBrightnessValue", format: (v) => `${v}%` },
+  { id: "mapBrightness", path: ["tuning", "mapBrightness"], min: 25, max: 100, valueId: "mapBrightnessValue", format: (v) => `${v}%` },
+  { id: "routePreviewDistance", path: ["tuning", "routePreviewDistance"], min: 0.5, max: 5, valueId: "routePreviewDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` }
+];
 
 let profile = loadProfile();
 
 const els = {
-  profileName: document.querySelector("#profileName"),
-  vehicleModel: document.querySelector("#vehicleModel"),
-  vehicleYear: document.querySelector("#vehicleYear"),
-  deviceTarget: document.querySelector("#deviceTarget"),
-  lateralMode: document.querySelector("#lateralMode"),
-  madsMode: document.querySelector("#madsMode"),
-  laneChangeMode: document.querySelector("#laneChangeMode"),
-  speedAssistMode: document.querySelector("#speedAssistMode"),
-  blindSpotDelay: document.querySelector("#blindSpotDelay"),
-  laneTurnDesire: document.querySelector("#laneTurnDesire"),
-  coopSteering: document.querySelector("#coopSteering"),
-  experimentalControls: document.querySelector("#experimentalControls"),
-  longitudinalMode: document.querySelector("#longitudinalMode"),
-  laneCenterMode: document.querySelector("#laneCenterMode"),
-  curveSpeedMode: document.querySelector("#curveSpeedMode"),
-  leadBehaviorMode: document.querySelector("#leadBehaviorMode"),
-  roadEdgeMode: document.querySelector("#roadEdgeMode"),
-  promptMode: document.querySelector("#promptMode"),
-  logMode: document.querySelector("#logMode"),
-  deviceGuardMode: document.querySelector("#deviceGuardMode"),
-  stopGoSmoothing: document.querySelector("#stopGoSmoothing"),
-  modelUncertaintyAlert: document.querySelector("#modelUncertaintyAlert"),
-  reviewLogCapture: document.querySelector("#reviewLogCapture"),
-  thermalGuard: document.querySelector("#thermalGuard"),
-  followGap: document.querySelector("#followGap"),
-  speedOffset: document.querySelector("#speedOffset"),
-  laneDelay: document.querySelector("#laneDelay"),
-  curveComfort: document.querySelector("#curveComfort"),
-  steerSmoothness: document.querySelector("#steerSmoothness"),
-  laneBias: document.querySelector("#laneBias"),
-  brakeComfort: document.querySelector("#brakeComfort"),
-  promptLeadTime: document.querySelector("#promptLeadTime"),
-  modelConfidenceGate: document.querySelector("#modelConfidenceGate"),
-  followGapValue: document.querySelector("#followGapValue"),
-  speedOffsetValue: document.querySelector("#speedOffsetValue"),
-  laneDelayValue: document.querySelector("#laneDelayValue"),
-  curveComfortValue: document.querySelector("#curveComfortValue"),
-  steerSmoothnessValue: document.querySelector("#steerSmoothnessValue"),
-  laneBiasValue: document.querySelector("#laneBiasValue"),
-  brakeComfortValue: document.querySelector("#brakeComfortValue"),
-  promptLeadTimeValue: document.querySelector("#promptLeadTimeValue"),
-  modelConfidenceGateValue: document.querySelector("#modelConfidenceGateValue"),
+  sectionEyebrow: document.querySelector("#sectionEyebrow"),
+  sectionTitle: document.querySelector("#sectionTitle"),
   safetyScore: document.querySelector("#safetyScore"),
   safetyMeter: document.querySelector("#safetyMeter"),
   safetyBadge: document.querySelector("#safetyBadge"),
@@ -151,17 +279,19 @@ const els = {
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
+  sidebarStatus: document.querySelector("#sidebarStatus"),
   previewTitle: document.querySelector("#previewTitle"),
   previewText: document.querySelector("#previewText"),
   lockList: document.querySelector("#lockList"),
   targetList: document.querySelector("#targetList"),
   controllerSummary: document.querySelector("#controllerSummary"),
-  customInstallUrl: document.querySelector("#customInstallUrl"),
   jsonPreview: document.querySelector("#jsonPreview"),
   resetProfile: document.querySelector("#resetProfile"),
   copyInstallUrl: document.querySelector("#copyInstallUrl"),
   downloadProfile: document.querySelector("#downloadProfile"),
+  downloadProfileSecondary: document.querySelector("#downloadProfileSecondary"),
   importButton: document.querySelector("#importButton"),
+  importButtonSecondary: document.querySelector("#importButtonSecondary"),
   importInput: document.querySelector("#importInput"),
   toast: document.querySelector("#toast")
 };
@@ -185,6 +315,7 @@ function normalizeProfile(input) {
     ...next,
     ...input,
     schemaVersion: next.schemaVersion,
+    activeSection: sectionMeta[input.activeSection] ? input.activeSection : next.activeSection,
     controllers: {
       ...next.controllers,
       ...(input.controllers || {})
@@ -200,7 +331,9 @@ function normalizeProfile(input) {
       excessiveActuationChecksLocked: true,
       pandaSafetyReadOnly: true,
       manualOverrideRequired: true,
-      unsafeSafetyLimitEditingAllowed: false
+      unsafeSafetyLimitEditingAllowed: false,
+      liveVehicleParamWritesAllowed: false,
+      phoneSafetyLimitEditingAllowed: false
     }
   };
 }
@@ -219,27 +352,37 @@ function activeInstallUrl() {
 }
 
 function computeSafetyScore() {
+  const c = profile.controllers;
+  const t = profile.tuning;
   let score = 100;
 
-  if (profile.controllers.experimentalControls) score -= 20;
-  if (profile.controllers.coopSteering) score -= 8;
-  if (profile.controllers.longitudinalMode === "traffic-review") score -= 10;
-  if (profile.controllers.curveSpeedMode === "bounded") score -= 4;
-  if (profile.controllers.roadEdgeMode === "off") score -= 8;
-  if (profile.controllers.promptMode === "quiet") score -= 5;
-  if (profile.controllers.logMode === "minimal" && profile.controllers.experimentalControls) score -= 8;
-  if (profile.controllers.deviceGuardMode === "diagnostic") score -= 4;
-  if (profile.controllers.stopGoSmoothing) score -= 4;
-  if (!profile.controllers.modelUncertaintyAlert) score -= 8;
-  if (!profile.controllers.reviewLogCapture && profile.controllers.experimentalControls) score -= 8;
-  if (!profile.controllers.thermalGuard) score -= 8;
-  if (profile.controllers.laneChangeMode !== "nudge" && profile.controllers.laneChangeMode !== "off") score -= 10;
-  if (!profile.controllers.blindSpotDelay && profile.controllers.laneChangeMode !== "off") score -= 18;
-  if (Number(profile.tuning.followGap) < 2.2) score -= 10;
-  if (Number(profile.tuning.speedOffset) > 2) score -= 6;
-  if (Math.abs(Number(profile.tuning.laneBias)) > 10) score -= 6;
-  if (Number(profile.tuning.promptLeadTime) < 1) score -= 5;
-  if (Number(profile.tuning.modelConfidenceGate) < 60) score -= 8;
+  if (c.experimentalControls) score -= 20;
+  if (c.developerMode) score -= 6;
+  if (c.coopSteering) score -= 8;
+  if (c.longitudinalMode === "traffic-review") score -= 10;
+  if (c.curveSpeedMode === "bounded") score -= 4;
+  if (c.roadEdgeMode === "off") score -= 8;
+  if (c.promptMode === "quiet") score -= 5;
+  if (c.logMode === "minimal" && c.experimentalControls) score -= 8;
+  if (c.deviceGuardMode === "diagnostic") score -= 4;
+  if (c.stopGoSmoothing) score -= 4;
+  if (c.torqueLimitMode === "review") score -= 8;
+  if (c.modelFallbackMode !== "safe-revert") score -= 5;
+  if (c.parameterPreviewMode !== "readonly") score -= 4;
+  if (c.trafficLightReview) score -= 4;
+  if (c.radarInteropReview) score -= 8;
+  if (c.testRouteMode === "closed-course") score -= 4;
+  if (!c.handsOnReminder) score -= 10;
+  if (!c.modelUncertaintyAlert) score -= 8;
+  if (!c.reviewLogCapture && c.experimentalControls) score -= 8;
+  if (!c.thermalGuard) score -= 8;
+  if (c.laneChangeMode !== "nudge" && c.laneChangeMode !== "off") score -= 10;
+  if (!c.blindSpotDelay && c.laneChangeMode !== "off") score -= 18;
+  if (Number(t.followGap) < 2.2) score -= 10;
+  if (Number(t.speedOffset) > 2) score -= 6;
+  if (Math.abs(Number(t.laneBias)) > 10) score -= 6;
+  if (Number(t.promptLeadTime) < 1) score -= 5;
+  if (Number(t.modelConfidenceGate) < 60) score -= 8;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
   return Math.max(0, Math.min(100, score));
@@ -259,41 +402,27 @@ function statusClass(score) {
 }
 
 function readForm() {
-  profile.profileName = els.profileName.value.trim() || defaultProfile.profileName;
-  profile.vehicleModel = els.vehicleModel.value;
-  profile.vehicleYear = els.vehicleYear.value;
-  profile.deviceTarget = els.deviceTarget.value;
-  profile.customInstallUrl = els.customInstallUrl.value.trim();
-  profile.controllers.lateralMode = els.lateralMode.value;
-  profile.controllers.madsMode = els.madsMode.value;
-  profile.controllers.laneChangeMode = els.laneChangeMode.value;
-  profile.controllers.speedAssistMode = els.speedAssistMode.value;
-  profile.controllers.blindSpotDelay = els.blindSpotDelay.checked;
-  profile.controllers.laneTurnDesire = els.laneTurnDesire.checked;
-  profile.controllers.coopSteering = els.coopSteering.checked;
-  profile.controllers.experimentalControls = els.experimentalControls.checked;
-  profile.controllers.longitudinalMode = els.longitudinalMode.value;
-  profile.controllers.laneCenterMode = els.laneCenterMode.value;
-  profile.controllers.curveSpeedMode = els.curveSpeedMode.value;
-  profile.controllers.leadBehaviorMode = els.leadBehaviorMode.value;
-  profile.controllers.roadEdgeMode = els.roadEdgeMode.value;
-  profile.controllers.promptMode = els.promptMode.value;
-  profile.controllers.logMode = els.logMode.value;
-  profile.controllers.deviceGuardMode = els.deviceGuardMode.value;
-  profile.controllers.stopGoSmoothing = els.stopGoSmoothing.checked;
-  profile.controllers.modelUncertaintyAlert = els.modelUncertaintyAlert.checked;
-  profile.controllers.reviewLogCapture = els.reviewLogCapture.checked;
-  profile.controllers.thermalGuard = els.thermalGuard.checked;
-  profile.tuning.followGap = Number(els.followGap.value);
-  profile.tuning.speedOffset = Number(els.speedOffset.value);
-  profile.tuning.laneDelay = Number(els.laneDelay.value);
-  profile.tuning.curveComfort = Number(els.curveComfort.value);
-  profile.tuning.steerSmoothness = Number(els.steerSmoothness.value);
-  profile.tuning.laneBias = Number(els.laneBias.value);
-  profile.tuning.brakeComfort = Number(els.brakeComfort.value);
-  profile.tuning.promptLeadTime = Number(els.promptLeadTime.value);
-  profile.tuning.modelConfidenceGate = Number(els.modelConfidenceGate.value);
+  for (const [id, path] of textBindings) {
+    const input = byId(id);
+    if (input) setPath(profile, path, input.value.trim());
+  }
 
+  for (const [id, path] of selectBindings) {
+    const input = byId(id);
+    if (input) setPath(profile, path, input.value);
+  }
+
+  for (const [id, path] of checkboxBindings) {
+    const input = byId(id);
+    if (input) setPath(profile, path, input.checked);
+  }
+
+  for (const binding of rangeBindings) {
+    const input = byId(binding.id);
+    if (input) setPath(profile, binding.path, Number(input.value));
+  }
+
+  profile.profileName = profile.profileName || defaultProfile.profileName;
   enforceGuardrails();
   saveProfile();
 }
@@ -305,10 +434,17 @@ function enforceGuardrails() {
   profile.safetyPolicy.pandaSafetyReadOnly = true;
   profile.safetyPolicy.manualOverrideRequired = true;
   profile.safetyPolicy.unsafeSafetyLimitEditingAllowed = false;
+  profile.safetyPolicy.liveVehicleParamWritesAllowed = false;
+  profile.safetyPolicy.phoneSafetyLimitEditingAllowed = false;
 
   if (profile.controllers.experimentalControls) {
     profile.controllers.coopSteering = false;
     profile.controllers.reviewLogCapture = true;
+    profile.controllers.eventSnapshot = true;
+  }
+
+  if (profile.controllers.metricUnits) {
+    profile.controllers.unitsMode = "metric";
   }
 
   if (profile.controllers.promptMode === "quiet") {
@@ -319,56 +455,37 @@ function enforceGuardrails() {
     profile.tuning.laneDelay = 0;
   }
 
-  profile.tuning.followGap = clamp(profile.tuning.followGap, 2.0, 3.8);
-  profile.tuning.speedOffset = clamp(profile.tuning.speedOffset, 0, 4);
-  profile.tuning.laneDelay = clamp(profile.tuning.laneDelay, 0, 3);
-  profile.tuning.curveComfort = clamp(profile.tuning.curveComfort, 50, 90);
-  profile.tuning.steerSmoothness = clamp(profile.tuning.steerSmoothness, 50, 90);
-  profile.tuning.laneBias = clamp(profile.tuning.laneBias, -20, 20);
-  profile.tuning.brakeComfort = clamp(profile.tuning.brakeComfort, 50, 90);
-  profile.tuning.promptLeadTime = clamp(profile.tuning.promptLeadTime, 0.5, 2.5);
-  profile.tuning.modelConfidenceGate = clamp(profile.tuning.modelConfidenceGate, 50, 90);
+  for (const binding of rangeBindings) {
+    setPath(profile, binding.path, clamp(getPath(profile, binding.path), binding.min, binding.max));
+  }
 }
 
 function writeForm() {
-  els.profileName.value = profile.profileName;
-  els.vehicleModel.value = profile.vehicleModel;
-  els.vehicleYear.value = profile.vehicleYear;
-  els.deviceTarget.value = profile.deviceTarget;
-  els.customInstallUrl.value = profile.customInstallUrl;
-  els.lateralMode.value = profile.controllers.lateralMode;
-  els.madsMode.value = profile.controllers.madsMode;
-  els.laneChangeMode.value = profile.controllers.laneChangeMode;
-  els.speedAssistMode.value = profile.controllers.speedAssistMode;
-  els.blindSpotDelay.checked = profile.controllers.blindSpotDelay;
-  els.laneTurnDesire.checked = profile.controllers.laneTurnDesire;
-  els.coopSteering.checked = profile.controllers.coopSteering;
-  els.experimentalControls.checked = profile.controllers.experimentalControls;
-  els.longitudinalMode.value = profile.controllers.longitudinalMode;
-  els.laneCenterMode.value = profile.controllers.laneCenterMode;
-  els.curveSpeedMode.value = profile.controllers.curveSpeedMode;
-  els.leadBehaviorMode.value = profile.controllers.leadBehaviorMode;
-  els.roadEdgeMode.value = profile.controllers.roadEdgeMode;
-  els.promptMode.value = profile.controllers.promptMode;
-  els.logMode.value = profile.controllers.logMode;
-  els.deviceGuardMode.value = profile.controllers.deviceGuardMode;
-  els.stopGoSmoothing.checked = profile.controllers.stopGoSmoothing;
-  els.modelUncertaintyAlert.checked = profile.controllers.modelUncertaintyAlert;
-  els.reviewLogCapture.checked = profile.controllers.reviewLogCapture;
-  els.thermalGuard.checked = profile.controllers.thermalGuard;
-  els.followGap.value = profile.tuning.followGap;
-  els.speedOffset.value = profile.tuning.speedOffset;
-  els.laneDelay.value = profile.tuning.laneDelay;
-  els.curveComfort.value = profile.tuning.curveComfort;
-  els.steerSmoothness.value = profile.tuning.steerSmoothness;
-  els.laneBias.value = profile.tuning.laneBias;
-  els.brakeComfort.value = profile.tuning.brakeComfort;
-  els.promptLeadTime.value = profile.tuning.promptLeadTime;
-  els.modelConfidenceGate.value = profile.tuning.modelConfidenceGate;
+  for (const [id, path] of textBindings) {
+    const input = byId(id);
+    if (input) input.value = getPath(profile, path) ?? "";
+  }
+
+  for (const [id, path] of selectBindings) {
+    const input = byId(id);
+    if (input) input.value = getPath(profile, path);
+  }
+
+  for (const [id, path] of checkboxBindings) {
+    const input = byId(id);
+    if (input) input.checked = Boolean(getPath(profile, path));
+  }
+
+  for (const binding of rangeBindings) {
+    const input = byId(binding.id);
+    if (input) input.value = getPath(profile, binding.path);
+  }
+
   render();
 }
 
 function renderLocks() {
+  if (!els.lockList) return;
   els.lockList.innerHTML = safetyLocks
     .map((lock) => `
       <div class="lock-row">
@@ -384,6 +501,7 @@ function renderLocks() {
 }
 
 function renderTargets() {
+  if (!els.targetList) return;
   els.targetList.innerHTML = installTargets
     .map((target) => `
       <div class="target-card ${target.id === profile.installTarget ? "active" : ""}">
@@ -406,31 +524,33 @@ function render() {
   const target = selectedTarget();
   const branchLabel = profile.customInstallUrl ? "custom URL" : target.label;
 
-  els.followGapValue.textContent = `${Number(profile.tuning.followGap).toFixed(1)}s`;
-  els.speedOffsetValue.textContent = `+${profile.tuning.speedOffset} mph`;
-  els.laneDelayValue.textContent = `${Number(profile.tuning.laneDelay).toFixed(1)}s`;
-  els.curveComfortValue.textContent = String(profile.tuning.curveComfort);
-  els.steerSmoothnessValue.textContent = String(profile.tuning.steerSmoothness);
-  els.laneBiasValue.textContent = `${signed(profile.tuning.laneBias)} cm`;
-  els.brakeComfortValue.textContent = String(profile.tuning.brakeComfort);
-  els.promptLeadTimeValue.textContent = `${Number(profile.tuning.promptLeadTime).toFixed(1)}s`;
-  els.modelConfidenceGateValue.textContent = `${profile.tuning.modelConfidenceGate}%`;
-  els.safetyScore.textContent = String(score);
-  els.safetyMeter.style.width = `${score}%`;
-  els.safetyBadge.textContent = score >= 92 ? "Locked" : "Review";
-  els.safetyBadge.className = `status-badge ${stateClass}`;
-  els.controllerBadge.textContent = controllerLabel();
-  els.controllerBadge.className = `status-badge ${stateClass}`;
-  els.moduleBadge.textContent = `${activeControllerCount()} modules`;
-  els.moduleBadge.className = `status-badge ${stateClass}`;
-  els.activeBranchLabel.textContent = branchLabel;
-  els.activeBranchMeta.textContent = activeInstallUrl();
-  els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
-  els.previewTitle.textContent = previewTitle();
-  els.previewText.textContent = previewText();
-  els.controllerSummary.innerHTML = controllerSummaryRows();
-  els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
+  updateRangeLabels();
+  setText(els.safetyScore, String(score));
+  if (els.safetyMeter) els.safetyMeter.style.width = `${score}%`;
+  setBadge(els.safetyBadge, score >= 92 ? "Locked" : "Review", stateClass);
+  setBadge(els.controllerBadge, controllerLabel(), stateClass);
+  setBadge(els.moduleBadge, `${activeControllerCount()} modules`, stateClass);
+  setText(els.sidebarStatus, controllerLabel());
+  setText(els.activeBranchLabel, branchLabel);
+  setText(els.activeBranchMeta, activeInstallUrl());
+  if (els.branchStatusDot) els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
+  setText(els.previewTitle, previewTitle());
+  setText(els.previewText, previewText());
+  if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
+  if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
+  renderSection(profile.activeSection);
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function updateRangeLabels() {
+  for (const binding of rangeBindings) {
+    const label = byId(binding.valueId);
+    if (label) label.textContent = binding.format(getPath(profile, binding.path));
+  }
 }
 
 function previewTitle() {
@@ -459,30 +579,29 @@ function activeControllerCount() {
     "roadEdgeMode",
     "promptMode",
     "logMode",
-    "deviceGuardMode"
+    "deviceGuardMode",
+    "modelStackMode",
+    "visionPolicyMode",
+    "mapMode",
+    "routeAssistMode",
+    "vehicleHarnessMode",
+    "parameterPreviewMode"
   ];
-  const toggleModules = [
-    "blindSpotDelay",
-    "laneTurnDesire",
-    "coopSteering",
-    "experimentalControls",
-    "stopGoSmoothing",
-    "modelUncertaintyAlert",
-    "reviewLogCapture",
-    "thermalGuard"
-  ];
+  const toggleModules = checkboxBindings
+    .map(([, path]) => path[path.length - 1])
+    .filter((key) => Boolean(profile.controllers[key]));
 
-  return fixedModules.length + toggleModules.filter((key) => profile.controllers[key]).length;
+  return fixedModules.length + toggleModules.length;
 }
 
 function controllerSummaryRows() {
   const rows = [
-    ["Longitudinal", labelFor("longitudinalMode", profile.controllers.longitudinalMode)],
-    ["Lateral", labelFor("lateralMode", profile.controllers.lateralMode)],
-    ["Lane centering", labelFor("laneCenterMode", profile.controllers.laneCenterMode)],
-    ["Road edge", labelFor("roadEdgeMode", profile.controllers.roadEdgeMode)],
-    ["Prompts", `${labelFor("promptMode", profile.controllers.promptMode)}, ${Number(profile.tuning.promptLeadTime).toFixed(1)}s lead`],
-    ["Logging", `${labelFor("logMode", profile.controllers.logMode)} with ${profile.controllers.reviewLogCapture ? "capture on" : "capture off"}`]
+    ["Install", activeInstallUrl()],
+    ["Vehicle", `${profile.vehicleYear} ${profile.vehicleModel}`],
+    ["Steering", `${labelFor("lateralMode", profile.controllers.lateralMode)}, ${labelFor("laneCenterMode", profile.controllers.laneCenterMode)}`],
+    ["Cruise", `${labelFor("longitudinalMode", profile.controllers.longitudinalMode)}, ${Number(profile.tuning.followGap).toFixed(1)}s gap`],
+    ["Models", `${labelFor("modelStackMode", profile.controllers.modelStackMode)}, gate ${profile.tuning.modelConfidenceGate}%`],
+    ["Safety", `${computeSafetyScore()} / 100 ${controllerLabel()}`]
   ];
 
   return rows
@@ -526,6 +645,11 @@ function labelFor(group, value) {
       summary: "Summary",
       detailed: "Detailed",
       minimal: "Minimal"
+    },
+    modelStackMode: {
+      "sunnypilot-dev": "sunnypilot dev",
+      "openpilot-compare": "openpilot compare",
+      "xrm10-review": "XRM10 review"
     }
   };
 
@@ -562,6 +686,7 @@ function importProfile(file) {
   reader.addEventListener("load", () => {
     try {
       profile = normalizeProfile(JSON.parse(String(reader.result)));
+      enforceGuardrails();
       writeForm();
       saveProfile();
       showToast("Profile imported");
@@ -587,10 +712,119 @@ async function copyText(text, message) {
 }
 
 function showToast(message) {
+  if (!els.toast) return;
   els.toast.textContent = message;
   els.toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
+}
+
+function setSection(section) {
+  const nextSection = sectionMeta[section] ? section : "device";
+  profile.activeSection = nextSection;
+  saveProfile();
+  renderSection(nextSection);
+}
+
+function renderSection(section) {
+  const nextSection = sectionMeta[section] ? section : "device";
+  const [eyebrow, title] = sectionMeta[nextSection];
+  document.querySelectorAll("[data-section]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.section === nextSection);
+  });
+  document.querySelectorAll("[data-section-target]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.sectionTarget === nextSection);
+  });
+  setText(els.sectionEyebrow, eyebrow);
+  setText(els.sectionTitle, title);
+}
+
+function wireFormEvents() {
+  const ids = [
+    ...textBindings.map(([id]) => id),
+    ...selectBindings.map(([id]) => id),
+    ...rangeBindings.map(({ id }) => id)
+  ];
+
+  for (const id of ids) {
+    const input = byId(id);
+    if (!input) continue;
+    input.addEventListener("input", handleInput);
+    input.addEventListener("change", handleInput);
+  }
+
+  for (const [id] of checkboxBindings) {
+    const input = byId(id);
+    if (input) input.addEventListener("change", handleInput);
+  }
+}
+
+function wireActions() {
+  document.querySelectorAll("[data-section-target]").forEach((button) => {
+    button.addEventListener("click", () => setSection(button.dataset.sectionTarget));
+  });
+
+  els.targetList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-target]");
+    if (!button) return;
+    profile.installTarget = button.dataset.target;
+    profile.customInstallUrl = "";
+    saveProfile();
+    writeForm();
+    showToast("Install target selected");
+  });
+
+  els.resetProfile?.addEventListener("click", () => {
+    profile = clone(defaultProfile);
+    saveProfile();
+    writeForm();
+    showToast("Profile reset");
+  });
+
+  els.copyInstallUrl?.addEventListener("click", () => {
+    copyText(activeInstallUrl(), "Installer URL copied");
+  });
+
+  els.downloadProfile?.addEventListener("click", downloadProfile);
+  els.downloadProfileSecondary?.addEventListener("click", downloadProfile);
+  els.importButton?.addEventListener("click", () => els.importInput?.click());
+  els.importButtonSecondary?.addEventListener("click", () => els.importInput?.click());
+  els.importInput?.addEventListener("change", (event) => {
+    importProfile(event.target.files[0]);
+    event.target.value = "";
+  });
+}
+
+function handleInput() {
+  readForm();
+  writeForm();
+}
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function getPath(source, path) {
+  return path.reduce((value, key) => value?.[key], source);
+}
+
+function setPath(target, path, value) {
+  let cursor = target;
+  for (const key of path.slice(0, -1)) {
+    cursor[key] ||= {};
+    cursor = cursor[key];
+  }
+  cursor[path[path.length - 1]] = value;
+}
+
+function setText(element, value) {
+  if (element) element.textContent = value;
+}
+
+function setBadge(element, label, className) {
+  if (!element) return;
+  element.textContent = label;
+  element.className = `status-badge ${className}`;
 }
 
 function slug(value) {
@@ -608,83 +842,11 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, number));
 }
 
-function handleInput() {
-  readForm();
-  writeForm();
-}
-
-[
-  els.profileName,
-  els.vehicleModel,
-  els.vehicleYear,
-  els.deviceTarget,
-  els.lateralMode,
-  els.madsMode,
-  els.laneChangeMode,
-  els.speedAssistMode,
-  els.longitudinalMode,
-  els.laneCenterMode,
-  els.curveSpeedMode,
-  els.leadBehaviorMode,
-  els.roadEdgeMode,
-  els.promptMode,
-  els.logMode,
-  els.deviceGuardMode,
-  els.customInstallUrl,
-  els.followGap,
-  els.speedOffset,
-  els.laneDelay,
-  els.curveComfort,
-  els.steerSmoothness,
-  els.laneBias,
-  els.brakeComfort,
-  els.promptLeadTime,
-  els.modelConfidenceGate
-].forEach((input) => {
-  input.addEventListener("input", handleInput);
-  input.addEventListener("change", handleInput);
-});
-
-[
-  els.blindSpotDelay,
-  els.laneTurnDesire,
-  els.coopSteering,
-  els.experimentalControls,
-  els.stopGoSmoothing,
-  els.modelUncertaintyAlert,
-  els.reviewLogCapture,
-  els.thermalGuard
-].forEach((input) => {
-  input.addEventListener("change", handleInput);
-});
-
-els.targetList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-target]");
-  if (!button) return;
-  profile.installTarget = button.dataset.target;
-  profile.customInstallUrl = "";
-  saveProfile();
-  writeForm();
-  showToast("Install target selected");
-});
-
-els.resetProfile.addEventListener("click", () => {
-  profile = clone(defaultProfile);
-  saveProfile();
-  writeForm();
-  showToast("Profile reset");
-});
-
-els.copyInstallUrl.addEventListener("click", () => {
-  copyText(activeInstallUrl(), "Installer URL copied");
-});
-
-els.downloadProfile.addEventListener("click", downloadProfile);
-els.importButton.addEventListener("click", () => els.importInput.click());
-els.importInput.addEventListener("change", (event) => {
-  importProfile(event.target.files[0]);
-  event.target.value = "";
-});
-
 renderLocks();
+wireFormEvents();
+wireActions();
+enforceGuardrails();
 writeForm();
+window.addEventListener("load", () => {
+  if (window.lucide) window.lucide.createIcons();
+});
