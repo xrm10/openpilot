@@ -100,7 +100,7 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Controllers</p>
-              <h2>Assist behavior</h2>
+              <h2>Core assist</h2>
             </div>
             <span class="status-badge" id="controllerBadge">Balanced</span>
           </div>
@@ -152,6 +152,99 @@
           </div>
         </section>
 
+        <section class="panel advanced-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">More controllers</p>
+              <h2>Advanced modules</h2>
+            </div>
+            <span class="status-badge pass" id="moduleBadge">16 modules</span>
+          </div>
+
+          <div class="control-grid dense-grid">
+            <label class="field">
+              <span>Longitudinal</span>
+              <select id="longitudinalMode">
+                <option value="stock">Stock openpilot</option>
+                <option value="smooth">Smooth follow</option>
+                <option value="traffic-review">Traffic review</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Lane centering</span>
+              <select id="laneCenterMode">
+                <option value="center">Centered</option>
+                <option value="curve-cautious">Curve cautious</option>
+                <option value="road-edge-cautious">Road-edge cautious</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Curve speed</span>
+              <select id="curveSpeedMode">
+                <option value="advisory">Advisory only</option>
+                <option value="bounded">Bounded comfort</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Lead behavior</span>
+              <select id="leadBehaviorMode">
+                <option value="stock">Stock lead tracking</option>
+                <option value="early-gap">Early gap build</option>
+                <option value="smooth-brake">Smooth braking</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Road-edge guard</span>
+              <select id="roadEdgeMode">
+                <option value="warn">Warn</option>
+                <option value="conservative">Conservative</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Prompt timing</span>
+              <select id="promptMode">
+                <option value="standard">Standard</option>
+                <option value="early">Early prompts</option>
+                <option value="quiet">Quiet review</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Review logging</span>
+              <select id="logMode">
+                <option value="summary">Summary</option>
+                <option value="detailed">Detailed</option>
+                <option value="minimal">Minimal</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Device guard</span>
+              <select id="deviceGuardMode">
+                <option value="balanced">Balanced</option>
+                <option value="cooling">Cooling priority</option>
+                <option value="diagnostic">Diagnostic review</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toggle-stack compact-stack">
+            <label><input id="stopGoSmoothing" type="checkbox"> Stop-and-go smoothing review</label>
+            <label><input id="modelUncertaintyAlert" type="checkbox" checked> Alert early on weak lane confidence</label>
+            <label><input id="reviewLogCapture" type="checkbox" checked> Capture controller review logs</label>
+            <label><input id="thermalGuard" type="checkbox" checked> Conservative thermal/device guard</label>
+          </div>
+
+          <div class="controller-summary" id="controllerSummary"></div>
+        </section>
+
         <section class="panel tuning-panel">
           <div class="panel-heading">
             <div>
@@ -178,6 +271,31 @@
           <label class="range-field">
             <span>Curve comfort <strong id="curveComfortValue">72</strong></span>
             <input id="curveComfort" type="range" min="50" max="90" step="1" value="72">
+          </label>
+
+          <label class="range-field">
+            <span>Steering smoothness <strong id="steerSmoothnessValue">70</strong></span>
+            <input id="steerSmoothness" type="range" min="50" max="90" step="1" value="70">
+          </label>
+
+          <label class="range-field">
+            <span>Lane position bias <strong id="laneBiasValue">0 cm</strong></span>
+            <input id="laneBias" type="range" min="-20" max="20" step="1" value="0">
+          </label>
+
+          <label class="range-field">
+            <span>Brake comfort <strong id="brakeComfortValue">72</strong></span>
+            <input id="brakeComfort" type="range" min="50" max="90" step="1" value="72">
+          </label>
+
+          <label class="range-field">
+            <span>Prompt lead time <strong id="promptLeadTimeValue">1.2s</strong></span>
+            <input id="promptLeadTime" type="range" min="0.5" max="2.5" step="0.1" value="1.2">
+          </label>
+
+          <label class="range-field">
+            <span>Model confidence gate <strong id="modelConfidenceGateValue">65%</strong></span>
+            <input id="modelConfidenceGate" type="range" min="50" max="90" step="1" value="65">
           </label>
         </section>
 

@@ -15,8 +15,12 @@ tools/xrm10_control_center/index.html
 - comma four install target selection.
 - Controller preferences for lateral mode, MADS, lane-change mode, and speed
   assist.
+- Advanced controller preferences for longitudinal behavior, lane centering,
+  curve-speed handling, lead-car behavior, road-edge guarding, driver prompts,
+  review logging, and device thermal guarding.
 - Bounded comfort tuning for follow gap, speed offset cap, lane-change delay,
-  and curve comfort.
+  curve comfort, steering smoothness, lane bias, braking comfort, prompt lead
+  time, and model confidence gate.
 - Upgrade and rollback installer URLs.
 - JSON import/export for profile review.
 
@@ -34,4 +38,3 @@ a separate reviewed implementation and tests.
 ```text
 https://installer.comma.ai/xrm10/dev
 ```
-
