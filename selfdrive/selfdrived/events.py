@@ -881,29 +881,29 @@ if HARDWARE.get_device_type() == 'mici':
     },
     EventName.preLaneChangeLeft: {
       ET.WARNING: Alert(
-        "Steer Left",
-        "Confirm Lane Change",
+        "Nudge Left to Confirm",
+        "Check mirrors and blind spot",
         AlertStatus.normal, AlertSize.mid,
         Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
     },
     EventName.preLaneChangeRight: {
       ET.WARNING: Alert(
-        "Steer Right",
-        "Confirm Lane Change",
+        "Nudge Right to Confirm",
+        "Check mirrors and blind spot",
         AlertStatus.normal, AlertSize.mid,
         Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
     },
     EventName.laneChangeBlocked: {
       ET.WARNING: Alert(
-        "Car in Blindspot",
+        "Blind Spot Detected",
         "",
         AlertStatus.userPrompt, AlertSize.small,
         Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .1),
     },
     EventName.steerSaturated: {
       ET.WARNING: Alert(
-        "take control",
-        "turn exceeds limit",
+        "Take Control",
+        "Lane assist at limit",
         AlertStatus.userPrompt, AlertSize.mid,
         Priority.LOW, VisualAlert.steerRequired, AudibleAlert.promptRepeat, 2.),
     },
