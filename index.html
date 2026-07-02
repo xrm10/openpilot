@@ -16,7 +16,7 @@
         </div>
 
         <nav class="primary-nav">
-          <button class="nav-item active" type="button" data-section-target="device">
+          <button class="nav-item active" type="button" data-section-target="home">
             <i data-lucide="home"></i><span>Home</span>
           </button>
           <button class="nav-item" type="button" data-section-target="vehicle">
@@ -82,6 +82,9 @@
 
       <section class="settings-content">
         <header class="content-topbar">
+          <button class="topbar-icon" type="button" data-section-target="home" aria-label="Home">
+            <i data-lucide="menu"></i>
+          </button>
           <div>
             <p class="eyebrow" id="sectionEyebrow">Device settings</p>
             <h1 id="sectionTitle">Device</h1>
@@ -95,7 +98,101 @@
           </div>
         </header>
 
-        <section class="section-panel active" data-section="device" aria-label="Device settings">
+        <section class="section-panel active" data-section="home" aria-label="Home dashboard">
+          <div class="home-shell">
+            <div class="home-toolbar">
+              <button class="topbar-icon" type="button" data-section-target="home" aria-label="Menu">
+                <i data-lucide="menu"></i>
+              </button>
+              <button class="topbar-icon" type="button" aria-label="Sync status">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+              <button class="offline-pill" type="button">
+                <span></span> Offline <i data-lucide="chevron-down"></i>
+              </button>
+            </div>
+
+            <label class="settings-search">
+              <i data-lucide="search"></i>
+              <input id="settingsSearch" placeholder="Search settings...">
+            </label>
+
+            <article class="home-device-card">
+              <div class="device-status-row">
+                <span class="device-dot offline"></span>
+                <div>
+                  <h2 id="homeDeviceName">comma four</h2>
+                  <p id="homeDeviceId">6dea66ada857421f</p>
+                </div>
+                <span class="offline-tag">Offline</span>
+              </div>
+              <div class="device-meta-grid">
+                <div>
+                  <span>Version</span>
+                  <strong id="homeVersion">2026.07.02-xrm10</strong>
+                </div>
+                <div>
+                  <span>Branch</span>
+                  <strong id="homeBranch">dev</strong>
+                </div>
+                <div>
+                  <span>Commit</span>
+                  <strong id="homeCommit">344ec6a</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="offline-warning">
+              <i data-lucide="triangle-alert"></i>
+              <div>
+                <h2>Device offline - last seen 39m ago</h2>
+                <p>Likely parked. Settings you change here save to the profile and can be reviewed before device sync.</p>
+              </div>
+              <button class="ghost-button" type="button">Refresh</button>
+            </article>
+
+            <div class="home-tile-grid" id="homeTileGrid">
+              <button class="home-tile" type="button" data-section-target="device" data-search="device comma four hardware status">
+                <i data-lucide="hard-drive"></i><span>Device</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="toggles" data-search="toggles switches assist">
+                <i data-lucide="toggle-left"></i><span>Toggles</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="models" data-search="models vision planner camera">
+                <i data-lucide="box"></i><span>Models</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="steering" data-search="steering lateral torque lane">
+                <i data-lucide="gauge"></i><span>Steering</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="cruise" data-search="cruise longitudinal speed follow">
+                <i data-lucide="wind"></i><span>Cruise</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="visuals" data-search="visuals alerts overlay theme">
+                <i data-lucide="palette"></i><span>Visuals</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="maps" data-search="maps route speed limit guidance">
+                <i data-lucide="map"></i><span>Maps</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="navPilot" data-search="nav pilot exits highways roundabouts u-turns cameras">
+                <i data-lucide="route"></i><span>Nav Pilot</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="vehicle" data-search="vehicle tesla model year hw4">
+                <i data-lucide="car"></i><span>Vehicle</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="software" data-search="software install update branch rollback">
+                <i data-lucide="download"></i><span>Software</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="safetyLab" data-search="safety lab test plan simulation">
+                <i data-lucide="shield-check"></i><span>Safety Lab</span>
+              </button>
+              <button class="home-tile" type="button" data-section-target="developer" data-search="developer logs diagnostics export">
+                <i data-lucide="wrench"></i><span>Developer</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-panel" data-section="device" aria-label="Device settings">
           <div class="section-grid two-one">
             <article class="settings-card">
               <div class="card-heading">
