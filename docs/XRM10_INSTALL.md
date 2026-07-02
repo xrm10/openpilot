@@ -44,6 +44,7 @@ https://github.com/xrm10/openpilot/tree/dev
 
 The branch now follows `sunnypilot/dev`, with XRM10 install notes added on top.
 Lane-assist validation notes live in `docs/XRM10_LANE_ASSIST_TESTING.md`.
+The local control dashboard lives in `tools/xrm10_control_center/index.html`.
 
 Enter this URL on the comma four custom software screen:
 

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>XRM10 Control Center</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">XRM10 / sunnypilot dev</p>
+          <h1>Control Center</h1>
+        </div>
+        <div class="branch-pill">
+          <span id="branchStatusDot"></span>
+          <div>
+            <strong id="activeBranchLabel">xrm10/dev</strong>
+            <small id="activeBranchMeta">installer ready</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="layout-grid" aria-label="XRM10 control center dashboard">
+        <aside class="panel profile-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Vehicle profile</p>
+              <h2>Tesla HW4</h2>
+            </div>
+            <button class="ghost-button" id="resetProfile" type="button">Reset</button>
+          </div>
+
+          <label class="field">
+            <span>Profile name</span>
+            <input id="profileName" maxlength="40" value="XRM10 Model 3 HW4">
+          </label>
+
+          <div class="split">
+            <label class="field">
+              <span>Model</span>
+              <select id="vehicleModel">
+                <option value="Tesla Model 3">Model 3</option>
+                <option value="Tesla Model Y">Model Y</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Year</span>
+              <select id="vehicleYear">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Device</span>
+            <select id="deviceTarget">
+              <option value="comma four">comma four</option>
+              <option value="comma 3X">comma 3X review only</option>
+            </select>
+          </label>
+
+          <div class="route-visual" aria-label="Lane assist state preview">
+            <div class="road">
+              <span class="lane lane-left"></span>
+              <span class="lane lane-right"></span>
+              <span class="ego-car"></span>
+              <span class="lead-car"></span>
+            </div>
+            <div class="route-copy">
+              <strong id="previewTitle">Guarded lane assist</strong>
+              <span id="previewText">Confirm lane changes. Keep safety locked.</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="panel safety-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Safety policy</p>
+              <h2>Hard limits</h2>
+            </div>
+            <span class="status-badge pass" id="safetyBadge">Locked</span>
+          </div>
+
+          <div class="lock-list" id="lockList"></div>
+
+          <div class="audit-band">
+            <div>
+              <span>Safety score</span>
+              <strong id="safetyScore">100</strong>
+            </div>
+            <div class="meter"><i id="safetyMeter"></i></div>
+          </div>
+        </section>
+
+        <section class="panel controller-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Controllers</p>
+              <h2>Assist behavior</h2>
+            </div>
+            <span class="status-badge" id="controllerBadge">Balanced</span>
+          </div>
+
+          <div class="control-grid">
+            <label class="field">
+              <span>Lateral mode</span>
+              <select id="lateralMode">
+                <option value="standard">Standard sunnypilot</option>
+                <option value="torque">Torque preference</option>
+                <option value="nnlc-review">NNLC review only</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>MADS mode</span>
+              <select id="madsMode">
+                <option value="stock">Stock engagement</option>
+                <option value="unified">Unified engagement</option>
+                <option value="manual">Manual lateral only</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Lane change</span>
+              <select id="laneChangeMode">
+                <option value="nudge">Nudge required</option>
+                <option value="timer-1">1 second timer</option>
+                <option value="timer-2">2 second timer</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Speed assist</span>
+              <select id="speedAssistMode">
+                <option value="info">Info only</option>
+                <option value="warning">Warning only</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toggle-stack">
+            <label><input id="blindSpotDelay" type="checkbox" checked> Delay lane change when blind spot is detected</label>
+            <label><input id="laneTurnDesire" type="checkbox"> Use lane turn desires below selected speed</label>
+            <label><input id="coopSteering" type="checkbox"> Tesla cooperative steering beta review</label>
+            <label><input id="experimentalControls" type="checkbox"> Experimental controls review only</label>
+          </div>
+        </section>
+
+        <section class="panel tuning-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Bounded tuning</p>
+              <h2>Comfort envelope</h2>
+            </div>
+          </div>
+
+          <label class="range-field">
+            <span>Follow gap <strong id="followGapValue">2.5s</strong></span>
+            <input id="followGap" type="range" min="2.0" max="3.8" step="0.1" value="2.5">
+          </label>
+
+          <label class="range-field">
+            <span>Speed offset cap <strong id="speedOffsetValue">+1 mph</strong></span>
+            <input id="speedOffset" type="range" min="0" max="4" step="1" value="1">
+          </label>
+
+          <label class="range-field">
+            <span>Lane-change delay <strong id="laneDelayValue">1.0s</strong></span>
+            <input id="laneDelay" type="range" min="0" max="3" step="0.5" value="1">
+          </label>
+
+          <label class="range-field">
+            <span>Curve comfort <strong id="curveComfortValue">72</strong></span>
+            <input id="curveComfort" type="range" min="50" max="90" step="1" value="72">
+          </label>
+        </section>
+
+        <section class="panel software-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Upgrade / rollback</p>
+              <h2>Install targets</h2>
+            </div>
+            <button class="ghost-button" id="copyInstallUrl" type="button">Copy URL</button>
+          </div>
+
+          <div class="target-list" id="targetList"></div>
+
+          <label class="field">
+            <span>Custom installer URL</span>
+            <input id="customInstallUrl" placeholder="https://installer.comma.ai/xrm10/dev">
+          </label>
+        </section>
+
+        <section class="panel export-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Profile artifact</p>
+              <h2>Export</h2>
+            </div>
+            <div class="button-row">
+              <button class="ghost-button" id="importButton" type="button">Import</button>
+              <button class="primary-button" id="downloadProfile" type="button">Download</button>
+            </div>
+          </div>
+
+          <pre id="jsonPreview" tabindex="0"></pre>
+          <input id="importInput" type="file" accept="application/json" hidden>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
