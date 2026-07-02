@@ -15,6 +15,8 @@ It is designed for development workflow, not direct vehicle actuation.
   version, branch, commit, and category tiles.
 - Track online/offline device state, last seen time, pending profile changes,
   demo bridge status, and HTTP bridge sync status.
+- Use the top live stats bar to see connection, Offroad/Inroad state, last seen
+  time, pending changes, and road-state controls.
 - Use a sunnypilot-style section sidebar with Device, Toggles, Models,
   Steering, Cruise, Visuals, Display, Maps, Nav Pilot, Vehicle, Software,
   Safety Lab, Developer, and Migration Wizard views.
@@ -73,6 +75,7 @@ Expected HTTP endpoints:
 ```text
 GET  /api/xrm10/status
 POST /api/xrm10/profile
+POST /api/xrm10/road-state
 ```
 
 `GET /api/xrm10/status` should return whether the device is reachable plus
@@ -81,6 +84,25 @@ device metadata such as name, ID, version, branch, commit, and offroad state.
 policy block. The payload always marks `liveVehicleApplyAllowed` as `false`; the
 bridge must treat safety-critical changes as offroad review unless separate
 on-device code and tests explicitly support them.
+
+`POST /api/xrm10/road-state` receives a requested road state:
+
+```json
+{
+  "requestedState": "onroad",
+  "offroad": false,
+  "source": "xrm10-control-center",
+  "policy": {
+    "driverControlRequired": true,
+    "bridgeMayRejectUnsafeOnroad": true,
+    "liveVehicleApplyAllowed": false
+  }
+}
+```
+
+The local bridge updates demo state immediately. A real comma-side bridge should
+reject unsafe Onroad/Inroad requests when the vehicle/device state does not make
+the transition valid.
 
 ## Safety Boundary
 

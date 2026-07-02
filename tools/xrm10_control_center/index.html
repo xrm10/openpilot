@@ -98,6 +98,33 @@
           </div>
         </header>
 
+        <section class="live-stats-bar" aria-label="Live device stats">
+          <div class="live-stat">
+            <span>Connection</span>
+            <strong id="topConnectionState">Offline</strong>
+          </div>
+          <div class="live-stat">
+            <span>Road state</span>
+            <strong id="topRoadState">Offroad</strong>
+          </div>
+          <div class="live-stat">
+            <span>Last seen</span>
+            <strong id="topLastSeen">39m ago</strong>
+          </div>
+          <div class="live-stat">
+            <span>Pending</span>
+            <strong id="topPendingCount">0</strong>
+          </div>
+          <div class="road-state-control" role="group" aria-label="Road state control">
+            <button class="road-state-button active" id="setOffroad" type="button" data-road-state="offroad">
+              Offroad
+            </button>
+            <button class="road-state-button" id="setOnroad" type="button" data-road-state="onroad">
+              Inroad
+            </button>
+          </div>
+        </section>
+
         <section class="section-panel active" data-section="home" aria-label="Home dashboard">
           <div class="home-shell">
             <div class="home-toolbar">
@@ -304,6 +331,10 @@
                 <strong id="liveDeviceState">Offline</strong>
               </div>
               <div class="summary-row">
+                <span>Road state</span>
+                <strong id="liveRoadState">Offroad</strong>
+              </div>
+              <div class="summary-row">
                 <span>Last seen</span>
                 <strong id="liveLastSeen">39m ago</strong>
               </div>
@@ -318,6 +349,8 @@
             </div>
             <div class="button-row">
               <button class="primary-button" id="syncNow" type="button">Sync now</button>
+              <button class="ghost-button" id="requestOffroad" type="button">Set offroad</button>
+              <button class="ghost-button" id="requestOnroad" type="button">Set inroad</button>
               <button class="ghost-button" id="demoOnlineToggle" type="button">Demo online</button>
               <button class="ghost-button" id="clearSyncQueue" type="button">Clear queue</button>
             </div>

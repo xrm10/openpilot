@@ -437,11 +437,20 @@ const els = {
   sidebarStatus: document.querySelector("#sidebarStatus"),
   liveStatusBadge: document.querySelector("#liveStatusBadge"),
   liveDeviceState: document.querySelector("#liveDeviceState"),
+  liveRoadState: document.querySelector("#liveRoadState"),
   liveLastSeen: document.querySelector("#liveLastSeen"),
   livePendingCount: document.querySelector("#livePendingCount"),
   liveEndpointState: document.querySelector("#liveEndpointState"),
   liveQueueList: document.querySelector("#liveQueueList"),
+  topConnectionState: document.querySelector("#topConnectionState"),
+  topRoadState: document.querySelector("#topRoadState"),
+  topLastSeen: document.querySelector("#topLastSeen"),
+  topPendingCount: document.querySelector("#topPendingCount"),
+  setOffroad: document.querySelector("#setOffroad"),
+  setOnroad: document.querySelector("#setOnroad"),
   syncNow: document.querySelector("#syncNow"),
+  requestOffroad: document.querySelector("#requestOffroad"),
+  requestOnroad: document.querySelector("#requestOnroad"),
   demoOnlineToggle: document.querySelector("#demoOnlineToggle"),
   clearSyncQueue: document.querySelector("#clearSyncQueue"),
   previewTitle: document.querySelector("#previewTitle"),
@@ -787,6 +796,7 @@ function renderConnection() {
   const statusLabel = statusLabelFor(status);
   const lastSeen = formatLastSeen(syncState.lastSeenAt, status);
   const pendingLabel = `${pendingCount} ${pendingCount === 1 ? "change" : "changes"}`;
+  const roadStateLabel = device.offroad === false ? "Inroad" : "Offroad";
 
   setText(els.homeDeviceName, device.name);
   setText(els.homeDeviceId, device.id);
@@ -796,10 +806,15 @@ function renderConnection() {
   setText(els.homeStatusTag, statusLabel);
   setText(els.homePillStatus, statusLabel);
   setText(els.homePendingChip, pendingCount ? String(pendingCount) : "");
-  setText(els.liveDeviceState, `${statusLabel}${device.offroad === false ? " - onroad" : " - offroad"}`);
+  setText(els.liveDeviceState, statusLabel);
+  setText(els.liveRoadState, roadStateLabel);
   setText(els.liveLastSeen, lastSeen);
   setText(els.livePendingCount, pendingLabel);
   setText(els.liveEndpointState, endpointLabel());
+  setText(els.topConnectionState, statusLabel);
+  setText(els.topRoadState, roadStateLabel);
+  setText(els.topLastSeen, lastSeen);
+  setText(els.topPendingCount, String(pendingCount));
   setText(els.demoOnlineToggle, profile.connection?.mode === "demo"
     ? status === "online" || status === "syncing" ? "Demo offline" : "Demo online"
     : "Use demo bridge");
@@ -808,13 +823,17 @@ function renderConnection() {
   if (els.homeStatusTag) setStatusClass(els.homeStatusTag, "offline-tag", status);
   if (els.homeConnectionPill) setStatusClass(els.homeConnectionPill, "offline-pill", status);
   if (els.homeSyncNotice) setStatusClass(els.homeSyncNotice, "offline-warning", status);
+  els.setOffroad?.classList.toggle("active", device.offroad !== false);
+  els.setOnroad?.classList.toggle("active", device.offroad === false);
+  els.requestOffroad?.classList.toggle("active", device.offroad !== false);
+  els.requestOnroad?.classList.toggle("active", device.offroad === false);
   setBadge(els.liveStatusBadge, statusLabel, status === "online" ? "pass" : status === "error" ? "stop" : "warn");
 
   if (status === "online") {
-    setText(els.homeSyncTitle, `Device online - last seen ${lastSeen}`);
+    setText(els.homeSyncTitle, `Device online - ${roadStateLabel.toLowerCase()}`);
     setText(els.homeSyncText, pendingCount
       ? `${pendingLabel} waiting. Press Sync now or keep auto sync enabled. Safety-critical changes stay marked for offroad review.`
-      : "Live profile sync is ready. New parameter changes send to the device bridge immediately when auto sync is enabled.");
+      : `Live profile sync is ready. Road state is ${roadStateLabel.toLowerCase()}. New parameter changes send to the device bridge immediately when auto sync is enabled.`);
   } else if (status === "syncing") {
     setText(els.homeSyncTitle, "Syncing profile to device");
     setText(els.homeSyncText, "The app is sending the latest profile and queued parameter changes to the bridge.");
@@ -983,6 +1002,54 @@ function toggleDemoOnline() {
   markOnline({ offroad: true });
   showToast("Demo device online");
   if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
+}
+
+async function requestRoadState(offroad) {
+  const nextLabel = offroad ? "offroad" : "inroad";
+
+  if (connectionStatus() !== "online") {
+    const online = await refreshConnection(false);
+    if (!online) {
+      showToast(`Device offline - cannot set ${nextLabel}`);
+      return;
+    }
+  }
+
+  if (profile.connection?.mode === "http") {
+    try {
+      syncState.status = "syncing";
+      saveSyncState();
+      renderConnection();
+      const baseUrl = bridgeBaseUrl();
+      const response = await fetchJson(`${baseUrl}/api/xrm10/road-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestedState: offroad ? "offroad" : "onroad",
+          offroad,
+          source: "xrm10-control-center",
+          policy: {
+            driverControlRequired: true,
+            bridgeMayRejectUnsafeOnroad: true,
+            liveVehicleApplyAllowed: false
+          }
+        })
+      });
+      markOnline(response.device || { offroad });
+      showToast(`Device set ${nextLabel}`);
+    } catch (error) {
+      syncState.status = "error";
+      syncState.lastError = error.message || `Could not set ${nextLabel}`;
+      saveSyncState();
+      renderConnection();
+      showToast(`Road state failed`);
+    }
+    return;
+  }
+
+  syncState.device.offroad = Boolean(offroad);
+  markOnline(syncState.device);
+  showToast(`Demo set ${nextLabel}`);
 }
 
 function queueProfileChange(inputId) {
@@ -1662,6 +1729,10 @@ function wireActions() {
   els.homeRefreshSync?.addEventListener("click", () => refreshConnection(true));
   els.toolbarRefreshSync?.addEventListener("click", () => refreshConnection(true));
   els.homeConnectionPill?.addEventListener("click", () => setSection("device"));
+  els.setOffroad?.addEventListener("click", () => requestRoadState(true));
+  els.setOnroad?.addEventListener("click", () => requestRoadState(false));
+  els.requestOffroad?.addEventListener("click", () => requestRoadState(true));
+  els.requestOnroad?.addEventListener("click", () => requestRoadState(false));
   els.syncNow?.addEventListener("click", () => syncNow("manual"));
   els.demoOnlineToggle?.addEventListener("click", toggleDemoOnline);
   els.clearSyncQueue?.addEventListener("click", clearSyncQueue);
