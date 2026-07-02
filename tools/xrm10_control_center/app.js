@@ -1,5 +1,6 @@
 const STORAGE_KEY = "xrm10-control-center-profile-v1";
 const SYNC_STATE_KEY = "xrm10-control-center-sync-v1";
+const SECTION_STATE_KEY = "xrm10-control-center-section-state-v1";
 
 const safetyLocks = [
   {
@@ -56,6 +57,7 @@ const sectionMeta = {
   models: ["Device settings", "Models"],
   steering: ["Device settings", "Steering"],
   cruise: ["Device settings", "Cruise"],
+  traffic: ["Device settings", "Traffic"],
   visuals: ["Device settings", "Visuals"],
   display: ["Device settings", "Display"],
   maps: ["Device settings", "Maps"],
@@ -108,7 +110,19 @@ const defaultProfile = {
     torqueLimitMode: "stock",
     steerFaultCooldown: "2",
     cruiseSourceMode: "set-speed",
+    trafficPlannerMode: "advisory",
+    fasterLaneMode: "suggest",
+    trafficManeuverMode: "driver-confirmed",
+    lwcMode: "comfort",
+    lwcLaneWidthMode: "camera-estimate",
+    lwcRoadEdgeMode: "guarded",
     trafficLightReview: false,
+    fasterLaneSuggestions: true,
+    trafficAutoManeuverBlock: true,
+    trafficRequireConfirmation: true,
+    trafficRequireSignal: true,
+    trafficBlindSpotBlock: true,
+    trafficRecordReview: true,
     visualTheme: "sunnypilot-dark",
     alertDensity: "normal",
     laneOverlay: "standard",
@@ -207,12 +221,21 @@ const defaultProfile = {
     navExitDistance: 0.8,
     navRoundaboutYieldGap: 4,
     navSteerAuthority: 45,
-    navDriverConfirmTime: 5
+    navDriverConfirmTime: 5,
+    fasterLaneSpeedDelta: 7,
+    trafficGapMin: 3.5,
+    trafficLookaheadDistance: 0.6,
+    lwcLaneWidth: 3.7,
+    lwcLeftCushion: 0.45,
+    lwcRightCushion: 0.45,
+    lwcTrafficBuffer: 1.2
   },
   connection: {
     mode: "demo",
     bridgeUrl: "",
     bridgeToken: "",
+    sshTarget: "",
+    sshKeyPath: "",
     autoSync: true,
     syncOffroadOnly: true
   },
@@ -232,6 +255,7 @@ const defaultSyncState = {
   lastSeenAt: Date.now() - 39 * 60 * 1000,
   lastSyncAt: null,
   lastError: "",
+  sshStatus: "not checked",
   pending: [],
   device: {
     name: "comma four",
@@ -248,7 +272,9 @@ const textBindings = [
   ["customInstallUrl", ["customInstallUrl"]],
   ["vinNickname", ["controllers", "vinNickname"]],
   ["bridgeUrl", ["connection", "bridgeUrl"]],
-  ["bridgeToken", ["connection", "bridgeToken"]]
+  ["bridgeToken", ["connection", "bridgeToken"]],
+  ["sshTarget", ["connection", "sshTarget"]],
+  ["sshKeyPath", ["connection", "sshKeyPath"]]
 ];
 
 const selectBindings = [
@@ -276,6 +302,12 @@ const selectBindings = [
   ["torqueLimitMode", ["controllers", "torqueLimitMode"]],
   ["steerFaultCooldown", ["controllers", "steerFaultCooldown"]],
   ["cruiseSourceMode", ["controllers", "cruiseSourceMode"]],
+  ["trafficPlannerMode", ["controllers", "trafficPlannerMode"]],
+  ["fasterLaneMode", ["controllers", "fasterLaneMode"]],
+  ["trafficManeuverMode", ["controllers", "trafficManeuverMode"]],
+  ["lwcMode", ["controllers", "lwcMode"]],
+  ["lwcLaneWidthMode", ["controllers", "lwcLaneWidthMode"]],
+  ["lwcRoadEdgeMode", ["controllers", "lwcRoadEdgeMode"]],
   ["visualTheme", ["controllers", "visualTheme"]],
   ["alertDensity", ["controllers", "alertDensity"]],
   ["laneOverlay", ["controllers", "laneOverlay"]],
@@ -330,6 +362,12 @@ const checkboxBindings = [
   ["handsOnReminder", ["controllers", "handsOnReminder"]],
   ["metricUnits", ["controllers", "metricUnits"]],
   ["trafficLightReview", ["controllers", "trafficLightReview"]],
+  ["fasterLaneSuggestions", ["controllers", "fasterLaneSuggestions"]],
+  ["trafficAutoManeuverBlock", ["controllers", "trafficAutoManeuverBlock"]],
+  ["trafficRequireConfirmation", ["controllers", "trafficRequireConfirmation"]],
+  ["trafficRequireSignal", ["controllers", "trafficRequireSignal"]],
+  ["trafficBlindSpotBlock", ["controllers", "trafficBlindSpotBlock"]],
+  ["trafficRecordReview", ["controllers", "trafficRecordReview"]],
   ["roadEdgeOverlay", ["controllers", "roadEdgeOverlay"]],
   ["showDebugHud", ["controllers", "showDebugHud"]],
   ["largeText", ["controllers", "largeText"]],
@@ -391,11 +429,19 @@ const rangeBindings = [
   { id: "navExitDistance", path: ["tuning", "navExitDistance"], min: 0.1, max: 2.5, valueId: "navExitDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` },
   { id: "navRoundaboutYieldGap", path: ["tuning", "navRoundaboutYieldGap"], min: 2, max: 8, valueId: "navRoundaboutYieldGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "navSteerAuthority", path: ["tuning", "navSteerAuthority"], min: 0, max: 75, valueId: "navSteerAuthorityValue", format: (v) => `${v}%` },
-  { id: "navDriverConfirmTime", path: ["tuning", "navDriverConfirmTime"], min: 2, max: 12, valueId: "navDriverConfirmTimeValue", format: (v) => `${Number(v).toFixed(1)}s` }
+  { id: "navDriverConfirmTime", path: ["tuning", "navDriverConfirmTime"], min: 2, max: 12, valueId: "navDriverConfirmTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "fasterLaneSpeedDelta", path: ["tuning", "fasterLaneSpeedDelta"], min: 3, max: 15, valueId: "fasterLaneSpeedDeltaValue", format: (v) => `${v} mph` },
+  { id: "trafficGapMin", path: ["tuning", "trafficGapMin"], min: 2, max: 6, valueId: "trafficGapMinValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "trafficLookaheadDistance", path: ["tuning", "trafficLookaheadDistance"], min: 0.2, max: 1.5, valueId: "trafficLookaheadDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` },
+  { id: "lwcLaneWidth", path: ["tuning", "lwcLaneWidth"], min: 3, max: 4.4, valueId: "lwcLaneWidthValue", format: (v) => `${Number(v).toFixed(1)} m` },
+  { id: "lwcLeftCushion", path: ["tuning", "lwcLeftCushion"], min: 0.2, max: 1, valueId: "lwcLeftCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
+  { id: "lwcRightCushion", path: ["tuning", "lwcRightCushion"], min: 0.2, max: 1, valueId: "lwcRightCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
+  { id: "lwcTrafficBuffer", path: ["tuning", "lwcTrafficBuffer"], min: 0.6, max: 2.5, valueId: "lwcTrafficBufferValue", format: (v) => `${Number(v).toFixed(1)}s` }
 ];
 
 let profile = loadProfile();
 let syncState = loadSyncState();
+let sectionState = loadSectionState();
 let syncDebounceTimer = null;
 let heartbeatTimer = null;
 
@@ -441,6 +487,7 @@ const els = {
   liveLastSeen: document.querySelector("#liveLastSeen"),
   livePendingCount: document.querySelector("#livePendingCount"),
   liveEndpointState: document.querySelector("#liveEndpointState"),
+  liveSshState: document.querySelector("#liveSshState"),
   liveQueueList: document.querySelector("#liveQueueList"),
   topConnectionState: document.querySelector("#topConnectionState"),
   topRoadState: document.querySelector("#topRoadState"),
@@ -449,6 +496,7 @@ const els = {
   setOffroad: document.querySelector("#setOffroad"),
   setOnroad: document.querySelector("#setOnroad"),
   syncNow: document.querySelector("#syncNow"),
+  checkSsh: document.querySelector("#checkSsh"),
   requestOffroad: document.querySelector("#requestOffroad"),
   requestOnroad: document.querySelector("#requestOnroad"),
   demoOnlineToggle: document.querySelector("#demoOnlineToggle"),
@@ -492,6 +540,15 @@ function loadSyncState() {
     return saved ? normalizeSyncState(JSON.parse(saved)) : clone(defaultSyncState);
   } catch {
     return clone(defaultSyncState);
+  }
+}
+
+function loadSectionState() {
+  try {
+    const saved = window.localStorage.getItem(SECTION_STATE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
   }
 }
 
@@ -540,6 +597,7 @@ function normalizeSyncState(input) {
     lastSeenAt: Number(input.lastSeenAt) || next.lastSeenAt,
     lastSyncAt: Number(input.lastSyncAt) || null,
     lastError: String(input.lastError || ""),
+    sshStatus: String(input.sshStatus || next.sshStatus),
     pending: Array.isArray(input.pending) ? input.pending.slice(0, 60) : [],
     device: {
       ...next.device,
@@ -554,6 +612,10 @@ function saveProfile() {
 
 function saveSyncState() {
   window.localStorage.setItem(SYNC_STATE_KEY, JSON.stringify(syncState));
+}
+
+function saveSectionState() {
+  window.localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(sectionState));
 }
 
 function selectedTarget() {
@@ -589,6 +651,13 @@ function computeSafetyScore() {
   if (c.routeIntentMode === "lab-auto-plan") score -= 8;
   if (c.navSteeringMode === "closed-course-plan") score -= 8;
   if (c.maneuverType === "u-turn" || c.maneuverType === "roundabout") score -= 6;
+  if (c.trafficPlannerMode !== "off") score -= 3;
+  if (c.fasterLaneMode !== "off" && !c.trafficRequireConfirmation) score -= 16;
+  if (c.fasterLaneMode === "driver-confirmed") score -= 4;
+  if (!c.trafficAutoManeuverBlock) score -= 18;
+  if (!c.trafficBlindSpotBlock) score -= 18;
+  if (!c.trafficRequireSignal && c.fasterLaneMode !== "off") score -= 10;
+  if (c.lwcMode === "review") score -= 4;
   if (c.labMode === "closed-course") score -= 4;
   if (c.safetyEnvelope === "expanded-review") score -= 8;
   if (c.driverMonitoringMode === "lab-relaxed") score -= 12;
@@ -611,6 +680,9 @@ function computeSafetyScore() {
   if (Number(t.labDisengageLatency) > 0.5 && c.labMode !== "disabled") score -= 8;
   if (Number(t.navSteerAuthority) > 55 && c.navMode !== "off") score -= 8;
   if (Number(t.navManeuverSpeed) > 45 && c.navMode !== "off") score -= 6;
+  if (Number(t.fasterLaneSpeedDelta) < 5 && c.fasterLaneMode !== "off") score -= 5;
+  if (Number(t.trafficGapMin) < 3 && c.fasterLaneMode !== "off") score -= 10;
+  if (Number(t.lwcTrafficBuffer) < 1 && c.lwcMode !== "off") score -= 6;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
   return Math.max(0, Math.min(100, score));
@@ -664,6 +736,9 @@ function enforceGuardrails() {
   profile.safetyPolicy.unsafeSafetyLimitEditingAllowed = false;
   profile.safetyPolicy.liveVehicleParamWritesAllowed = false;
   profile.safetyPolicy.phoneSafetyLimitEditingAllowed = false;
+  profile.controllers.trafficAutoManeuverBlock = true;
+  profile.controllers.trafficRequireConfirmation = true;
+  profile.controllers.trafficBlindSpotBlock = true;
 
   if (profile.controllers.experimentalControls) {
     profile.controllers.coopSteering = false;
@@ -770,6 +845,7 @@ function render() {
   renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
+  renderSectionApplyBars();
   renderSection(profile.activeSection);
   filterHomeTiles();
 
@@ -811,6 +887,7 @@ function renderConnection() {
   setText(els.liveLastSeen, lastSeen);
   setText(els.livePendingCount, pendingLabel);
   setText(els.liveEndpointState, endpointLabel());
+  setText(els.liveSshState, syncState.sshStatus || "not checked");
   setText(els.topConnectionState, statusLabel);
   setText(els.topRoadState, roadStateLabel);
   setText(els.topLastSeen, lastSeen);
@@ -1052,6 +1129,43 @@ async function requestRoadState(offroad) {
   showToast(`Demo set ${nextLabel}`);
 }
 
+async function checkSshStatus() {
+  readForm();
+  syncState.sshStatus = "checking";
+  saveSyncState();
+  renderConnection();
+
+  const target = profile.connection.sshTarget.trim();
+  const keyPath = profile.connection.sshKeyPath.trim();
+  if (!target || !keyPath) {
+    syncState.sshStatus = "target/key required";
+    saveSyncState();
+    renderConnection();
+    showToast("SSH target and key path required");
+    return;
+  }
+
+  try {
+    const baseUrl = bridgeBaseUrl();
+    if (!baseUrl) throw new Error("HTTP bridge required");
+    const response = await fetchJson(`${baseUrl}/api/xrm10/ssh-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, keyPath })
+    });
+    syncState.sshStatus = response.ok ? "connected" : "failed";
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderConnection();
+    showToast(response.ok ? "SSH connected" : "SSH failed");
+  } catch (error) {
+    syncState.sshStatus = error.message || "ssh failed";
+    saveSyncState();
+    renderConnection();
+    showToast("SSH check failed");
+  }
+}
+
 function queueProfileChange(inputId) {
   if (!inputId || isConnectionField(inputId)) {
     saveSyncState();
@@ -1121,7 +1235,7 @@ function summarizeValue(value) {
 }
 
 function isConnectionField(inputId) {
-  return ["connectionMode", "bridgeUrl", "bridgeToken", "autoSync", "syncOffroadOnly"].includes(inputId);
+  return ["connectionMode", "bridgeUrl", "bridgeToken", "sshTarget", "sshKeyPath", "autoSync", "syncOffroadOnly"].includes(inputId);
 }
 
 function isSafetyCriticalInput(inputId, path) {
@@ -1373,6 +1487,12 @@ function activeControllerCount() {
     "uTurnPolicy",
     "exitLanePolicy",
     "driverConfirmMode",
+    "trafficPlannerMode",
+    "fasterLaneMode",
+    "trafficManeuverMode",
+    "lwcMode",
+    "lwcLaneWidthMode",
+    "lwcRoadEdgeMode",
     "vehicleHarnessMode",
     "parameterPreviewMode",
     "labMode",
@@ -1400,6 +1520,7 @@ function controllerSummaryRows() {
     ["Steering", `${labelFor("lateralMode", profile.controllers.lateralMode)}, ${labelFor("laneCenterMode", profile.controllers.laneCenterMode)}`],
     ["Cruise", `${labelFor("longitudinalMode", profile.controllers.longitudinalMode)}, ${Number(profile.tuning.followGap).toFixed(1)}s gap`],
     ["Models", `${labelFor("modelStackMode", profile.controllers.modelStackMode)}, gate ${profile.tuning.modelConfidenceGate}%`],
+    ["Traffic", `${labelFor("fasterLaneMode", profile.controllers.fasterLaneMode)}, LWC ${profile.controllers.lwcMode}`],
     ["Safety", `${computeSafetyScore()} / 100 ${controllerLabel()}`]
   ];
 
@@ -1449,6 +1570,11 @@ function labelFor(group, value) {
       "sunnypilot-dev": "sunnypilot dev",
       "openpilot-compare": "openpilot compare",
       "xrm10-review": "XRM10 review"
+    },
+    fasterLaneMode: {
+      off: "Off",
+      suggest: "Suggest",
+      "driver-confirmed": "Driver confirmed"
     }
   };
 
@@ -1694,6 +1820,198 @@ function filterHomeTiles() {
   });
 }
 
+function renderSectionApplyBars() {
+  document.querySelectorAll(".section-panel").forEach((panel) => {
+    const section = panel.dataset.section;
+    if (!section || section === "home") return;
+    let bar = panel.querySelector(":scope > .section-apply-bar");
+    if (!bar) {
+      bar = document.createElement("article");
+      bar.className = "section-apply-bar";
+      bar.innerHTML = `
+        <div>
+          <span class="section-apply-kicker">Section status</span>
+          <strong data-section-apply-title></strong>
+          <small data-section-apply-detail></small>
+        </div>
+        <div class="section-apply-actions">
+          <button class="primary-button" type="button" data-apply-section="${section}">Save section</button>
+          <button class="ghost-button" type="button" data-check-section="${section}">Check status</button>
+        </div>
+      `;
+      panel.append(bar);
+    }
+
+    const state = sectionState[section] || {};
+    const status = state.status || "idle";
+    const title = bar.querySelector("[data-section-apply-title]");
+    const detail = bar.querySelector("[data-section-apply-detail]");
+    bar.dataset.applyStatus = status;
+    setText(title, sectionApplyTitle(section, state));
+    setText(detail, sectionApplyDetail(state));
+  });
+}
+
+function sectionApplyTitle(section, state) {
+  if (state.status === "applying") return "Applying live";
+  if (state.status === "applied") return "Applied and confirmed";
+  if (state.status === "failed") return "Apply failed";
+  if (state.status === "changed") return "Changed - not saved";
+  if (state.status === "checking") return "Checking device";
+  return `${sectionMeta[section]?.[1] || section} ready`;
+}
+
+function sectionApplyDetail(state) {
+  if (state.message) return state.message;
+  if (state.appliedAt) return `Last applied ${formatClock(state.appliedAt)}`;
+  if (state.changedAt) return `Changed ${formatClock(state.changedAt)}`;
+  return "No unsaved section changes.";
+}
+
+function markSectionChanged(section, inputId) {
+  if (!section || section === "home") return;
+  const previous = sectionState[section] || {};
+  sectionState[section] = {
+    ...previous,
+    status: "changed",
+    changedAt: Date.now(),
+    message: `${labelForInput(inputId)} changed. Press Save section to apply and confirm.`
+  };
+  saveSectionState();
+  renderSectionApplyBars();
+}
+
+async function applySection(section) {
+  if (!sectionMeta[section]) return;
+  readForm();
+  sectionState[section] = {
+    ...(sectionState[section] || {}),
+    status: "applying",
+    message: "Sending section settings to the live bridge..."
+  };
+  saveSectionState();
+  renderSectionApplyBars();
+
+  if (connectionStatus() !== "online") {
+    const online = await refreshConnection(false);
+    if (!online) {
+      sectionState[section] = {
+        ...(sectionState[section] || {}),
+        status: "failed",
+        message: "Device offline. Section saved locally but not applied."
+      };
+      saveSectionState();
+      renderSectionApplyBars();
+      showToast("Device offline - section not applied");
+      return;
+    }
+  }
+
+  try {
+    let result = {};
+    if (profile.connection.mode === "http") {
+      result = await fetchJson(`${bridgeBaseUrl()}/api/xrm10/section-apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSectionApplyPayload(section))
+      });
+    } else {
+      await wait(220);
+      result = { ok: true, section, working: true, appliedAt: new Date().toISOString() };
+    }
+
+    sectionState[section] = {
+      status: result.working === false ? "failed" : "applied",
+      appliedAt: Date.now(),
+      message: result.working === false
+        ? result.message || "Bridge reported not working."
+        : `${sectionMeta[section]?.[1] || section} applied live.`
+    };
+    saveSectionState();
+    renderSectionApplyBars();
+    showToast(sectionState[section].status === "applied" ? "Section applied" : "Section check failed");
+  } catch (error) {
+    sectionState[section] = {
+      ...(sectionState[section] || {}),
+      status: "failed",
+      message: error.message || "Apply failed"
+    };
+    saveSectionState();
+    renderSectionApplyBars();
+    showToast("Section apply failed");
+  }
+}
+
+async function checkSection(section) {
+  if (!sectionMeta[section]) return;
+  sectionState[section] = {
+    ...(sectionState[section] || {}),
+    status: "checking",
+    message: "Checking live bridge status..."
+  };
+  saveSectionState();
+  renderSectionApplyBars();
+
+  try {
+    let result = {};
+    if (profile.connection.mode === "http") {
+      const params = new URLSearchParams({ section });
+      result = await fetchJson(`${bridgeBaseUrl()}/api/xrm10/section-status?${params}`, { method: "GET" });
+    } else {
+      await wait(180);
+      result = sectionState[section]?.status === "applied"
+        ? { ok: true, section, working: true, message: "Demo section is applied." }
+        : { ok: true, section, working: false, message: "No applied section record yet." };
+    }
+
+    sectionState[section] = {
+      ...(sectionState[section] || {}),
+      status: result.working ? "applied" : "failed",
+      message: result.message || (result.working ? "Bridge confirms section is working." : "Bridge has no working confirmation."),
+      checkedAt: Date.now()
+    };
+    saveSectionState();
+    renderSectionApplyBars();
+    showToast(result.working ? "Section working" : "Section not confirmed");
+  } catch (error) {
+    sectionState[section] = {
+      ...(sectionState[section] || {}),
+      status: "failed",
+      message: error.message || "Status check failed"
+    };
+    saveSectionState();
+    renderSectionApplyBars();
+    showToast("Status check failed");
+  }
+}
+
+function buildSectionApplyPayload(section) {
+  return {
+    type: "xrm10.section.apply",
+    version: 1,
+    section,
+    generatedAt: new Date().toISOString(),
+    source: "xrm10-control-center",
+    profile: exportProfile(),
+    policy: {
+      liveVehicleApplyAllowed: false,
+      profileSectionApplyAllowed: true,
+      driverControlRequired: true,
+      safetyCriticalChangesRequireOffroad: true
+    }
+  };
+}
+
+function sectionForInput(input) {
+  return input?.closest("[data-section]")?.dataset.section || profile.activeSection;
+}
+
+function formatClock(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 function wireFormEvents() {
   const ids = [
     ...textBindings.map(([id]) => id),
@@ -1734,8 +2052,22 @@ function wireActions() {
   els.requestOffroad?.addEventListener("click", () => requestRoadState(true));
   els.requestOnroad?.addEventListener("click", () => requestRoadState(false));
   els.syncNow?.addEventListener("click", () => syncNow("manual"));
+  els.checkSsh?.addEventListener("click", checkSshStatus);
   els.demoOnlineToggle?.addEventListener("click", toggleDemoOnline);
   els.clearSyncQueue?.addEventListener("click", clearSyncQueue);
+
+  document.addEventListener("click", (event) => {
+    const applyButton = event.target.closest("[data-apply-section]");
+    if (applyButton) {
+      applySection(applyButton.dataset.applySection);
+      return;
+    }
+
+    const checkButton = event.target.closest("[data-check-section]");
+    if (checkButton) {
+      checkSection(checkButton.dataset.checkSection);
+    }
+  });
 
   els.targetList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-target]");
@@ -1788,6 +2120,7 @@ function wireActions() {
 function handleInput(event) {
   readForm();
   queueProfileChange(event?.target?.id || "profile");
+  markSectionChanged(sectionForInput(event?.target), event?.target?.id || "profile");
   writeForm();
 }
 

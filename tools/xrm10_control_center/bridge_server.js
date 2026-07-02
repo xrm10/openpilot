@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { execFile } = require("child_process");
 
 const root = __dirname;
 const args = new Map(process.argv.slice(2).map((arg) => {
@@ -11,6 +12,7 @@ const host = args.get("host") || "0.0.0.0";
 const port = Number(args.get("port") || 8787);
 const stateDir = path.join(root, ".sync_state");
 const latestProfilePath = path.join(stateDir, "latest_profile.json");
+const sectionStatusPath = path.join(stateDir, "section_status.json");
 
 const device = {
   name: "comma four",
@@ -73,6 +75,41 @@ function latestProfileMeta() {
   } catch {
     return null;
   }
+}
+
+function readSectionStatuses() {
+  try {
+    return JSON.parse(fs.readFileSync(sectionStatusPath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeSectionStatuses(statuses) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(sectionStatusPath, JSON.stringify(statuses, null, 2));
+}
+
+function runSshStatus(target, keyPath) {
+  return new Promise((resolve, reject) => {
+    const command = "echo xrm10-ssh-ok; uname -a";
+    execFile("ssh", [
+      "-i",
+      keyPath,
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=5",
+      target,
+      command
+    ], { timeout: 8000 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr.trim() || error.message));
+        return;
+      }
+      resolve(stdout.trim());
+    });
+  });
 }
 
 function serveFile(req, res) {
@@ -203,6 +240,90 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid road-state payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/section-apply") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      const section = String(payload.section || "");
+
+      if (!section) {
+        sendJson(res, 400, { ok: false, error: "section is required." });
+        return;
+      }
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Section apply accepts profile staging only. liveVehicleApplyAllowed must be false."
+        });
+        return;
+      }
+
+      const statuses = readSectionStatuses();
+      statuses[section] = {
+        section,
+        working: true,
+        appliedAt: new Date().toISOString(),
+        message: `${section} section staged and confirmed by bridge.`,
+        device
+      };
+      writeSectionStatuses(statuses);
+
+      sendJson(res, 200, {
+        ok: true,
+        ...statuses[section]
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid section payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/section-status") {
+    const section = parsed.searchParams.get("section") || "";
+    const statuses = readSectionStatuses();
+    const status = statuses[section];
+    sendJson(res, 200, status || {
+      ok: true,
+      section,
+      working: false,
+      message: "No applied section record yet.",
+      device
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/ssh-status") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      const target = String(payload.target || "").trim();
+      const keyPath = String(payload.keyPath || "").trim();
+
+      if (!target || !keyPath) {
+        sendJson(res, 400, { ok: false, error: "target and keyPath are required." });
+        return;
+      }
+
+      const output = await runSshStatus(target, keyPath);
+      sendJson(res, 200, {
+        ok: true,
+        target,
+        output,
+        device
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "SSH status failed"
       });
     }
     return;

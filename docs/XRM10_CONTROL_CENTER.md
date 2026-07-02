@@ -40,6 +40,10 @@ It is designed for development workflow, not direct vehicle actuation.
 - Export and import reviewable JSON profiles.
 - Queue parameter changes while offline and sync them when the device bridge is
   online.
+- Save any section and check whether the bridge reports it as applied/working.
+- Configure Traffic/LWC review controls for faster-lane suggestions, traffic
+  gaps, adjacent-traffic buffers, and lane width control with driver-confirm
+  gates.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
   review steps.
 - Export Nav Pilot plans with maneuver confidence checks, map-camera agreement
@@ -76,6 +80,9 @@ Expected HTTP endpoints:
 GET  /api/xrm10/status
 POST /api/xrm10/profile
 POST /api/xrm10/road-state
+POST /api/xrm10/section-apply
+GET  /api/xrm10/section-status?section=device
+POST /api/xrm10/ssh-status
 ```
 
 `GET /api/xrm10/status` should return whether the device is reachable plus
@@ -104,6 +111,14 @@ The local bridge updates demo state immediately. A real comma-side bridge should
 reject unsafe Onroad/Inroad requests when the vehicle/device state does not make
 the transition valid.
 
+`POST /api/xrm10/section-apply` receives one section plus the current profile
+and returns whether that section is staged and working. `GET
+/api/xrm10/section-status` checks the last known result.
+
+`POST /api/xrm10/ssh-status` receives `target` and `keyPath`. The local bridge
+uses OpenSSH for a short status command. A real target and valid key path are
+required; private key contents are never exposed by the app.
+
 ## Safety Boundary
 
 The app intentionally does not expose switches that disable driver monitoring,
@@ -119,6 +134,10 @@ Nav Pilot controls represent planning and simulation values. They are not live
 automated-driving enablement and must not be wired into real steering, exits,
 roundabouts, or U-turn behavior without separate reviewed code, simulator
 coverage, bench tests, closed-course tests, and safety validation.
+
+Traffic/LWC controls represent suggestions and driver-confirmed planning. They
+do not enable unconfirmed automatic lane changes between cars or autonomous
+lane weaving to reach a faster lane.
 
 ## Safety Lab manual
 
