@@ -70,7 +70,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 8,
+  schemaVersion: 9,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -81,7 +81,7 @@ const defaultProfile = {
   controllers: {
     lateralMode: "standard",
     madsMode: "stock",
-    laneChangeMode: "nudge",
+    laneChangeMode: "ui-confirmed",
     speedAssistMode: "info",
     blindSpotDelay: true,
     laneTurnDesire: false,
@@ -113,6 +113,11 @@ const defaultProfile = {
     trafficPlannerMode: "advisory",
     fasterLaneMode: "suggest",
     trafficManeuverMode: "driver-confirmed",
+    fasterLaneConfirmPopup: true,
+    confirmationPromptEnabled: true,
+    confirmationSound: true,
+    confirmationRequireTick: true,
+    navStartConfirmPopup: true,
     lwcMode: "comfort",
     lwcLaneWidthMode: "camera-estimate",
     lwcRoadEdgeMode: "guarded",
@@ -143,21 +148,30 @@ const defaultProfile = {
     carScreenRouteNavPilot: true,
     carScreenRouteRequireConfirm: true,
     speedLimitSource: "map-vision",
-    mapRegion: "us",
-    offlineMaps: false,
+    mapRegion: "gcc-uae-detailed",
+    gccMapPackMode: "uae-detailed-priority",
+    mapDataFreshnessMode: "prefer-latest",
+    uaeDetailedMap: true,
+    gccAllMaps: true,
+    gccBahrainMap: true,
+    gccKuwaitMap: true,
+    gccOmanMap: true,
+    gccQatarMap: true,
+    gccSaudiMap: true,
+    offlineMaps: true,
     mapLaneGuidance: true,
-    navMode: "off",
-    routeIntentMode: "prompt",
+    navMode: "auto-start-review",
+    routeIntentMode: "confirm-ui",
     maneuverType: "highway-exit",
-    navMapSourceMode: "mapbox-review",
+    navMapSourceMode: "car-screen-map",
     cameraFusionMode: "map-camera-agree",
-    navSteeringMode: "advisory",
+    navSteeringMode: "auto-confirmed-review",
     roundaboutPolicy: "yield-and-prompt",
     uTurnPolicy: "closed-course-only",
     exitLanePolicy: "early-confirm",
     driverConfirmMode: "required",
     navRequireSignal: true,
-    navRequireDriverNudge: true,
+    navRequireDriverNudge: false,
     navBlindSpotBlock: true,
     navMapCameraAgree: true,
     navNoAutoUturnRoad: true,
@@ -281,6 +295,15 @@ const defaultSyncState = {
     nextInstruction: "Waiting for destination",
     confidence: 0,
     updatedAt: null
+  },
+  mapPackage: {
+    status: "not loaded",
+    name: "UAE detailed + GCC all",
+    region: "gcc-uae-detailed",
+    fileCount: 0,
+    totalBytes: 0,
+    updatedAt: null,
+    files: []
   }
 };
 
@@ -339,6 +362,8 @@ const selectBindings = [
   ["carScreenRouteMode", ["controllers", "carScreenRouteMode"]],
   ["speedLimitSource", ["controllers", "speedLimitSource"]],
   ["mapRegion", ["controllers", "mapRegion"]],
+  ["gccMapPackMode", ["controllers", "gccMapPackMode"]],
+  ["mapDataFreshnessMode", ["controllers", "mapDataFreshnessMode"]],
   ["navMode", ["controllers", "navMode"]],
   ["routeIntentMode", ["controllers", "routeIntentMode"]],
   ["maneuverType", ["controllers", "maneuverType"]],
@@ -383,6 +408,11 @@ const checkboxBindings = [
   ["metricUnits", ["controllers", "metricUnits"]],
   ["trafficLightReview", ["controllers", "trafficLightReview"]],
   ["fasterLaneSuggestions", ["controllers", "fasterLaneSuggestions"]],
+  ["fasterLaneConfirmPopup", ["controllers", "fasterLaneConfirmPopup"]],
+  ["confirmationPromptEnabled", ["controllers", "confirmationPromptEnabled"]],
+  ["confirmationSound", ["controllers", "confirmationSound"]],
+  ["confirmationRequireTick", ["controllers", "confirmationRequireTick"]],
+  ["navStartConfirmPopup", ["controllers", "navStartConfirmPopup"]],
   ["trafficAutoManeuverBlock", ["controllers", "trafficAutoManeuverBlock"]],
   ["trafficRequireConfirmation", ["controllers", "trafficRequireConfirmation"]],
   ["trafficRequireSignal", ["controllers", "trafficRequireSignal"]],
@@ -397,6 +427,13 @@ const checkboxBindings = [
   ["carScreenRouteSync", ["controllers", "carScreenRouteSync"]],
   ["carScreenRouteNavPilot", ["controllers", "carScreenRouteNavPilot"]],
   ["carScreenRouteRequireConfirm", ["controllers", "carScreenRouteRequireConfirm"]],
+  ["uaeDetailedMap", ["controllers", "uaeDetailedMap"]],
+  ["gccAllMaps", ["controllers", "gccAllMaps"]],
+  ["gccBahrainMap", ["controllers", "gccBahrainMap"]],
+  ["gccKuwaitMap", ["controllers", "gccKuwaitMap"]],
+  ["gccOmanMap", ["controllers", "gccOmanMap"]],
+  ["gccQatarMap", ["controllers", "gccQatarMap"]],
+  ["gccSaudiMap", ["controllers", "gccSaudiMap"]],
   ["navRequireSignal", ["controllers", "navRequireSignal"]],
   ["navRequireDriverNudge", ["controllers", "navRequireDriverNudge"]],
   ["navBlindSpotBlock", ["controllers", "navBlindSpotBlock"]],
@@ -546,6 +583,19 @@ const els = {
   readCarRoute: document.querySelector("#readCarRoute"),
   setDemoCarRoute: document.querySelector("#setDemoCarRoute"),
   useCarRouteForNav: document.querySelector("#useCarRouteForNav"),
+  gccMapPackageStatus: document.querySelector("#gccMapPackageStatus"),
+  gccMapPackageFiles: document.querySelector("#gccMapPackageFiles"),
+  uploadGccMaps: document.querySelector("#uploadGccMaps"),
+  stageUaeMapPack: document.querySelector("#stageUaeMapPack"),
+  gccMapUpload: document.querySelector("#gccMapUpload"),
+  testFasterLanePrompt: document.querySelector("#testFasterLanePrompt"),
+  testNavStartPrompt: document.querySelector("#testNavStartPrompt"),
+  confirmationModal: document.querySelector("#confirmationModal"),
+  confirmationKicker: document.querySelector("#confirmationKicker"),
+  confirmationTitle: document.querySelector("#confirmationTitle"),
+  confirmationMessage: document.querySelector("#confirmationMessage"),
+  confirmationAccept: document.querySelector("#confirmationAccept"),
+  confirmationReject: document.querySelector("#confirmationReject"),
   downloadProfile: document.querySelector("#downloadProfile"),
   downloadProfileSecondary: document.querySelector("#downloadProfileSecondary"),
   importButton: document.querySelector("#importButton"),
@@ -587,6 +637,46 @@ function loadSectionState() {
 
 function normalizeProfile(input) {
   const next = clone(defaultProfile);
+  const sourceSchema = Number(input.schemaVersion || 0);
+  const inputControllers = {
+    ...(input.controllers || {})
+  };
+
+  if (sourceSchema < 9) {
+    Object.assign(inputControllers, {
+      laneChangeMode: "ui-confirmed",
+      trafficPlannerMode: "advisory",
+      fasterLaneMode: "suggest",
+      fasterLaneConfirmPopup: true,
+      confirmationPromptEnabled: true,
+      confirmationSound: true,
+      confirmationRequireTick: true,
+      navStartConfirmPopup: true,
+      mapRouteSourceMode: "car-screen",
+      carScreenRouteMode: "detect-destination",
+      carScreenRouteSync: true,
+      carScreenRouteNavPilot: true,
+      carScreenRouteRequireConfirm: true,
+      mapRegion: "gcc-uae-detailed",
+      gccMapPackMode: "uae-detailed-priority",
+      mapDataFreshnessMode: "prefer-latest",
+      uaeDetailedMap: true,
+      gccAllMaps: true,
+      gccBahrainMap: true,
+      gccKuwaitMap: true,
+      gccOmanMap: true,
+      gccQatarMap: true,
+      gccSaudiMap: true,
+      offlineMaps: true,
+      navMode: "auto-start-review",
+      routeIntentMode: "confirm-ui",
+      navMapSourceMode: "car-screen-map",
+      navSteeringMode: "auto-confirmed-review",
+      driverConfirmMode: "required",
+      navRequireDriverNudge: false
+    });
+  }
+
   return {
     ...next,
     ...input,
@@ -594,7 +684,7 @@ function normalizeProfile(input) {
     activeSection: sectionMeta[input.activeSection] ? input.activeSection : next.activeSection,
     controllers: {
       ...next.controllers,
-      ...(input.controllers || {})
+      ...inputControllers
     },
     tuning: {
       ...next.tuning,
@@ -636,7 +726,8 @@ function normalizeSyncState(input) {
       ...next.device,
       ...(input.device || {})
     },
-    route: normalizeRouteState(input.route || next.route)
+    route: normalizeRouteState(input.route || next.route),
+    mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage)
   };
 }
 
@@ -655,6 +746,29 @@ function normalizeRouteState(input = {}) {
     nextInstruction: String(input.nextInstruction || (destination ? "Route loaded from car screen" : next.nextInstruction)),
     confidence: clamp(input.confidence ?? next.confidence, 0, 100),
     updatedAt: input.updatedAt || null
+  };
+}
+
+function normalizeMapPackageState(input = {}) {
+  const next = clone(defaultSyncState.mapPackage);
+  const files = Array.isArray(input.files)
+    ? input.files.slice(0, 40).map((file) => ({
+        name: String(file.name || "map-file"),
+        size: Number(file.size) || 0,
+        type: String(file.type || "map-data")
+      }))
+    : [];
+  const totalBytes = Number(input.totalBytes ?? files.reduce((sum, file) => sum + file.size, 0));
+  return {
+    ...next,
+    ...input,
+    status: String(input.status || next.status),
+    name: String(input.name || next.name),
+    region: String(input.region || next.region),
+    fileCount: Number(input.fileCount ?? files.length) || 0,
+    totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
+    updatedAt: input.updatedAt || null,
+    files
   };
 }
 
@@ -700,11 +814,14 @@ function computeSafetyScore() {
   if (c.trafficLightReview) score -= 4;
   if (c.radarInteropReview) score -= 8;
   if (c.navMode === "closed-course") score -= 5;
+  if (c.navMode === "auto-start-review" && !c.confirmationPromptEnabled) score -= 18;
   if (c.routeIntentMode === "lab-auto-plan") score -= 8;
   if (c.navSteeringMode === "closed-course-plan") score -= 8;
+  if (c.navSteeringMode === "auto-confirmed-review" && !c.confirmationRequireTick) score -= 18;
   if (c.maneuverType === "u-turn" || c.maneuverType === "roundabout") score -= 6;
   if (c.trafficPlannerMode !== "off") score -= 3;
   if (c.fasterLaneMode !== "off" && !c.trafficRequireConfirmation) score -= 16;
+  if (c.fasterLaneMode !== "off" && !c.fasterLaneConfirmPopup) score -= 10;
   if (c.fasterLaneMode === "driver-confirmed") score -= 4;
   if (!c.trafficAutoManeuverBlock) score -= 18;
   if (!c.trafficBlindSpotBlock) score -= 18;
@@ -721,7 +838,8 @@ function computeSafetyScore() {
   if (!c.modelUncertaintyAlert) score -= 8;
   if (!c.reviewLogCapture && c.experimentalControls) score -= 8;
   if (!c.thermalGuard) score -= 8;
-  if (c.laneChangeMode !== "nudge" && c.laneChangeMode !== "off") score -= 10;
+  if (!["nudge", "ui-confirmed", "off"].includes(c.laneChangeMode)) score -= 10;
+  if (c.laneChangeMode === "ui-confirmed" && !c.confirmationRequireTick) score -= 18;
   if (!c.blindSpotDelay && c.laneChangeMode !== "off") score -= 18;
   if (Number(t.followGap) < 2.2) score -= 10;
   if (Number(t.speedOffset) > 2) score -= 6;
@@ -792,9 +910,17 @@ function enforceGuardrails() {
   profile.controllers.trafficRequireConfirmation = true;
   profile.controllers.trafficBlindSpotBlock = true;
   profile.controllers.carScreenRouteRequireConfirm = true;
+  profile.controllers.confirmationPromptEnabled = true;
+  profile.controllers.confirmationSound = true;
+  profile.controllers.confirmationRequireTick = true;
+  profile.controllers.fasterLaneConfirmPopup = true;
+  profile.controllers.navStartConfirmPopup = true;
   profile.controllers.navBlindSpotBlock = true;
   profile.controllers.navMapCameraAgree = true;
-  profile.controllers.navRequireDriverNudge = true;
+
+  if (profile.controllers.navSteeringMode !== "auto-confirmed-review") {
+    profile.controllers.navRequireDriverNudge = true;
+  }
 
   if (profile.controllers.experimentalControls) {
     profile.controllers.coopSteering = false;
@@ -897,6 +1023,7 @@ function render() {
   setText(els.previewText, previewText());
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
   renderConnection();
+  renderMapPackage();
   renderSafetyLab();
   renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
@@ -1025,6 +1152,35 @@ function renderCarRoute() {
   }
 }
 
+function renderMapPackage() {
+  const mapPackage = normalizeMapPackageState(syncState.mapPackage);
+  const countryCount = [
+    profile.controllers.uaeDetailedMap,
+    profile.controllers.gccSaudiMap,
+    profile.controllers.gccOmanMap,
+    profile.controllers.gccQatarMap,
+    profile.controllers.gccKuwaitMap,
+    profile.controllers.gccBahrainMap
+  ].filter(Boolean).length;
+  const status = mapPackage.fileCount
+    ? `${mapPackage.status} - ${formatBytes(mapPackage.totalBytes)}`
+    : `${profile.controllers.mapRegion || "gcc-uae-detailed"} - ${countryCount} GCC areas selected`;
+  const files = mapPackage.fileCount
+    ? `${mapPackage.fileCount} file${mapPackage.fileCount === 1 ? "" : "s"} staged`
+    : "No local map files uploaded";
+
+  setText(els.gccMapPackageStatus, status);
+  setText(els.gccMapPackageFiles, files);
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${value} B`;
+}
+
 function sourceLabelForRoute(source) {
   return {
     "car-screen": "Car screen maps",
@@ -1145,10 +1301,12 @@ async function refreshConnection(showMessage = true) {
     if (status.online === false) {
       syncState.device = { ...syncState.device, ...(status.device || status) };
       if (status.route) syncState.route = normalizeRouteState(status.route);
+      if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
       markOffline(status.message || "");
       return false;
     }
     if (status.route) syncState.route = normalizeRouteState(status.route);
+    if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
     markOnline(status.device || status);
     await refreshCarRoute(false);
     if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
@@ -1359,13 +1517,17 @@ async function useCarRouteForNav() {
   profile.controllers.carScreenRouteNavPilot = true;
   profile.controllers.carScreenRouteRequireConfirm = true;
   profile.controllers.navMapSourceMode = "car-screen-map";
-  profile.controllers.navMode = profile.controllers.navMode === "off" ? "advisory" : profile.controllers.navMode;
-  profile.controllers.routeIntentMode = "confirm-nudge";
+  profile.controllers.navMode = "auto-start-review";
+  profile.controllers.routeIntentMode = "confirm-ui";
   profile.controllers.cameraFusionMode = "map-camera-agree";
-  profile.controllers.navSteeringMode = "advisory";
+  profile.controllers.navSteeringMode = "auto-confirmed-review";
   profile.controllers.driverConfirmMode = "required";
   profile.controllers.navRequireSignal = true;
-  profile.controllers.navRequireDriverNudge = true;
+  profile.controllers.navRequireDriverNudge = false;
+  profile.controllers.navStartConfirmPopup = true;
+  profile.controllers.confirmationPromptEnabled = true;
+  profile.controllers.confirmationSound = true;
+  profile.controllers.confirmationRequireTick = true;
   profile.controllers.navBlindSpotBlock = true;
   profile.controllers.navMapCameraAgree = true;
   enforceGuardrails();
@@ -1376,6 +1538,152 @@ async function useCarRouteForNav() {
   markSectionChanged("navPilot", "navMapSourceMode");
   writeForm();
   showToast(syncState.route?.active ? "Car route linked to Nav Pilot" : "Nav Pilot set for car route");
+}
+
+async function stageUaeMapPack() {
+  readForm();
+  profile.controllers.mapMode = "offline-cache";
+  profile.controllers.mapRegion = "gcc-uae-detailed";
+  profile.controllers.gccMapPackMode = "uae-detailed-priority";
+  profile.controllers.mapDataFreshnessMode = "prefer-latest";
+  profile.controllers.offlineMaps = true;
+  profile.controllers.uaeDetailedMap = true;
+  profile.controllers.gccAllMaps = true;
+  profile.controllers.gccSaudiMap = true;
+  profile.controllers.gccOmanMap = true;
+  profile.controllers.gccQatarMap = true;
+  profile.controllers.gccKuwaitMap = true;
+  profile.controllers.gccBahrainMap = true;
+  syncState.mapPackage = normalizeMapPackageState({
+    status: "staged",
+    name: "UAE detailed + GCC all",
+    region: "gcc-uae-detailed",
+    fileCount: 0,
+    totalBytes: 0,
+    updatedAt: new Date().toISOString(),
+    files: []
+  });
+  saveProfile();
+  saveSyncState();
+  queueProfileChange("mapRegion");
+  markSectionChanged("maps", "gccMapPackMode");
+  await syncMapPackage();
+  writeForm();
+  showToast("UAE detailed GCC map pack staged");
+}
+
+async function handleGccMapUpload(files) {
+  const list = [...(files || [])];
+  if (!list.length) return;
+  readForm();
+  const mapFiles = list.map((file) => ({
+    name: file.name,
+    size: file.size,
+    type: file.type || file.name.split(".").pop() || "map-data"
+  }));
+  profile.controllers.mapMode = "offline-cache";
+  profile.controllers.mapRegion = "gcc-uae-detailed";
+  profile.controllers.gccMapPackMode = "custom-upload";
+  profile.controllers.offlineMaps = true;
+  profile.controllers.uaeDetailedMap = true;
+  profile.controllers.gccAllMaps = true;
+  syncState.mapPackage = normalizeMapPackageState({
+    status: "uploaded metadata",
+    name: "Custom GCC/UAE map upload",
+    region: "gcc-uae-detailed",
+    fileCount: mapFiles.length,
+    totalBytes: mapFiles.reduce((sum, file) => sum + file.size, 0),
+    updatedAt: new Date().toISOString(),
+    files: mapFiles
+  });
+  saveProfile();
+  saveSyncState();
+  queueProfileChange("gccMapPackMode");
+  markSectionChanged("maps", "gccMapUpload");
+  await syncMapPackage();
+  writeForm();
+  showToast(`Staged ${mapFiles.length} map file${mapFiles.length === 1 ? "" : "s"}`);
+}
+
+async function syncMapPackage() {
+  if (profile.connection?.mode !== "http") return;
+  try {
+    const baseUrl = bridgeBaseUrl();
+    if (!baseUrl) return;
+    const response = await fetchJson(`${baseUrl}/api/xrm10/map-package`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mapPackage: syncState.mapPackage,
+        controllers: {
+          mapRegion: profile.controllers.mapRegion,
+          gccMapPackMode: profile.controllers.gccMapPackMode,
+          mapDataFreshnessMode: profile.controllers.mapDataFreshnessMode,
+          offlineMaps: profile.controllers.offlineMaps
+        },
+        policy: {
+          mapDataOnly: true,
+          liveVehicleApplyAllowed: false,
+          driverConfirmationRequired: true
+        }
+      })
+    });
+    if (response.mapPackage) {
+      syncState.mapPackage = normalizeMapPackageState(response.mapPackage);
+      saveSyncState();
+    }
+  } catch (error) {
+    syncState.mapPackage = normalizeMapPackageState({
+      ...syncState.mapPackage,
+      status: `bridge sync failed: ${error.message || "unknown"}`
+    });
+    saveSyncState();
+  }
+}
+
+function showConfirmationPrompt(kind, title, message) {
+  if (!profile.controllers.confirmationPromptEnabled) {
+    showToast("Confirmation popup disabled");
+    return;
+  }
+  setText(els.confirmationKicker, kind);
+  setText(els.confirmationTitle, title);
+  setText(els.confirmationMessage, message);
+  if (els.confirmationModal) {
+    els.confirmationModal.classList.add("show");
+    els.confirmationModal.setAttribute("aria-hidden", "false");
+  }
+  if (profile.controllers.confirmationSound) playConfirmationSound();
+}
+
+function hideConfirmationPrompt(result) {
+  if (els.confirmationModal) {
+    els.confirmationModal.classList.remove("show");
+    els.confirmationModal.setAttribute("aria-hidden", "true");
+  }
+  showToast(result === "accepted" ? "Confirmed with tick" : "Confirmation canceled");
+}
+
+function playConfirmationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, context.currentTime);
+    oscillator.frequency.setValueAtTime(660, context.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.24);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.26);
+    window.setTimeout(() => context.close(), 360);
+  } catch {
+    // Audio is best effort; browsers can block it until a direct user gesture.
+  }
 }
 
 async function checkSshStatus() {
@@ -1648,19 +1956,21 @@ function computeNavReadiness() {
   const t = profile.tuning;
   const route = normalizeRouteState(syncState.route);
   const usesCarRoute = c.navMapSourceMode === "car-screen-map" || c.mapRouteSourceMode === "car-screen";
+  const hasUiConfirm = c.confirmationPromptEnabled && c.confirmationRequireTick && c.navStartConfirmPopup;
   const checks = [];
   let score = 100;
 
-  addLabCheck(checks, c.navMode !== "off", "Navigation lab enabled", "Choose advisory, simulation, or closed-course review.", 20);
+  addLabCheck(checks, c.navMode !== "off", "Navigation lab enabled", "Choose advisory, auto-start review, simulation, or closed-course review.", 20);
   addLabCheck(checks, !usesCarRoute || route.active, "Car screen route", "A destination from the car screen must be active before route maneuvers are planned.", 16);
   addLabCheck(checks, !usesCarRoute || c.carScreenRouteSync, "Car route sync", "Car screen destination sync must stay enabled for car-map routing.", 8);
   addLabCheck(checks, !usesCarRoute || c.carScreenRouteRequireConfirm, "Car route confirmation", "Car-screen route maneuvers require driver confirmation.", 18);
+  addLabCheck(checks, c.navMode !== "auto-start-review" || hasUiConfirm, "Auto-start confirmation", "Automatic route-start review requires the UI confirmation popup and tick mark.", 18);
   addLabCheck(checks, Number(t.navMapConfidence) >= 75, "Map confidence", "Map confidence should be at least 75%.", 12);
   addLabCheck(checks, Number(t.navCameraConfidence) >= 75, "Camera confidence", "Camera confidence should be at least 75%.", 12);
   addLabCheck(checks, Number(t.navLaneConfidence) >= 70, "Lane confidence", "Lane confidence should be at least 70%.", 10);
   addLabCheck(checks, !c.navMapCameraAgree || Math.abs(Number(t.navMapConfidence) - Number(t.navCameraConfidence)) <= 20, "Map-camera agreement", "Map and camera confidence disagree too much.", 12);
   addLabCheck(checks, c.driverConfirmMode !== "required" || Number(t.navDriverConfirmTime) >= 3, "Driver confirm window", "Driver confirmation window should be at least 3.0s.", 8);
-  addLabCheck(checks, c.navRequireDriverNudge || c.navSteeringMode === "advisory", "Driver nudge gate", "Steering plans require driver nudge outside advisory mode.", 18);
+  addLabCheck(checks, c.navRequireDriverNudge || hasUiConfirm || c.navSteeringMode === "advisory", "Driver confirmation gate", "Steering plans require driver nudge or UI tick confirmation outside advisory mode.", 18);
   addLabCheck(checks, c.navRequireSignal || !["highway-exit", "highway-merge", "lane-route"].includes(c.maneuverType), "Signal gate", "Lane-route maneuvers require turn signal gate.", 12);
   addLabCheck(checks, c.navBlindSpotBlock, "Blind spot block", "Blind spot block must stay enabled.", 18);
   addLabCheck(checks, c.maneuverType !== "u-turn" || c.uTurnPolicy !== "block", "U-turn policy", "U-turn is currently blocked by policy.", 20);
@@ -1709,6 +2019,7 @@ function previewTitle() {
 function previewText() {
   if (profile.controllers.laneChangeMode === "off") return "Lane centering only. Lane-change automation disabled.";
   if (!profile.controllers.blindSpotDelay) return "Blind-spot delay disabled. Review before install.";
+  if (profile.controllers.laneChangeMode === "ui-confirmed") return "Lane changes require the UI tick confirmation without a steering nudge.";
   if (profile.controllers.laneChangeMode === "nudge") return "Nudge required before lane changes.";
   return `Timer mode with ${Number(profile.tuning.laneDelay).toFixed(1)}s delay.`;
 }
@@ -1732,6 +2043,8 @@ function activeControllerCount() {
     "mapMode",
     "routeAssistMode",
     "mapRouteSourceMode",
+    "gccMapPackMode",
+    "mapDataFreshnessMode",
     "carScreenRouteMode",
     "navMode",
     "routeIntentMode",
@@ -1807,6 +2120,13 @@ function labelFor(group, value) {
       "curve-cautious": "Curve cautious",
       "road-edge-cautious": "Road-edge cautious"
     },
+    laneChangeMode: {
+      nudge: "Nudge required",
+      "ui-confirmed": "UI confirm",
+      "timer-1": "1s timer",
+      "timer-2": "2s timer",
+      off: "Off"
+    },
     roadEdgeMode: {
       warn: "Warn",
       conservative: "Conservative",
@@ -1831,6 +2151,19 @@ function labelFor(group, value) {
       off: "Off",
       suggest: "Suggest",
       "driver-confirmed": "Driver confirmed"
+    },
+    navMode: {
+      off: "Off",
+      advisory: "Advisory",
+      "auto-start-review": "Auto-start review",
+      simulation: "Simulation",
+      "closed-course": "Closed-course"
+    },
+    navSteeringMode: {
+      advisory: "Advisory",
+      "auto-confirmed-review": "Auto-confirmed review",
+      "driver-confirmed": "Driver confirmed",
+      "closed-course-plan": "Closed-course plan"
     }
   };
 
@@ -1841,6 +2174,7 @@ function exportProfile() {
   const labReadiness = computeLabReadiness();
   const navReadiness = computeNavReadiness();
   const route = normalizeRouteState(syncState.route);
+  const mapPackage = normalizeMapPackageState(syncState.mapPackage);
   const exported = clone(profile);
   if (exported.connection?.bridgeToken) {
     exported.connection.bridgeToken = "[stored locally]";
@@ -1867,6 +2201,14 @@ function exportProfile() {
         destination: route.destination,
         routeId: route.routeId,
         updatedAt: route.updatedAt
+      },
+      mapPackage: {
+        status: mapPackage.status,
+        name: mapPackage.name,
+        region: mapPackage.region,
+        fileCount: mapPackage.fileCount,
+        totalBytes: mapPackage.totalBytes,
+        updatedAt: mapPackage.updatedAt
       },
       generatedAt: new Date().toISOString()
     }
@@ -1952,6 +2294,7 @@ function downloadSafetyPlan() {
 function buildNavPlan() {
   const navReadiness = computeNavReadiness();
   const route = normalizeRouteState(syncState.route);
+  const mapPackage = normalizeMapPackageState(syncState.mapPackage);
   return {
     planVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -1983,6 +2326,23 @@ function buildNavPlan() {
         source: route.source,
         routeId: route.routeId,
         updatedAt: route.updatedAt
+      },
+      confirmationUi: {
+        popupEnabled: profile.controllers.confirmationPromptEnabled,
+        soundEnabled: profile.controllers.confirmationSound,
+        tickRequired: profile.controllers.confirmationRequireTick,
+        fasterLanePopup: profile.controllers.fasterLaneConfirmPopup,
+        navStartPopup: profile.controllers.navStartConfirmPopup
+      },
+      mapPackage: {
+        mode: profile.controllers.gccMapPackMode,
+        freshness: profile.controllers.mapDataFreshnessMode,
+        region: profile.controllers.mapRegion,
+        uaeDetailedMap: profile.controllers.uaeDetailedMap,
+        gccAllMaps: profile.controllers.gccAllMaps,
+        stagedStatus: mapPackage.status,
+        stagedFiles: mapPackage.fileCount,
+        stagedBytes: mapPackage.totalBytes
       },
       cameraFusionMode: profile.controllers.cameraFusionMode,
       steeringMode: profile.controllers.navSteeringMode,
@@ -2379,6 +2739,13 @@ function wireActions() {
     readForm();
     renderNavPilot();
     const result = computeNavReadiness();
+    if (profile.controllers.navMode === "auto-start-review" && profile.controllers.navStartConfirmPopup) {
+      showConfirmationPrompt(
+        "Route start",
+        "Confirm route-start review",
+        "Car-screen maps route intent is ready. Confirm with the tick mark before any route-start review action."
+      );
+    }
     showToast(`Nav Pilot ${result.state}: ${result.score}/100`);
   });
 
@@ -2386,6 +2753,30 @@ function wireActions() {
   els.readCarRoute?.addEventListener("click", () => refreshCarRoute(true));
   els.setDemoCarRoute?.addEventListener("click", setDemoCarRoute);
   els.useCarRouteForNav?.addEventListener("click", useCarRouteForNav);
+  els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
+  els.gccMapUpload?.addEventListener("change", (event) => {
+    handleGccMapUpload(event.target.files);
+    event.target.value = "";
+  });
+  els.stageUaeMapPack?.addEventListener("click", stageUaeMapPack);
+  els.testFasterLanePrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Faster lane",
+      "Confirm faster-lane suggestion",
+      "The planner found a faster lane. Confirm only after mirrors, blind spot, signal, and camera agreement are clear."
+    );
+  });
+  els.testNavStartPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Route start",
+      "Confirm route-start review",
+      "Car-screen maps has a destination. Confirm before starting the route steering review plan."
+    );
+  });
+  els.confirmationAccept?.addEventListener("click", () => hideConfirmationPrompt("accepted"));
+  els.confirmationReject?.addEventListener("click", () => hideConfirmationPrompt("rejected"));
   els.downloadProfile?.addEventListener("click", downloadProfile);
   els.downloadProfileSecondary?.addEventListener("click", downloadProfile);
   els.importButton?.addEventListener("click", () => els.importInput?.click());

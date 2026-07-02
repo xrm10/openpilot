@@ -14,6 +14,7 @@ const stateDir = path.join(root, ".sync_state");
 const latestProfilePath = path.join(stateDir, "latest_profile.json");
 const sectionStatusPath = path.join(stateDir, "section_status.json");
 const carRoutePath = path.join(stateDir, "car_route.json");
+const mapPackagePath = path.join(stateDir, "map_package.json");
 
 const device = {
   name: "comma four",
@@ -137,6 +138,54 @@ function normalizeCarRoute(route = {}) {
   };
 }
 
+function defaultMapPackage() {
+  return {
+    status: "not loaded",
+    name: "UAE detailed + GCC all",
+    region: "gcc-uae-detailed",
+    fileCount: 0,
+    totalBytes: 0,
+    updatedAt: null,
+    files: []
+  };
+}
+
+function readMapPackage() {
+  try {
+    return normalizeMapPackage(JSON.parse(fs.readFileSync(mapPackagePath, "utf8")));
+  } catch {
+    return defaultMapPackage();
+  }
+}
+
+function writeMapPackage(mapPackage) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(mapPackagePath, JSON.stringify(normalizeMapPackage(mapPackage), null, 2));
+}
+
+function normalizeMapPackage(mapPackage = {}) {
+  const next = defaultMapPackage();
+  const files = Array.isArray(mapPackage.files)
+    ? mapPackage.files.slice(0, 40).map((file) => ({
+        name: String(file.name || "map-file"),
+        size: Number(file.size) || 0,
+        type: String(file.type || "map-data")
+      }))
+    : [];
+  const totalBytes = Number(mapPackage.totalBytes ?? files.reduce((sum, file) => sum + file.size, 0));
+  return {
+    ...next,
+    ...mapPackage,
+    status: String(mapPackage.status || next.status),
+    name: String(mapPackage.name || next.name),
+    region: String(mapPackage.region || next.region),
+    fileCount: Number(mapPackage.fileCount ?? files.length) || 0,
+    totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
+    updatedAt: mapPackage.updatedAt || null,
+    files
+  };
+}
+
 function runSshStatus(target, keyPath) {
   return new Promise((resolve, reject) => {
     const command = "echo xrm10-ssh-ok; uname -a";
@@ -201,7 +250,8 @@ const server = http.createServer(async (req, res) => {
       online: true,
       device,
       latestProfile: latestProfileMeta(),
-      route: readCarRoute()
+      route: readCarRoute(),
+      mapPackage: readMapPackage()
     });
     return;
   }
@@ -343,6 +393,51 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid car-route payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/map-package") {
+    sendJson(res, 200, {
+      ok: true,
+      device,
+      mapPackage: readMapPackage()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/map-package") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Map package bridge accepts map metadata only. liveVehicleApplyAllowed must be false."
+        });
+        return;
+      }
+
+      const mapPackage = normalizeMapPackage({
+        ...(payload.mapPackage || {}),
+        status: payload.mapPackage?.status || "staged",
+        updatedAt: new Date().toISOString()
+      });
+      writeMapPackage(mapPackage);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "map-package-metadata-staged",
+        liveVehicleApplyAllowed: false,
+        device,
+        mapPackage
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid map-package payload"
       });
     }
     return;
