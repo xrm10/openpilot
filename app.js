@@ -49,7 +49,7 @@ const installTargets = [
 ];
 
 const defaultProfile = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
   vehicleYear: "2024",
@@ -64,13 +64,30 @@ const defaultProfile = {
     blindSpotDelay: true,
     laneTurnDesire: false,
     coopSteering: false,
-    experimentalControls: false
+    experimentalControls: false,
+    longitudinalMode: "stock",
+    laneCenterMode: "center",
+    curveSpeedMode: "advisory",
+    leadBehaviorMode: "stock",
+    roadEdgeMode: "warn",
+    promptMode: "standard",
+    logMode: "summary",
+    deviceGuardMode: "balanced",
+    stopGoSmoothing: false,
+    modelUncertaintyAlert: true,
+    reviewLogCapture: true,
+    thermalGuard: true
   },
   tuning: {
     followGap: 2.5,
     speedOffset: 1,
     laneDelay: 1,
-    curveComfort: 72
+    curveComfort: 72,
+    steerSmoothness: 70,
+    laneBias: 0,
+    brakeComfort: 72,
+    promptLeadTime: 1.2,
+    modelConfidenceGate: 65
   },
   safetyPolicy: {
     driverMonitoringRequired: true,
@@ -96,18 +113,41 @@ const els = {
   laneTurnDesire: document.querySelector("#laneTurnDesire"),
   coopSteering: document.querySelector("#coopSteering"),
   experimentalControls: document.querySelector("#experimentalControls"),
+  longitudinalMode: document.querySelector("#longitudinalMode"),
+  laneCenterMode: document.querySelector("#laneCenterMode"),
+  curveSpeedMode: document.querySelector("#curveSpeedMode"),
+  leadBehaviorMode: document.querySelector("#leadBehaviorMode"),
+  roadEdgeMode: document.querySelector("#roadEdgeMode"),
+  promptMode: document.querySelector("#promptMode"),
+  logMode: document.querySelector("#logMode"),
+  deviceGuardMode: document.querySelector("#deviceGuardMode"),
+  stopGoSmoothing: document.querySelector("#stopGoSmoothing"),
+  modelUncertaintyAlert: document.querySelector("#modelUncertaintyAlert"),
+  reviewLogCapture: document.querySelector("#reviewLogCapture"),
+  thermalGuard: document.querySelector("#thermalGuard"),
   followGap: document.querySelector("#followGap"),
   speedOffset: document.querySelector("#speedOffset"),
   laneDelay: document.querySelector("#laneDelay"),
   curveComfort: document.querySelector("#curveComfort"),
+  steerSmoothness: document.querySelector("#steerSmoothness"),
+  laneBias: document.querySelector("#laneBias"),
+  brakeComfort: document.querySelector("#brakeComfort"),
+  promptLeadTime: document.querySelector("#promptLeadTime"),
+  modelConfidenceGate: document.querySelector("#modelConfidenceGate"),
   followGapValue: document.querySelector("#followGapValue"),
   speedOffsetValue: document.querySelector("#speedOffsetValue"),
   laneDelayValue: document.querySelector("#laneDelayValue"),
   curveComfortValue: document.querySelector("#curveComfortValue"),
+  steerSmoothnessValue: document.querySelector("#steerSmoothnessValue"),
+  laneBiasValue: document.querySelector("#laneBiasValue"),
+  brakeComfortValue: document.querySelector("#brakeComfortValue"),
+  promptLeadTimeValue: document.querySelector("#promptLeadTimeValue"),
+  modelConfidenceGateValue: document.querySelector("#modelConfidenceGateValue"),
   safetyScore: document.querySelector("#safetyScore"),
   safetyMeter: document.querySelector("#safetyMeter"),
   safetyBadge: document.querySelector("#safetyBadge"),
   controllerBadge: document.querySelector("#controllerBadge"),
+  moduleBadge: document.querySelector("#moduleBadge"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
   branchStatusDot: document.querySelector("#branchStatusDot"),
@@ -115,6 +155,7 @@ const els = {
   previewText: document.querySelector("#previewText"),
   lockList: document.querySelector("#lockList"),
   targetList: document.querySelector("#targetList"),
+  controllerSummary: document.querySelector("#controllerSummary"),
   customInstallUrl: document.querySelector("#customInstallUrl"),
   jsonPreview: document.querySelector("#jsonPreview"),
   resetProfile: document.querySelector("#resetProfile"),
@@ -143,6 +184,7 @@ function normalizeProfile(input) {
   return {
     ...next,
     ...input,
+    schemaVersion: next.schemaVersion,
     controllers: {
       ...next.controllers,
       ...(input.controllers || {})
@@ -181,10 +223,23 @@ function computeSafetyScore() {
 
   if (profile.controllers.experimentalControls) score -= 20;
   if (profile.controllers.coopSteering) score -= 8;
+  if (profile.controllers.longitudinalMode === "traffic-review") score -= 10;
+  if (profile.controllers.curveSpeedMode === "bounded") score -= 4;
+  if (profile.controllers.roadEdgeMode === "off") score -= 8;
+  if (profile.controllers.promptMode === "quiet") score -= 5;
+  if (profile.controllers.logMode === "minimal" && profile.controllers.experimentalControls) score -= 8;
+  if (profile.controllers.deviceGuardMode === "diagnostic") score -= 4;
+  if (profile.controllers.stopGoSmoothing) score -= 4;
+  if (!profile.controllers.modelUncertaintyAlert) score -= 8;
+  if (!profile.controllers.reviewLogCapture && profile.controllers.experimentalControls) score -= 8;
+  if (!profile.controllers.thermalGuard) score -= 8;
   if (profile.controllers.laneChangeMode !== "nudge" && profile.controllers.laneChangeMode !== "off") score -= 10;
   if (!profile.controllers.blindSpotDelay && profile.controllers.laneChangeMode !== "off") score -= 18;
   if (Number(profile.tuning.followGap) < 2.2) score -= 10;
   if (Number(profile.tuning.speedOffset) > 2) score -= 6;
+  if (Math.abs(Number(profile.tuning.laneBias)) > 10) score -= 6;
+  if (Number(profile.tuning.promptLeadTime) < 1) score -= 5;
+  if (Number(profile.tuning.modelConfidenceGate) < 60) score -= 8;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
   return Math.max(0, Math.min(100, score));
@@ -217,16 +272,34 @@ function readForm() {
   profile.controllers.laneTurnDesire = els.laneTurnDesire.checked;
   profile.controllers.coopSteering = els.coopSteering.checked;
   profile.controllers.experimentalControls = els.experimentalControls.checked;
+  profile.controllers.longitudinalMode = els.longitudinalMode.value;
+  profile.controllers.laneCenterMode = els.laneCenterMode.value;
+  profile.controllers.curveSpeedMode = els.curveSpeedMode.value;
+  profile.controllers.leadBehaviorMode = els.leadBehaviorMode.value;
+  profile.controllers.roadEdgeMode = els.roadEdgeMode.value;
+  profile.controllers.promptMode = els.promptMode.value;
+  profile.controllers.logMode = els.logMode.value;
+  profile.controllers.deviceGuardMode = els.deviceGuardMode.value;
+  profile.controllers.stopGoSmoothing = els.stopGoSmoothing.checked;
+  profile.controllers.modelUncertaintyAlert = els.modelUncertaintyAlert.checked;
+  profile.controllers.reviewLogCapture = els.reviewLogCapture.checked;
+  profile.controllers.thermalGuard = els.thermalGuard.checked;
   profile.tuning.followGap = Number(els.followGap.value);
   profile.tuning.speedOffset = Number(els.speedOffset.value);
   profile.tuning.laneDelay = Number(els.laneDelay.value);
   profile.tuning.curveComfort = Number(els.curveComfort.value);
+  profile.tuning.steerSmoothness = Number(els.steerSmoothness.value);
+  profile.tuning.laneBias = Number(els.laneBias.value);
+  profile.tuning.brakeComfort = Number(els.brakeComfort.value);
+  profile.tuning.promptLeadTime = Number(els.promptLeadTime.value);
+  profile.tuning.modelConfidenceGate = Number(els.modelConfidenceGate.value);
 
   enforceGuardrails();
   saveProfile();
 }
 
 function enforceGuardrails() {
+  profile.schemaVersion = defaultProfile.schemaVersion;
   profile.safetyPolicy.driverMonitoringRequired = true;
   profile.safetyPolicy.excessiveActuationChecksLocked = true;
   profile.safetyPolicy.pandaSafetyReadOnly = true;
@@ -235,6 +308,11 @@ function enforceGuardrails() {
 
   if (profile.controllers.experimentalControls) {
     profile.controllers.coopSteering = false;
+    profile.controllers.reviewLogCapture = true;
+  }
+
+  if (profile.controllers.promptMode === "quiet") {
+    profile.tuning.promptLeadTime = Math.max(profile.tuning.promptLeadTime, 1);
   }
 
   if (profile.controllers.laneChangeMode === "off") {
@@ -245,6 +323,11 @@ function enforceGuardrails() {
   profile.tuning.speedOffset = clamp(profile.tuning.speedOffset, 0, 4);
   profile.tuning.laneDelay = clamp(profile.tuning.laneDelay, 0, 3);
   profile.tuning.curveComfort = clamp(profile.tuning.curveComfort, 50, 90);
+  profile.tuning.steerSmoothness = clamp(profile.tuning.steerSmoothness, 50, 90);
+  profile.tuning.laneBias = clamp(profile.tuning.laneBias, -20, 20);
+  profile.tuning.brakeComfort = clamp(profile.tuning.brakeComfort, 50, 90);
+  profile.tuning.promptLeadTime = clamp(profile.tuning.promptLeadTime, 0.5, 2.5);
+  profile.tuning.modelConfidenceGate = clamp(profile.tuning.modelConfidenceGate, 50, 90);
 }
 
 function writeForm() {
@@ -261,10 +344,27 @@ function writeForm() {
   els.laneTurnDesire.checked = profile.controllers.laneTurnDesire;
   els.coopSteering.checked = profile.controllers.coopSteering;
   els.experimentalControls.checked = profile.controllers.experimentalControls;
+  els.longitudinalMode.value = profile.controllers.longitudinalMode;
+  els.laneCenterMode.value = profile.controllers.laneCenterMode;
+  els.curveSpeedMode.value = profile.controllers.curveSpeedMode;
+  els.leadBehaviorMode.value = profile.controllers.leadBehaviorMode;
+  els.roadEdgeMode.value = profile.controllers.roadEdgeMode;
+  els.promptMode.value = profile.controllers.promptMode;
+  els.logMode.value = profile.controllers.logMode;
+  els.deviceGuardMode.value = profile.controllers.deviceGuardMode;
+  els.stopGoSmoothing.checked = profile.controllers.stopGoSmoothing;
+  els.modelUncertaintyAlert.checked = profile.controllers.modelUncertaintyAlert;
+  els.reviewLogCapture.checked = profile.controllers.reviewLogCapture;
+  els.thermalGuard.checked = profile.controllers.thermalGuard;
   els.followGap.value = profile.tuning.followGap;
   els.speedOffset.value = profile.tuning.speedOffset;
   els.laneDelay.value = profile.tuning.laneDelay;
   els.curveComfort.value = profile.tuning.curveComfort;
+  els.steerSmoothness.value = profile.tuning.steerSmoothness;
+  els.laneBias.value = profile.tuning.laneBias;
+  els.brakeComfort.value = profile.tuning.brakeComfort;
+  els.promptLeadTime.value = profile.tuning.promptLeadTime;
+  els.modelConfidenceGate.value = profile.tuning.modelConfidenceGate;
   render();
 }
 
@@ -310,17 +410,25 @@ function render() {
   els.speedOffsetValue.textContent = `+${profile.tuning.speedOffset} mph`;
   els.laneDelayValue.textContent = `${Number(profile.tuning.laneDelay).toFixed(1)}s`;
   els.curveComfortValue.textContent = String(profile.tuning.curveComfort);
+  els.steerSmoothnessValue.textContent = String(profile.tuning.steerSmoothness);
+  els.laneBiasValue.textContent = `${signed(profile.tuning.laneBias)} cm`;
+  els.brakeComfortValue.textContent = String(profile.tuning.brakeComfort);
+  els.promptLeadTimeValue.textContent = `${Number(profile.tuning.promptLeadTime).toFixed(1)}s`;
+  els.modelConfidenceGateValue.textContent = `${profile.tuning.modelConfidenceGate}%`;
   els.safetyScore.textContent = String(score);
   els.safetyMeter.style.width = `${score}%`;
   els.safetyBadge.textContent = score >= 92 ? "Locked" : "Review";
   els.safetyBadge.className = `status-badge ${stateClass}`;
   els.controllerBadge.textContent = controllerLabel();
   els.controllerBadge.className = `status-badge ${stateClass}`;
+  els.moduleBadge.textContent = `${activeControllerCount()} modules`;
+  els.moduleBadge.className = `status-badge ${stateClass}`;
   els.activeBranchLabel.textContent = branchLabel;
   els.activeBranchMeta.textContent = activeInstallUrl();
   els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
   els.previewTitle.textContent = previewTitle();
   els.previewText.textContent = previewText();
+  els.controllerSummary.innerHTML = controllerSummaryRows();
   els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
 }
@@ -338,6 +446,92 @@ function previewText() {
   return `Timer mode with ${Number(profile.tuning.laneDelay).toFixed(1)}s delay.`;
 }
 
+function activeControllerCount() {
+  const fixedModules = [
+    "lateralMode",
+    "madsMode",
+    "laneChangeMode",
+    "speedAssistMode",
+    "longitudinalMode",
+    "laneCenterMode",
+    "curveSpeedMode",
+    "leadBehaviorMode",
+    "roadEdgeMode",
+    "promptMode",
+    "logMode",
+    "deviceGuardMode"
+  ];
+  const toggleModules = [
+    "blindSpotDelay",
+    "laneTurnDesire",
+    "coopSteering",
+    "experimentalControls",
+    "stopGoSmoothing",
+    "modelUncertaintyAlert",
+    "reviewLogCapture",
+    "thermalGuard"
+  ];
+
+  return fixedModules.length + toggleModules.filter((key) => profile.controllers[key]).length;
+}
+
+function controllerSummaryRows() {
+  const rows = [
+    ["Longitudinal", labelFor("longitudinalMode", profile.controllers.longitudinalMode)],
+    ["Lateral", labelFor("lateralMode", profile.controllers.lateralMode)],
+    ["Lane centering", labelFor("laneCenterMode", profile.controllers.laneCenterMode)],
+    ["Road edge", labelFor("roadEdgeMode", profile.controllers.roadEdgeMode)],
+    ["Prompts", `${labelFor("promptMode", profile.controllers.promptMode)}, ${Number(profile.tuning.promptLeadTime).toFixed(1)}s lead`],
+    ["Logging", `${labelFor("logMode", profile.controllers.logMode)} with ${profile.controllers.reviewLogCapture ? "capture on" : "capture off"}`]
+  ];
+
+  return rows
+    .map(([label, value]) => `
+      <div class="summary-row">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function labelFor(group, value) {
+  const labels = {
+    longitudinalMode: {
+      stock: "Stock openpilot",
+      smooth: "Smooth follow",
+      "traffic-review": "Traffic review"
+    },
+    lateralMode: {
+      standard: "Standard sunnypilot",
+      torque: "Torque preference",
+      "nnlc-review": "NNLC review"
+    },
+    laneCenterMode: {
+      center: "Centered",
+      "curve-cautious": "Curve cautious",
+      "road-edge-cautious": "Road-edge cautious"
+    },
+    roadEdgeMode: {
+      warn: "Warn",
+      conservative: "Conservative",
+      off: "Off"
+    },
+    promptMode: {
+      standard: "Standard",
+      early: "Early prompts",
+      quiet: "Quiet review"
+    },
+    logMode: {
+      summary: "Summary",
+      detailed: "Detailed",
+      minimal: "Minimal"
+    }
+  };
+
+  return labels[group]?.[value] || value;
+}
+
 function exportProfile() {
   return {
     ...profile,
@@ -345,6 +539,7 @@ function exportProfile() {
       safetyScore: computeSafetyScore(),
       installUrl: activeInstallUrl(),
       controllerState: controllerLabel(),
+      activeControllerModules: activeControllerCount(),
       generatedAt: new Date().toISOString()
     }
   };
@@ -402,8 +597,15 @@ function slug(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "xrm10";
 }
 
+function signed(value) {
+  const number = Number(value);
+  return number > 0 ? `+${number}` : String(number);
+}
+
 function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
 }
 
 function handleInput() {
@@ -420,11 +622,24 @@ function handleInput() {
   els.madsMode,
   els.laneChangeMode,
   els.speedAssistMode,
+  els.longitudinalMode,
+  els.laneCenterMode,
+  els.curveSpeedMode,
+  els.leadBehaviorMode,
+  els.roadEdgeMode,
+  els.promptMode,
+  els.logMode,
+  els.deviceGuardMode,
   els.customInstallUrl,
   els.followGap,
   els.speedOffset,
   els.laneDelay,
-  els.curveComfort
+  els.curveComfort,
+  els.steerSmoothness,
+  els.laneBias,
+  els.brakeComfort,
+  els.promptLeadTime,
+  els.modelConfidenceGate
 ].forEach((input) => {
   input.addEventListener("input", handleInput);
   input.addEventListener("change", handleInput);
@@ -434,7 +649,11 @@ function handleInput() {
   els.blindSpotDelay,
   els.laneTurnDesire,
   els.coopSteering,
-  els.experimentalControls
+  els.experimentalControls,
+  els.stopGoSmoothing,
+  els.modelUncertaintyAlert,
+  els.reviewLogCapture,
+  els.thermalGuard
 ].forEach((input) => {
   input.addEventListener("change", handleInput);
 });
