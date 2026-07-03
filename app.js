@@ -53,21 +53,12 @@ const installTargets = [
 const sectionMeta = {
   home: ["XRM10", "Home"],
   device: ["Device settings", "Device"],
-  toggles: ["Device settings", "Toggles"],
-  models: ["Device settings", "Models"],
-  steering: ["Device settings", "Steering"],
-  cruise: ["Device settings", "Cruise"],
-  traffic: ["Device settings", "Traffic"],
   visuals: ["Device settings", "Visuals"],
-  display: ["Device settings", "Display"],
-  maps: ["Device settings", "Maps"],
-  navPilot: ["Device settings", "Nav Pilot"],
-  vehicle: ["Device settings", "Vehicle"],
-  software: ["Device settings", "Software"],
-  safetyLab: ["Device settings", "Safety Lab"],
-  developer: ["Device settings", "Developer"],
-  migration: ["Device settings", "Migration Wizard"]
+  maps: ["Device settings", "Navigation"],
+  software: ["Device settings", "Software"]
 };
+
+const visibleSections = new Set(Object.keys(sectionMeta));
 
 const defaultProfile = {
   schemaVersion: 12,
@@ -2857,6 +2848,37 @@ function filterHomeTiles() {
   });
 }
 
+function pruneAppSections() {
+  document.querySelectorAll("[data-section-target]").forEach((element) => {
+    const target = element.dataset.sectionTarget;
+    if (target && !visibleSections.has(target)) element.remove();
+  });
+
+  document.querySelectorAll("[data-section]").forEach((panel) => {
+    const section = panel.dataset.section;
+    if (section && !visibleSections.has(section)) panel.remove();
+  });
+
+  document.querySelector("#liveCapabilityCard")?.remove();
+
+  document.querySelectorAll('[data-section-target="maps"] span').forEach((label) => {
+    label.textContent = "Navigation";
+  });
+
+  const routeMode = byId("carScreenRouteMode");
+  routeMode?.querySelector('option[value="manual-demo"]')?.remove();
+
+  const demoDestination = byId("carScreenDestination")?.closest(".field");
+  demoDestination?.remove();
+  byId("setDemoCarRoute")?.remove();
+  byId("useCarRouteForNav")?.remove();
+
+  document.querySelectorAll('[data-section="maps"] .settings-card').forEach((card) => {
+    const heading = card.querySelector("h2")?.textContent?.trim();
+    if (heading === "Route assistance") card.remove();
+  });
+}
+
 function renderSectionApplyBars() {
   document.querySelectorAll(".section-panel").forEach((panel) => {
     const section = panel.dataset.section;
@@ -3352,6 +3374,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+pruneAppSections();
 renderLocks();
 wireFormEvents();
 wireActions();

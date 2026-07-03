@@ -178,36 +178,6 @@ const sectionCapabilities = {
     ["autoSync", "Auto sync queue", "live-safe"],
     ["sshTarget", "SSH status check target", "live-safe"]
   ],
-  toggles: [
-    ["handsOnReminder", "Hands-on reminder preference", "live-safe"],
-    ["metricUnits", "Metric units preference", "live-safe"],
-    ["modelUncertaintyAlert", "Model uncertainty alert preference", "review-only"],
-    ["experimentalControls", "Experimental driving controls", "blocked-live-drive"]
-  ],
-  models: [
-    ["modelStackMode", "Model stack selection", "needs-ondevice-integration"],
-    ["visionPolicyMode", "Vision policy", "review-only"],
-    ["modelFallbackMode", "Model fallback policy", "review-only"],
-    ["modelCacheMode", "Model cache policy", "needs-ondevice-integration"]
-  ],
-  steering: [
-    ["laneChangeMode", "Lane-change behavior", "blocked-live-drive"],
-    ["lateralMode", "Lateral controller", "blocked-live-drive"],
-    ["torqueLimitMode", "Torque limit profile", "blocked-live-drive"],
-    ["laneBias", "Lane position bias", "blocked-live-drive"]
-  ],
-  cruise: [
-    ["longitudinalMode", "Longitudinal controller", "blocked-live-drive"],
-    ["followGap", "Follow gap", "blocked-live-drive"],
-    ["speedOffset", "Speed offset", "blocked-live-drive"],
-    ["stopResumeDelay", "Stop-resume delay", "blocked-live-drive"]
-  ],
-  traffic: [
-    ["fasterLaneMode", "Faster-lane suggestions", "review-only"],
-    ["trafficRequireConfirmation", "Traffic confirmation gate", "live-safe"],
-    ["lwcMode", "Lane width control profile", "review-only"],
-    ["trafficAutoManeuverBlock", "Automatic traffic maneuver block", "live-safe"]
-  ],
   visuals: [
     ["visualTheme", "Visual theme", "live-safe"],
     ["alertDensity", "Alert density", "live-safe"],
@@ -216,54 +186,16 @@ const sectionCapabilities = {
     ["laneOverlay", "Lane overlay", "live-safe"],
     ["roadEdgeOverlay", "Road-edge overlay", "live-safe"]
   ],
-  display: [
-    ["displayTheme", "Display theme", "live-safe"],
-    ["keepAwakeMode", "Keep-awake mode", "live-safe"],
-    ["unitsMode", "Units mode", "live-safe"],
-    ["screenBrightness", "Screen brightness profile", "live-safe"],
-    ["mapBrightness", "Map brightness profile", "live-safe"]
-  ],
   maps: [
     ["mapRouteSourceMode", "Route source", "route-intent-only"],
-    ["carScreenRouteSync", "Car-screen route sync", "route-intent-only"],
-    ["mapRegion", "Map region metadata", "map-metadata-only"],
-    ["gccMapPackMode", "GCC map package metadata", "map-metadata-only"]
-  ],
-  navPilot: [
-    ["navMode", "Navigation mode", "review-only"],
-    ["navSteeringMode", "Navigation steering", "blocked-live-drive"],
-    ["roundaboutPolicy", "Roundabout policy", "review-only"],
-    ["sidewalkStopPolicy", "Sidewalk/curb stop review", "review-only"],
-    ["roadBumpPolicy", "Road-bump slowdown review", "review-only"],
-    ["signReviewMode", "Traffic sign review", "review-only"],
-    ["driverConfirmMode", "Driver confirmation mode", "live-safe"]
-  ],
-  vehicle: [
-    ["vehicleModel", "Vehicle model metadata", "live-safe"],
-    ["vehicleYear", "Vehicle year metadata", "live-safe"],
-    ["regionProfile", "Region profile metadata", "live-safe"],
-    ["vehicleHarnessMode", "Harness mode", "needs-ondevice-integration"]
+    ["carScreenRouteMode", "Car-screen route mode", "route-intent-only"],
+    ["carScreenRouteSync", "Stage car-screen route intent", "route-intent-only"],
+    ["carScreenRouteNavPilot", "Show route intent on comma", "route-intent-only"],
+    ["carScreenRouteRequireConfirm", "Advisory-only route intent", "route-intent-only"]
   ],
   software: [
     ["installTarget", "Install target URL", "live-safe"],
-    ["customInstallUrl", "Custom installer URL", "live-safe"],
-    ["parameterPreviewMode", "Parameter preview mode", "live-safe"]
-  ],
-  safetyLab: [
-    ["labMode", "Safety lab mode", "review-only"],
-    ["testStage", "Test stage", "review-only"],
-    ["scenarioSet", "Scenario set", "review-only"],
-    ["labResultGate", "Lab result gate", "review-only"]
-  ],
-  developer: [
-    ["reviewLogCapture", "Review log capture", "live-safe"],
-    ["eventSnapshot", "Event snapshots", "live-safe"],
-    ["cabanaExport", "Cabana export preference", "live-safe"],
-    ["developerMode", "Developer review mode", "review-only"]
-  ],
-  migration: [
-    ["migrationSource", "Migration source", "live-safe"],
-    ["backupSlot", "Backup slot", "live-safe"]
+    ["customInstallUrl", "Custom installer URL", "live-safe"]
   ]
 };
 
@@ -632,7 +564,115 @@ async function writeCommaBoolParam(profile, param, value, options = {}) {
   };
 }
 
+function shellQuote(value) {
+  return `'${String(value ?? "").replace(/'/g, "'\\''")}'`;
+}
+
+async function writeCommaParam(profile, param, value) {
+  const allowedParams = new Set([
+    "Xrm10NavSource",
+    "Xrm10CarScreenRouteIntent",
+    "Xrm10CarScreenRouteStatus",
+    "Xrm10CarScreenDestination",
+    "Xrm10CarScreenRouteUpdatedAt"
+  ]);
+  if (!allowedParams.has(param)) {
+    return { param, ok: false, state: "blocked", reason: "Param is not whitelisted." };
+  }
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const nextValue = String(value ?? "");
+  const output = await runSshCommand(
+    target,
+    keyPath,
+    `printf %s ${shellQuote(nextValue)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`,
+    6500
+  );
+  return {
+    param,
+    ok: output.includes(`${param}=${nextValue}`),
+    state: output.includes(`${param}=${nextValue}`) ? "applied" : "unknown",
+    value: nextValue,
+    output
+  };
+}
+
+async function syncNavigationIntentParams(profile = {}) {
+  const controllers = profile.controllers || {};
+  const activeRoute = profile.computed?.activeCarRoute || {};
+  const sourceMode = String(controllers.mapRouteSourceMode || "car-screen");
+  const routeSync = controllers.carScreenRouteSync !== false;
+  const routeMode = String(controllers.carScreenRouteMode || "detect-destination");
+  const destination = String(activeRoute.destination || controllers.carScreenDestination || "").trim();
+  const sourceIndex = !routeSync || sourceMode === "disabled" || routeMode === "disabled"
+    ? 0
+    : sourceMode === "offline-cache" ? 2 : 1;
+  const intentEnabled = sourceIndex === 1 && routeSync;
+  const status = !intentEnabled
+    ? "Navigation intent off"
+    : destination
+      ? "Route intent staged"
+      : "Waiting for car-screen adapter";
+  const updatedAt = new Date().toISOString();
+
+  const writes = [
+    ["Xrm10NavSource", sourceIndex],
+    ["Xrm10CarScreenRouteIntent", intentEnabled ? 1 : 0],
+    ["Xrm10CarScreenRouteStatus", status],
+    ["Xrm10CarScreenDestination", destination],
+    ["Xrm10CarScreenRouteUpdatedAt", updatedAt]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+
+  let output = "";
+  try {
+    output = await runSshCommand(target, keyPath, command, 6500);
+  } catch (error) {
+    return {
+      state: "partial",
+      working: false,
+      message: `Navigation intent saved in the app, but comma SSH is unavailable: ${error.message || "SSH write failed"}`,
+      results: writes.map(([param, value]) => ({
+        param,
+        ok: false,
+        state: "failed",
+        value: String(value ?? ""),
+        reason: error.message || "SSH write failed"
+      }))
+    };
+  }
+
+  const results = writes.map(([param, value]) => {
+    const nextValue = String(value ?? "");
+    const ok = output.includes(`${param}=${nextValue}`);
+    return {
+      param,
+      ok,
+      state: ok ? "applied" : "unknown",
+      value: nextValue,
+      output
+    };
+  });
+
+  const refused = results.filter((result) => !result.ok);
+  return {
+    state: refused.length ? "partial" : "applied",
+    working: refused.length === 0,
+    message: refused.length
+      ? `${results.length - refused.length} nav param${results.length - refused.length === 1 ? "" : "s"} applied, ${refused.length} refused.`
+      : `${results.length} nav intent params applied on comma.`,
+    results
+  };
+}
+
 async function applyWhitelistedDeviceParams(section, profile = {}) {
+  if (section === "maps") return syncNavigationIntentParams(profile);
   if (section !== "visuals") return { state: "none", working: true, message: "" };
 
   const controllers = profile.controllers || {};

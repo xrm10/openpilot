@@ -928,8 +928,8 @@
           <article class="settings-card route-live-card">
             <div class="card-heading">
               <div>
-                <p class="eyebrow">Car screen route</p>
-                <h2>Live destination source</h2>
+                <p class="eyebrow">Navigation</p>
+                <h2>Car-screen route intent</h2>
               </div>
               <span class="status-badge warn" id="carRouteStatus">Waiting</span>
             </div>
@@ -955,7 +955,7 @@
               <label class="field">
                 <span>Route source</span>
                 <select id="mapRouteSourceMode">
-                  <option value="car-screen">Car screen maps</option>
+                  <option value="car-screen">Car-screen adapter</option>
                   <option value="app-route">Control center route</option>
                   <option value="offline-cache">Offline map cache</option>
                   <option value="disabled">Disabled</option>
@@ -975,12 +975,15 @@
               </label>
             </div>
             <div class="toggle-stack switch-grid">
-              <label><input id="carScreenRouteSync" type="checkbox" checked> Sync destination changes from car screen</label>
-              <label><input id="carScreenRouteNavPilot" type="checkbox" checked> Share car route with Nav Pilot</label>
-              <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Require driver confirmation for route maneuvers</label>
+              <label><input id="carScreenRouteSync" type="checkbox" checked> Stage car-screen route intent on comma</label>
+              <label><input id="carScreenRouteNavPilot" type="checkbox" checked> Show destination intent on comma Navigation screen</label>
+              <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Keep route intent advisory only</label>
+            </div>
+            <div class="warning-copy">
+              This requires a real Tesla car-screen route adapter. Until that adapter writes a destination, the comma screen will show route status only. It does not steer, brake, accelerate, or change lanes.
             </div>
             <div class="button-row">
-              <button class="primary-button" id="readCarRoute" type="button">Read car route</button>
+              <button class="primary-button" id="readCarRoute" type="button">Read nav status</button>
               <button class="ghost-button" id="setDemoCarRoute" type="button">Set demo route</button>
               <button class="ghost-button" id="useCarRouteForNav" type="button">Use in Nav Pilot</button>
             </div>
