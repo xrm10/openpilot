@@ -52,6 +52,10 @@ It is designed for development workflow, not direct vehicle actuation.
   gaps, adjacent-traffic buffers, and lane width control with driver-confirm
   gates.
 - Use faster-lane confirmation prompts with sound, cancel X, and confirm tick.
+- Use road-entry, roundabout, and traffic-sign confirmation prompts with
+  full-stop, clear-gap, sign-check, and driver-confirm review gates.
+- Log every confirmation prompt as a safety event for later review without
+  applying live vehicle actuation.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
   review steps.
 - Export Nav Pilot plans with maneuver confidence checks, map-camera agreement
@@ -92,6 +96,8 @@ GET  /api/xrm10/car-route
 POST /api/xrm10/car-route
 GET  /api/xrm10/map-package
 POST /api/xrm10/map-package
+GET  /api/xrm10/safety-events
+POST /api/xrm10/safety-event
 POST /api/xrm10/section-apply
 GET  /api/xrm10/section-status?section=device
 POST /api/xrm10/ssh-status
@@ -166,6 +172,33 @@ change lanes, or start automated navigation from the phone app.
 Local map uploads record file metadata for PMTiles, MBTiles, OSM/PBF, or JSON
 files. Proprietary or very large map files are not bundled into the repo.
 
+`POST /api/xrm10/safety-event` receives confirmation and review events from the
+app. The local bridge stores the latest events in `.sync_state/safety_events.json`:
+
+```json
+{
+  "type": "xrm10.safety.event",
+  "event": "confirmation-opened",
+  "kind": "Roundabout",
+  "details": {
+    "maneuver": "roundabout-entry",
+    "stopRequired": true,
+    "carCheckRequired": true,
+    "signCheckRequired": true
+  },
+  "policy": {
+    "logOnly": true,
+    "liveVehicleApplyAllowed": false,
+    "driverConfirmationRequired": true,
+    "publicRoadAutonomyEnabled": false
+  }
+}
+```
+
+`GET /api/xrm10/safety-events` returns the stored events. These events are
+audit records only; they must not be interpreted as permission to steer, merge,
+or enter a roundabout.
+
 `POST /api/xrm10/section-apply` receives one section plus the current profile
 and returns whether that section is staged and working. `GET
 /api/xrm10/section-status` checks the last known result.
@@ -198,6 +231,11 @@ Traffic/LWC controls represent suggestions and driver-confirmed planning. They
 do not enable unconfirmed automatic lane changes between cars or autonomous
 lane weaving to reach a faster lane.
 
+Road-entry, roundabout, and traffic-sign controls are review gates. The app can
+require a full stop, a clear-gap value, camera/sign agreement, and a driver tick
+before logging a prompt result. It does not learn new signs into the driving
+model or decide that a public-road merge is safe by itself.
+
 ## Safety Lab manual
 
 1. Design review: choose conservative lab defaults, keep live safety policy
@@ -226,6 +264,14 @@ lane weaving to reach a faster lane.
 5. Fallback: any blind spot, low confidence, missing lane, unclear yield
    condition, or missing confirmation blocks the maneuver and asks the driver to
    take over.
+6. Road entry: stop before entering a road, check cross traffic, check signs,
+   require the configured clear gap, then log a tick or X confirmation.
+7. Roundabout entry: stop before the yield line, check circulating traffic and
+   roundabout signs, require the configured clear gap, then log a tick or X
+   confirmation.
+8. Traffic signs: stop, yield, roundabout, speed, lane, and direction signs are
+   logged for review. Sign learning remains review-only until a separate model
+   validation process exists.
 
 ## Current install URL
 

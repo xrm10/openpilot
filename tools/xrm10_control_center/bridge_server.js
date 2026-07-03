@@ -15,6 +15,7 @@ const latestProfilePath = path.join(stateDir, "latest_profile.json");
 const sectionStatusPath = path.join(stateDir, "section_status.json");
 const carRoutePath = path.join(stateDir, "car_route.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
+const safetyEventsPath = path.join(stateDir, "safety_events.json");
 
 const device = {
   name: "comma four",
@@ -163,6 +164,20 @@ function writeMapPackage(mapPackage) {
   fs.writeFileSync(mapPackagePath, JSON.stringify(normalizeMapPackage(mapPackage), null, 2));
 }
 
+function readSafetyEvents() {
+  try {
+    const events = JSON.parse(fs.readFileSync(safetyEventsPath, "utf8"));
+    return Array.isArray(events) ? events : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSafetyEvents(events) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(safetyEventsPath, JSON.stringify(events.slice(-300), null, 2));
+}
+
 function normalizeMapPackage(mapPackage = {}) {
   const next = defaultMapPackage();
   const files = Array.isArray(mapPackage.files)
@@ -251,7 +266,8 @@ const server = http.createServer(async (req, res) => {
       device,
       latestProfile: latestProfileMeta(),
       route: readCarRoute(),
-      mapPackage: readMapPackage()
+      mapPackage: readMapPackage(),
+      safetyEventCount: readSafetyEvents().length
     });
     return;
   }
@@ -438,6 +454,68 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid map-package payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/safety-events") {
+    sendJson(res, 200, {
+      ok: true,
+      device,
+      events: readSafetyEvents()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/safety-event") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false || payload.policy?.logOnly !== true) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Safety-event bridge accepts log-only events. liveVehicleApplyAllowed must be false."
+        });
+        return;
+      }
+
+      const events = readSafetyEvents();
+      const event = {
+        receivedAt: new Date().toISOString(),
+        device,
+        type: String(payload.type || "xrm10.safety.event"),
+        event: String(payload.event || "unknown"),
+        kind: String(payload.kind || "unknown"),
+        generatedAt: payload.generatedAt || null,
+        source: String(payload.source || "xrm10-control-center"),
+        route: payload.route || null,
+        mapPackage: payload.mapPackage || null,
+        profile: payload.profile || {},
+        thresholds: payload.thresholds || {},
+        details: payload.details || {},
+        policy: {
+          logOnly: true,
+          liveVehicleApplyAllowed: false,
+          driverConfirmationRequired: payload.policy?.driverConfirmationRequired !== false,
+          publicRoadAutonomyEnabled: false
+        }
+      };
+      events.push(event);
+      writeSafetyEvents(events);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "safety-event-logged",
+        eventCount: readSafetyEvents().length,
+        liveVehicleApplyAllowed: false,
+        device
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid safety-event payload"
       });
     }
     return;

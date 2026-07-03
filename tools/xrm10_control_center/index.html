@@ -122,6 +122,10 @@
             <span>Route</span>
             <strong id="topRouteState">No route</strong>
           </div>
+          <div class="live-stat">
+            <span>Safety log</span>
+            <strong id="topSafetyEventCount">0</strong>
+          </div>
           <div class="road-state-control" role="group" aria-label="Road state control">
             <button class="road-state-button active" id="setOffroad" type="button" data-road-state="offroad">
               Offroad
@@ -1066,6 +1070,98 @@
           <article class="settings-card">
             <div class="card-heading">
               <div>
+                <p class="eyebrow">Stop and verify</p>
+                <h2>Road entry, roundabouts, and signs</h2>
+              </div>
+              <span class="status-badge warn">Hold for tick</span>
+            </div>
+            <div class="warning-copy">
+              Road-entry and roundabout plans are blocked behind full-stop, clear-gap, sign-check, camera-agreement, and driver tick confirmation gates. Sign learning is review-only logging.
+            </div>
+            <div class="control-grid">
+              <label class="field">
+                <span>Road entry policy</span>
+                <select id="roadEntryPolicy">
+                  <option value="full-stop-confirm">Full stop then confirm</option>
+                  <option value="hold-until-clear">Hold until clear</option>
+                  <option value="prompt-only">Prompt only</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Merge check</span>
+                <select id="mergeCheckMode">
+                  <option value="stop-clear-gap-confirm">Stop, clear gap, confirm</option>
+                  <option value="clear-gap-confirm">Clear gap and confirm</option>
+                  <option value="prompt-only">Prompt only</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Sign review</span>
+                <select id="signReviewMode">
+                  <option value="log-all">Log all signs</option>
+                  <option value="prompt-critical">Prompt critical signs</option>
+                  <option value="stop-signs-only">Stop signs only</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Sign learning</span>
+                <select id="signLearningMode">
+                  <option value="review-only">Review-only logging</option>
+                  <option value="dataset-candidate">Dataset candidate</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="roadEntryStopRequired" type="checkbox" checked> Stop before entering or merging onto a road</label>
+              <label><input id="roadEntryCarCheckRequired" type="checkbox" checked> Check cross traffic before road entry</label>
+              <label><input id="roadEntrySignCheckRequired" type="checkbox" checked> Check stop, yield, merge, and speed signs before road entry</label>
+              <label><input id="roadEntryDriverConfirmRequired" type="checkbox" checked> Require driver tick before road entry</label>
+              <label><input id="roundaboutStopRequired" type="checkbox" checked> Stop before roundabout entry</label>
+              <label><input id="roundaboutCarCheckRequired" type="checkbox" checked> Check circulating traffic before roundabout entry</label>
+              <label><input id="roundaboutSignCheckRequired" type="checkbox" checked> Check roundabout, yield, stop, lane, and speed signs</label>
+              <label><input id="roundaboutDriverConfirmRequired" type="checkbox" checked> Require driver tick before roundabout entry</label>
+              <label><input id="signDetectionLogging" type="checkbox" checked> Log detected signs for review</label>
+              <label><input id="signPromptOnStop" type="checkbox" checked> Prompt on stop and yield signs</label>
+              <label><input id="signPromptOnRoundabout" type="checkbox" checked> Prompt on roundabout signs</label>
+              <label><input id="signPromptOnMerge" type="checkbox" checked> Prompt on merge signs</label>
+              <label><input id="signLearningReviewOnly" type="checkbox" checked> Keep sign learning review-only</label>
+            </div>
+            <div class="range-grid">
+              <label class="range-field">
+                <span>Road-entry stop hold <strong id="roadEntryStopTimeValue">2.5s</strong></span>
+                <input id="roadEntryStopTime" type="range" min="1" max="8" step="0.5" value="2.5">
+              </label>
+              <label class="range-field">
+                <span>Road-entry clear gap <strong id="roadEntryClearGapValue">5.0s</strong></span>
+                <input id="roadEntryClearGap" type="range" min="2" max="10" step="0.5" value="5">
+              </label>
+              <label class="range-field">
+                <span>Roundabout stop hold <strong id="roundaboutStopTimeValue">2.5s</strong></span>
+                <input id="roundaboutStopTime" type="range" min="1" max="8" step="0.5" value="2.5">
+              </label>
+              <label class="range-field">
+                <span>Roundabout clear gap <strong id="roundaboutClearGapValue">5.0s</strong></span>
+                <input id="roundaboutClearGap" type="range" min="2" max="10" step="0.5" value="5">
+              </label>
+              <label class="range-field">
+                <span>Sign confidence gate <strong id="signConfidenceGateValue">80%</strong></span>
+                <input id="signConfidenceGate" type="range" min="50" max="95" step="1" value="80">
+              </label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="testRoadEntryPrompt" type="button">Test road-entry hold</button>
+              <button class="ghost-button" id="testRoundaboutPrompt" type="button">Test roundabout hold</button>
+              <button class="ghost-button" id="testSignPrompt" type="button">Test sign review</button>
+            </div>
+          </article>
+
+          <article class="settings-card">
+            <div class="card-heading">
+              <div>
                 <p class="eyebrow">Route intelligence</p>
                 <h2>Maneuver controls</h2>
               </div>
@@ -1132,6 +1228,7 @@
               <label class="field">
                 <span>Roundabout policy</span>
                 <select id="roundaboutPolicy">
+                  <option value="full-stop-yield-confirm">Full stop, yield, confirm</option>
                   <option value="yield-and-prompt">Yield and prompt</option>
                   <option value="crawl-review">Crawl review</option>
                   <option value="block">Block</option>
@@ -1148,6 +1245,7 @@
               <label class="field">
                 <span>Exit lane policy</span>
                 <select id="exitLanePolicy">
+                  <option value="stop-before-merge">Stop before merge</option>
                   <option value="early-confirm">Early confirm</option>
                   <option value="hold-current-lane">Hold current lane</option>
                   <option value="driver-nudge">Driver nudge required</option>
