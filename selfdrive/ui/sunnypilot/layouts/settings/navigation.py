@@ -40,6 +40,19 @@ class NavigationLayout(Widget):
       initial_state=self._params.get_bool("Xrm10CarScreenRouteIntent"),
     )
 
+    self._auto_start = toggle_item_sp(
+      title=lambda: tr("Start When Car Route Is Detected"),
+      description=lambda: tr("Automatically marks navigation intent active when a connected car-screen adapter reports a destination. Driver control and openpilot safety limits remain unchanged."),
+      param="Xrm10NavAutoStart",
+      initial_state=self._params.get_bool("Xrm10NavAutoStart"),
+    )
+
+    self._nav_activity = text_item(
+      lambda: tr("Navigation Activity"),
+      self._nav_activity_text,
+      description=lambda: tr("Active means a destination was detected and staged as route intent. It is not autonomous steering or braking."),
+    )
+
     self._route_status = text_item(
       lambda: tr("Route Status"),
       self._route_status_text,
@@ -64,6 +77,8 @@ class NavigationLayout(Widget):
     items = [
       self._source,
       self._car_screen_intent,
+      self._auto_start,
+      self._nav_activity,
       self._route_status,
       self._destination,
       self._updated_at,
@@ -82,6 +97,21 @@ class NavigationLayout(Widget):
   def _route_status_text(self):
     return self._params.get("Xrm10CarScreenRouteStatus") or tr("Not connected")
 
+  def _nav_activity_text(self):
+    source = int(self._params.get("Xrm10NavSource", return_default=True))
+    intent_enabled = self._params.get_bool("Xrm10CarScreenRouteIntent")
+    auto_start = self._params.get_bool("Xrm10NavAutoStart")
+    destination = self._params.get("Xrm10CarScreenDestination")
+    if source == 0 or not intent_enabled:
+      return tr("Off")
+    if auto_start and destination:
+      return tr("Active from car-screen route")
+    if auto_start:
+      return tr("Armed - waiting for car-screen route")
+    if destination:
+      return tr("Route detected - auto-start off")
+    return tr("Waiting for car-screen adapter")
+
   def _destination_text(self):
     return self._params.get("Xrm10CarScreenDestination") or tr("None")
 
@@ -91,6 +121,7 @@ class NavigationLayout(Widget):
   def _update_state(self):
     super()._update_state()
     self._car_screen_intent.action_item.set_state(self._params.get_bool("Xrm10CarScreenRouteIntent"))
+    self._auto_start.action_item.set_state(self._params.get_bool("Xrm10NavAutoStart"))
 
   def _render(self, rect):
     self._scroller.render(rect)

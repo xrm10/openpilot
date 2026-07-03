@@ -260,6 +260,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // XRM10 navigation intent
     {"Xrm10NavSource", {PERSISTENT | BACKUP, INT, "0"}},  // 0 off, 1 car-screen intent, 2 OSM/mapd
+    {"Xrm10NavAutoStart", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10NavActive", {PERSISTENT, BOOL, "0"}},
     {"Xrm10CarScreenRouteIntent", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"Xrm10CarScreenRouteStatus", {PERSISTENT, STRING, "Not connected"}},
     {"Xrm10CarScreenDestination", {PERSISTENT, STRING}},
