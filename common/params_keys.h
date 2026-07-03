@@ -258,6 +258,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING}},
     {"RoadNameToggle", {PERSISTENT | BACKUP, BOOL, "0"}},
 
+    // XRM10 navigation intent
+    {"Xrm10NavSource", {PERSISTENT | BACKUP, INT, "0"}},  // 0 off, 1 car-screen intent, 2 OSM/mapd
+    {"Xrm10CarScreenRouteIntent", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"Xrm10CarScreenRouteStatus", {PERSISTENT, STRING, "Not connected"}},
+    {"Xrm10CarScreenDestination", {PERSISTENT, STRING}},
+    {"Xrm10CarScreenRouteUpdatedAt", {PERSISTENT, STRING}},
+
     // Speed Limit
     {"SpeedLimitMode", {PERSISTENT | BACKUP, INT, "1"}},
     {"SpeedLimitOffsetType", {PERSISTENT | BACKUP, INT, "0"}},
