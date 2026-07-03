@@ -7,6 +7,7 @@ from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -37,6 +38,7 @@ class PanelType(IntEnum):
   SOFTWARE = 3
   FIREHOSE = 4
   DEVELOPER = 5
+  NAVIGATION = 6
 
 
 @dataclass
@@ -57,6 +59,7 @@ class SettingsLayout(Widget):
 
     self._panels = {
       PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayout()),
+      PanelType.NAVIGATION: PanelInfo(tr_noop("Navigation"), NavigationLayout()),
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),

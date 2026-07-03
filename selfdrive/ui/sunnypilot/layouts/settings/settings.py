@@ -46,7 +46,6 @@ OP.PanelType = IntEnum(
     "VISUALS",
     "DISPLAY",
     "OSM",
-    "NAVIGATION",
     "TRIPS",
     "VEHICLE",
   ],
