@@ -1,12 +1,45 @@
+from pathlib import Path
+
 from cereal import log
 
 from openpilot.system.ui.widgets.scroller import NavScroller
-from openpilot.selfdrive.ui.mici.widgets.button import BigParamControl, BigMultiParamToggle
+from openpilot.selfdrive.ui.mici.widgets.button import BigParamControl, BigMultiParamToggle, BigToggle
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
+XRM10_PARAM_DIR = Path("/data/params/d")
+
+
+def read_xrm10_bool(key: str, default: bool = False) -> bool:
+  try:
+    value = (XRM10_PARAM_DIR / key).read_text().strip().lower()
+    return value in ("1", "true")
+  except OSError:
+    return default
+
+
+def write_xrm10_bool(key: str, value: bool) -> None:
+  try:
+    (XRM10_PARAM_DIR / key).write_text("1" if value else "0")
+  except OSError:
+    pass
+
+
+class RawBigParamControl(BigToggle):
+  def __init__(self, text: str, param: str, default: bool = False):
+    super().__init__(text, "")
+    self.param = param
+    self.default = default
+    self.refresh()
+
+  def _handle_mouse_release(self, mouse_pos):
+    super()._handle_mouse_release(mouse_pos)
+    write_xrm10_bool(self.param, self._checked)
+
+  def refresh(self):
+    self.set_checked(read_xrm10_bool(self.param, self.default))
 
 
 class TogglesLayoutMici(NavScroller):
@@ -21,10 +54,13 @@ class TogglesLayoutMici(NavScroller):
     record_front = BigParamControl("record & upload driver camera", "RecordFront", toggle_callback=restart_needed_callback)
     record_mic = BigParamControl("record & upload mic audio", "RecordAudio", toggle_callback=restart_needed_callback)
     enable_openpilot = BigParamControl("enable sunnypilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
+    nav_auto_start = RawBigParamControl("car-screen nav auto-start", "Xrm10NavAutoStart", True)
+    self._nav_auto_start = nav_auto_start
 
     self._scroller.add_widgets([
       self._personality_toggle,
       self._experimental_btn,
+      nav_auto_start,
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
@@ -85,3 +121,4 @@ class TogglesLayoutMici(NavScroller):
     # Refresh toggles from params to mirror external changes
     for key, item in self._refresh_toggles:
       item.set_checked(ui_state.params.get_bool(key))
+    self._nav_auto_start.refresh()

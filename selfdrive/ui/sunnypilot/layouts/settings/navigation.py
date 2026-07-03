@@ -4,6 +4,8 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+from pathlib import Path
+
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
@@ -13,6 +15,33 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets import Widget
 
 NAV_SOURCE_BUTTONS = [lambda: tr("Off"), lambda: tr("Car screen"), lambda: tr("OSM")]
+XRM10_PARAM_DIR = Path("/data/params/d")
+
+
+def read_xrm10_param(key: str, default: str = "") -> str:
+  try:
+    return (XRM10_PARAM_DIR / key).read_text().strip()
+  except OSError:
+    return default
+
+
+def write_xrm10_param(key: str, value: str | int | bool) -> None:
+  try:
+    (XRM10_PARAM_DIR / key).write_text(str(int(value) if isinstance(value, bool) else value))
+  except OSError:
+    pass
+
+
+def read_xrm10_bool(key: str, default: bool = False) -> bool:
+  value = read_xrm10_param(key, "1" if default else "0").lower()
+  return value in ("1", "true")
+
+
+def read_xrm10_int(key: str, default: int = 0) -> int:
+  try:
+    return int(read_xrm10_param(key, str(default)))
+  except ValueError:
+    return default
 
 
 class NavigationLayout(Widget):
@@ -28,7 +57,8 @@ class NavigationLayout(Widget):
       title=lambda: tr("Navigation Source"),
       description=self._source_description,
       buttons=NAV_SOURCE_BUTTONS,
-      param="Xrm10NavSource",
+      selected_index=read_xrm10_int("Xrm10NavSource"),
+      callback=lambda index: write_xrm10_param("Xrm10NavSource", index),
       button_width=360,
       inline=False,
     )
@@ -36,15 +66,15 @@ class NavigationLayout(Widget):
     self._car_screen_intent = toggle_item_sp(
       title=lambda: tr("Use Car Screen Destination"),
       description=lambda: tr("Reads route intent staged by the XRM10 bridge. This does not steer, brake, accelerate, or change lanes by itself."),
-      param="Xrm10CarScreenRouteIntent",
-      initial_state=self._params.get_bool("Xrm10CarScreenRouteIntent"),
+      initial_state=read_xrm10_bool("Xrm10CarScreenRouteIntent"),
+      callback=lambda state: write_xrm10_param("Xrm10CarScreenRouteIntent", state),
     )
 
     self._auto_start = toggle_item_sp(
       title=lambda: tr("Start When Car Route Is Detected"),
       description=lambda: tr("Automatically marks navigation intent active when a connected car-screen adapter reports a destination. Driver control and openpilot safety limits remain unchanged."),
-      param="Xrm10NavAutoStart",
-      initial_state=self._params.get_bool("Xrm10NavAutoStart"),
+      initial_state=read_xrm10_bool("Xrm10NavAutoStart", True),
+      callback=lambda state: write_xrm10_param("Xrm10NavAutoStart", state),
     )
 
     self._nav_activity = text_item(
@@ -87,7 +117,7 @@ class NavigationLayout(Widget):
     return items
 
   def _source_description(self):
-    source = int(self._params.get("Xrm10NavSource", return_default=True))
+    source = read_xrm10_int("Xrm10NavSource")
     if source == 1:
       return tr("Car screen: accepts destination intent from the XRM10 bridge when a supported car-screen route adapter is connected. Driver remains responsible for navigation decisions.")
     if source == 2:
@@ -95,13 +125,13 @@ class NavigationLayout(Widget):
     return tr("Off: no navigation route intent is staged.")
 
   def _route_status_text(self):
-    return self._params.get("Xrm10CarScreenRouteStatus") or tr("Not connected")
+    return read_xrm10_param("Xrm10CarScreenRouteStatus") or tr("Not connected")
 
   def _nav_activity_text(self):
-    source = int(self._params.get("Xrm10NavSource", return_default=True))
-    intent_enabled = self._params.get_bool("Xrm10CarScreenRouteIntent")
-    auto_start = self._params.get_bool("Xrm10NavAutoStart")
-    destination = self._params.get("Xrm10CarScreenDestination")
+    source = read_xrm10_int("Xrm10NavSource")
+    intent_enabled = read_xrm10_bool("Xrm10CarScreenRouteIntent")
+    auto_start = read_xrm10_bool("Xrm10NavAutoStart", True)
+    destination = read_xrm10_param("Xrm10CarScreenDestination")
     if source == 0 or not intent_enabled:
       return tr("Off")
     if auto_start and destination:
@@ -113,15 +143,15 @@ class NavigationLayout(Widget):
     return tr("Waiting for car-screen adapter")
 
   def _destination_text(self):
-    return self._params.get("Xrm10CarScreenDestination") or tr("None")
+    return read_xrm10_param("Xrm10CarScreenDestination") or tr("None")
 
   def _updated_at_text(self):
-    return self._params.get("Xrm10CarScreenRouteUpdatedAt") or tr("Never")
+    return read_xrm10_param("Xrm10CarScreenRouteUpdatedAt") or tr("Never")
 
   def _update_state(self):
     super()._update_state()
-    self._car_screen_intent.action_item.set_state(self._params.get_bool("Xrm10CarScreenRouteIntent"))
-    self._auto_start.action_item.set_state(self._params.get_bool("Xrm10NavAutoStart"))
+    self._car_screen_intent.action_item.set_state(read_xrm10_bool("Xrm10CarScreenRouteIntent"))
+    self._auto_start.action_item.set_state(read_xrm10_bool("Xrm10NavAutoStart", True))
 
   def _render(self, rect):
     self._scroller.render(rect)
