@@ -60,6 +60,8 @@ tools/xrm10_control_center/index.html
 - Faster-lane confirmation prompts with sound, cancel X, and confirm tick.
 - Road-entry, roundabout, and traffic-sign confirmation prompts with full-stop,
   clear-gap, sign-check, and driver-confirm gates.
+- Sidewalk/curb stop and road-bump slow-down prompts with confidence gates,
+  review-only logging, and driver tick confirmation.
 - Safety-event logging for opened, accepted, and canceled confirmations without
   live vehicle actuation.
 
@@ -82,6 +84,11 @@ steering by themselves.
 Traffic/LWC controls are suggestions and driver-confirmed planning controls.
 They do not enable unconfirmed automatic lane changes between cars or autonomous
 lane weaving to reach a faster lane.
+
+Sidewalk/curb and road-bump controls are review-only. They can log sidewalk,
+curb, pedestrian-edge, raised-crossing, road-bump, and speed-hump detections and
+show stop/slow confirmation prompts. They do not apply live braking or throttle
+from the phone app.
 
 The exported JSON and live sync payloads are review/profile artifacts. Wiring
 them into on-device params requires a separate reviewed implementation and
@@ -252,6 +259,10 @@ host and a valid local key path; the app does not expose private key contents.
 8. Traffic signs: stop, yield, roundabout, speed, lane, and direction signs are
    logged for review. Sign learning remains review-only until separately
    validated.
+9. Sidewalks/curbs: sidewalk, curb, pedestrian-edge, and raised-crossing
+   detections require stop-and-confirm review. Low confidence blocks the plan.
+10. Road bumps: road bumps and speed humps require slow-down review with the
+   configured speed cap and a driver tick before the plan continues.
 
 ## Active installer target
 

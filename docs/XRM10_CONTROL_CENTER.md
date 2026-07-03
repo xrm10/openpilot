@@ -54,6 +54,8 @@ It is designed for development workflow, not direct vehicle actuation.
 - Use faster-lane confirmation prompts with sound, cancel X, and confirm tick.
 - Use road-entry, roundabout, and traffic-sign confirmation prompts with
   full-stop, clear-gap, sign-check, and driver-confirm review gates.
+- Use sidewalk/curb stop and road-bump slow-down prompts with confidence gates,
+  review-only logging, and driver tick confirmation.
 - Log every confirmation prompt as a safety event for later review without
   applying live vehicle actuation.
 - Export Safety Lab test plans with readiness checks, lab controls, and manual
@@ -236,6 +238,11 @@ require a full stop, a clear-gap value, camera/sign agreement, and a driver tick
 before logging a prompt result. It does not learn new signs into the driving
 model or decide that a public-road merge is safe by itself.
 
+Sidewalk/curb and road-bump controls are also review gates. Sidewalks, curbs,
+pedestrian edges, raised crossings, road bumps, and speed humps can be logged
+and can trigger a stop/slow confirmation prompt. The app does not apply live
+braking or throttle control from these settings.
+
 ## Safety Lab manual
 
 1. Design review: choose conservative lab defaults, keep live safety policy
@@ -272,6 +279,10 @@ model or decide that a public-road merge is safe by itself.
 8. Traffic signs: stop, yield, roundabout, speed, lane, and direction signs are
    logged for review. Sign learning remains review-only until a separate model
    validation process exists.
+9. Sidewalks/curbs: sidewalk, curb, pedestrian-edge, and raised-crossing
+   detections require stop-and-confirm review. Treat low confidence as a block.
+10. Road bumps: road bumps and speed humps require slow-down review with the
+   configured speed cap and a driver tick before the route plan continues.
 
 ## Current install URL
 
