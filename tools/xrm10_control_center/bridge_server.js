@@ -36,6 +36,78 @@ const mime = {
   ".svg": "image/svg+xml"
 };
 
+function resolveGitDir() {
+  try {
+    const dotGit = path.join(root, ".git");
+    const stat = fs.statSync(dotGit);
+    if (stat.isDirectory()) return dotGit;
+    if (stat.isFile()) {
+      const content = fs.readFileSync(dotGit, "utf8").trim();
+      const match = content.match(/^gitdir:\s*(.+)$/i);
+      if (match) return path.resolve(root, match[1]);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function readPackedRef(gitDir, refName) {
+  try {
+    const lines = fs.readFileSync(path.join(gitDir, "packed-refs"), "utf8").split(/\r?\n/);
+    const line = lines.find((entry) => entry.endsWith(` ${refName}`));
+    return line ? line.split(" ")[0] : "";
+  } catch {
+    return "";
+  }
+}
+
+function resolveCommonGitDir(gitDir) {
+  try {
+    const commonDir = fs.readFileSync(path.join(gitDir, "commondir"), "utf8").trim();
+    return path.resolve(gitDir, commonDir);
+  } catch {
+    return gitDir;
+  }
+}
+
+function readGitMeta() {
+  try {
+    const gitDir = resolveGitDir();
+    if (!gitDir) return {};
+    const commonGitDir = resolveCommonGitDir(gitDir);
+    const head = fs.readFileSync(path.join(gitDir, "HEAD"), "utf8").trim();
+    if (!head.startsWith("ref:")) return { commit: head.slice(0, 7) };
+
+    const refName = head.replace(/^ref:\s*/, "").trim();
+    const refParts = refName.split("/");
+    const refPath = path.join(gitDir, ...refParts);
+    const commonRefPath = path.join(commonGitDir, ...refParts);
+    let commit = "";
+    if (fs.existsSync(refPath)) {
+      commit = fs.readFileSync(refPath, "utf8").trim();
+    } else if (fs.existsSync(commonRefPath)) {
+      commit = fs.readFileSync(commonRefPath, "utf8").trim();
+    } else {
+      commit = readPackedRef(gitDir, refName) || readPackedRef(commonGitDir, refName);
+    }
+    const branch = refName.replace(/^refs\/heads\//, "");
+    return {
+      branch: branch || device.branch,
+      commit: commit ? commit.slice(0, 7) : device.commit
+    };
+  } catch {
+    return {};
+  }
+}
+
+function currentDevice() {
+  const meta = readGitMeta();
+  if (meta.branch) device.branch = meta.branch;
+  if (meta.commit) device.commit = meta.commit;
+  return { ...device };
+}
+
 function sendJson(res, status, payload) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -263,7 +335,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/status") {
     sendJson(res, 200, {
       online: true,
-      device,
+      device: currentDevice(),
       latestProfile: latestProfileMeta(),
       route: readCarRoute(),
       mapPackage: readMapPackage(),
@@ -298,7 +370,7 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(stateDir, { recursive: true });
       fs.writeFileSync(latestProfilePath, JSON.stringify({
         receivedAt: new Date().toISOString(),
-        device,
+        device: currentDevice(),
         changes,
         profile: payload.profile,
         policy: payload.policy
@@ -309,7 +381,7 @@ const server = http.createServer(async (req, res) => {
         acceptedChanges: changes.length,
         applied: "profile-staged",
         liveVehicleApplyAllowed: false,
-        device
+        device: currentDevice()
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -348,7 +420,7 @@ const server = http.createServer(async (req, res) => {
         acceptedState: device.offroad ? "offroad" : "onroad",
         applied: "device-road-state-staged",
         liveVehicleApplyAllowed: false,
-        device
+        device: currentDevice()
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -362,7 +434,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/car-route") {
     sendJson(res, 200, {
       ok: true,
-      device,
+      device: currentDevice(),
       route: readCarRoute()
     });
     return;
@@ -402,7 +474,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         accepted: "car-route-intent-staged",
         liveVehicleApplyAllowed: false,
-        device,
+        device: currentDevice(),
         route
       });
     } catch (error) {
@@ -417,7 +489,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/map-package") {
     sendJson(res, 200, {
       ok: true,
-      device,
+      device: currentDevice(),
       mapPackage: readMapPackage()
     });
     return;
@@ -447,7 +519,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         accepted: "map-package-metadata-staged",
         liveVehicleApplyAllowed: false,
-        device,
+        device: currentDevice(),
         mapPackage
       });
     } catch (error) {
@@ -462,7 +534,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/safety-events") {
     sendJson(res, 200, {
       ok: true,
-      device,
+      device: currentDevice(),
       events: readSafetyEvents()
     });
     return;
@@ -484,7 +556,7 @@ const server = http.createServer(async (req, res) => {
       const events = readSafetyEvents();
       const event = {
         receivedAt: new Date().toISOString(),
-        device,
+        device: currentDevice(),
         type: String(payload.type || "xrm10.safety.event"),
         event: String(payload.event || "unknown"),
         kind: String(payload.kind || "unknown"),
@@ -510,7 +582,7 @@ const server = http.createServer(async (req, res) => {
         accepted: "safety-event-logged",
         eventCount: readSafetyEvents().length,
         liveVehicleApplyAllowed: false,
-        device
+        device: currentDevice()
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -546,7 +618,7 @@ const server = http.createServer(async (req, res) => {
         working: true,
         appliedAt: new Date().toISOString(),
         message: `${section} section staged and confirmed by bridge.`,
-        device
+        device: currentDevice()
       };
       writeSectionStatuses(statuses);
 
@@ -572,7 +644,7 @@ const server = http.createServer(async (req, res) => {
       section,
       working: false,
       message: "No applied section record yet.",
-      device
+      device: currentDevice()
     });
     return;
   }
@@ -594,7 +666,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         target,
         output,
-        device
+        device: currentDevice()
       });
     } catch (error) {
       sendJson(res, 400, {
