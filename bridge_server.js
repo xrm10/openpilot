@@ -211,6 +211,8 @@ const sectionCapabilities = {
   visuals: [
     ["visualTheme", "Visual theme", "live-safe"],
     ["alertDensity", "Alert density", "live-safe"],
+    ["quietMode", "Quiet mode for non-critical sounds", "live-safe"],
+    ["driverViewPreview", "Driver-view diagnostics", "live-safe"],
     ["laneOverlay", "Lane overlay", "live-safe"],
     ["roadEdgeOverlay", "Road-edge overlay", "live-safe"]
   ],
@@ -474,19 +476,40 @@ function normalizeMapPackage(mapPackage = {}) {
   };
 }
 
-function runSshStatus(target, keyPath) {
+function boolFromParam(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return undefined;
+  return normalized === "1" || normalized === "true";
+}
+
+function deviceSshTarget(profile = {}) {
+  return String(profile.connection?.sshTarget || process.env.XRM10_SSH_TARGET || "comma4").trim();
+}
+
+function deviceSshKeyPath(profile = {}) {
+  const keyPath = String(profile.connection?.sshKeyPath || process.env.XRM10_SSH_KEY || "").trim();
+  return keyPath && keyPath !== "[stored locally]" ? keyPath : "";
+}
+
+function buildSshArgs(target, keyPath, command) {
+  const args = [];
+  if (keyPath) args.push("-i", keyPath);
+  args.push(
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=5",
+    "-o",
+    "ConnectionAttempts=1",
+    target,
+    command
+  );
+  return args;
+}
+
+function runSshCommand(target, keyPath, command, timeout = 8000) {
   return new Promise((resolve, reject) => {
-    const command = "echo xrm10-ssh-ok; uname -a";
-    execFile("ssh", [
-      "-i",
-      keyPath,
-      "-o",
-      "BatchMode=yes",
-      "-o",
-      "ConnectTimeout=5",
-      target,
-      command
-    ], { timeout: 8000 }, (error, stdout, stderr) => {
+    execFile("ssh", buildSshArgs(target, keyPath, command), { timeout }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr.trim() || error.message));
         return;
@@ -494,6 +517,169 @@ function runSshStatus(target, keyPath) {
       resolve(stdout.trim());
     });
   });
+}
+
+async function runSshStatus(target, keyPath) {
+  return runSshCommand(target, keyPath, "echo xrm10-ssh-ok; uname -a");
+}
+
+function parseKeyValueOutput(output) {
+  const parsed = {};
+  String(output || "").split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match) parsed[match[1].trim()] = match[2].trim();
+  });
+  return parsed;
+}
+
+async function readDeviceRuntime(profile = {}) {
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  if (!target) return { sshStatus: "not configured" };
+
+  const output = await runSshCommand(target, keyPath, [
+    "printf offroad=; cat /data/params/d/IsOffroad 2>/dev/null || true; echo",
+    "printf engaged=; cat /data/params/d/IsEngaged 2>/dev/null || true; echo",
+    "printf quietMode=; cat /data/params/d/QuietMode 2>/dev/null || true; echo",
+    "printf driverViewEnabled=; cat /data/params/d/IsDriverViewEnabled 2>/dev/null || true; echo"
+  ].join("; "), 6500);
+  const values = parseKeyValueOutput(output);
+  return {
+    sshStatus: "connected",
+    offroad: boolFromParam(values.offroad),
+    engaged: boolFromParam(values.engaged),
+    quietMode: boolFromParam(values.quietMode),
+    driverViewEnabled: boolFromParam(values.driverViewEnabled)
+  };
+}
+
+async function currentDeviceAsync(profile = {}) {
+  const next = currentDevice();
+  try {
+    const runtime = await readDeviceRuntime(profile);
+    const verifiedRuntime = Object.fromEntries(Object.entries(runtime).filter(([, value]) => value !== undefined));
+    Object.assign(device, verifiedRuntime);
+    return {
+      ...next,
+      ...verifiedRuntime
+    };
+  } catch (error) {
+    return {
+      ...currentDevice(),
+      sshStatus: "unavailable",
+      sshError: error.message || "SSH unavailable"
+    };
+  }
+}
+
+async function writeCommaBoolParam(profile, param, value, options = {}) {
+  const allowedParams = new Set(["QuietMode", "IsDriverViewEnabled"]);
+  if (!allowedParams.has(param)) {
+    return { param, ok: false, state: "blocked", reason: "Param is not whitelisted." };
+  }
+
+  const runtime = await readDeviceRuntime(profile);
+  if (runtime.engaged) {
+    return {
+      param,
+      ok: false,
+      state: "refused",
+      reason: "Device is engaged. Park or disengage before changing alert diagnostics."
+    };
+  }
+
+  if (options.requireOffroad && runtime.offroad !== true) {
+    return {
+      param,
+      ok: false,
+      state: "refused",
+      reason: "Device must be offroad for driver-view diagnostics."
+    };
+  }
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const nextValue = value ? "1" : "0";
+  let output = "";
+  try {
+    output = await runSshCommand(
+      target,
+      keyPath,
+      `printf ${nextValue} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`,
+      6500
+    );
+  } catch (error) {
+    const verify = await readDeviceRuntime(profile);
+    const actual = param === "QuietMode" ? verify.quietMode : verify.driverViewEnabled;
+    if (actual === value) {
+      return {
+        param,
+        ok: true,
+        state: "applied",
+        value,
+        output: `${param}=${nextValue}`,
+        warning: error.message || "SSH returned nonzero after applying."
+      };
+    }
+    throw error;
+  }
+  return {
+    param,
+    ok: output.includes(`${param}=${nextValue}`),
+    state: output.includes(`${param}=${nextValue}`) ? "applied" : "unknown",
+    value,
+    output
+  };
+}
+
+async function applyWhitelistedDeviceParams(section, profile = {}) {
+  if (section !== "visuals") return { state: "none", working: true, message: "" };
+
+  const controllers = profile.controllers || {};
+  const requested = [
+    {
+      key: "quietMode",
+      param: "QuietMode",
+      label: "Quiet mode",
+      value: Boolean(controllers.quietMode),
+      requireOffroad: false
+    },
+    {
+      key: "driverViewPreview",
+      param: "IsDriverViewEnabled",
+      label: "Driver-view diagnostics",
+      value: Boolean(controllers.driverViewPreview),
+      requireOffroad: Boolean(controllers.driverViewPreview)
+    }
+  ];
+
+  const results = [];
+  for (const item of requested) {
+    try {
+      const result = await writeCommaBoolParam(profile, item.param, item.value, { requireOffroad: item.requireOffroad });
+      results.push({ ...item, ...result });
+    } catch (error) {
+      results.push({
+        ...item,
+        ok: false,
+        state: "failed",
+        reason: error.message || "SSH write failed"
+      });
+    }
+  }
+
+  const refused = results.filter((result) => !result.ok);
+  const applied = results.filter((result) => result.ok);
+  const message = refused.length
+    ? `${applied.length} comfort param${applied.length === 1 ? "" : "s"} applied, ${refused.length} refused: ${refused.map((item) => `${item.label} - ${item.reason || item.state}`).join("; ")}`
+    : `${applied.length} comfort param${applied.length === 1 ? "" : "s"} applied on comma.`;
+
+  return {
+    state: refused.length ? "partial" : "applied",
+    working: refused.length === 0,
+    message,
+    results
+  };
 }
 
 function serveFile(req, res) {
@@ -534,14 +720,15 @@ const server = http.createServer(async (req, res) => {
   const parsed = new URL(req.url, "http://localhost");
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/status") {
+    const latestProfile = readLatestProfile()?.profile || {};
     sendJson(res, 200, {
       online: true,
-      device: currentDevice(),
+      device: await currentDeviceAsync(latestProfile),
       latestProfile: latestProfileMeta(),
       route: readCarRoute(),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
-      capabilities: buildCapabilityReport()
+      capabilities: buildCapabilityReport(latestProfile)
     });
     return;
   }
@@ -824,25 +1011,30 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const capability = buildSectionCapability(section, payload.profile || {});
+      const profile = payload.profile || {};
+      const capability = buildSectionCapability(section, profile);
+      const deviceParamApply = await applyWhitelistedDeviceParams(section, profile);
+      const sectionState = deviceParamApply.state === "partial" ? "partial" : capability.state;
+      const sectionMessage = [capability.message, deviceParamApply.message].filter(Boolean).join(" ");
+      capability.deviceParams = deviceParamApply;
       const appliedControls = readAppliedControls();
       appliedControls[section] = {
         section,
         appliedAt: new Date().toISOString(),
         capability,
-        profile: payload.profile || {}
+        profile
       };
       writeAppliedControls(appliedControls);
 
       const statuses = readSectionStatuses();
       statuses[section] = {
         section,
-        state: capability.state,
-        working: capability.working,
+        state: sectionState,
+        working: sectionState === "applied" && capability.working && deviceParamApply.working,
         appliedAt: new Date().toISOString(),
-        message: capability.message,
+        message: sectionMessage,
         capability,
-        device: currentDevice()
+        device: await currentDeviceAsync(profile)
       };
       writeSectionStatuses(statuses);
 
@@ -882,8 +1074,8 @@ const server = http.createServer(async (req, res) => {
       const target = String(payload.target || "").trim();
       const keyPath = String(payload.keyPath || "").trim();
 
-      if (!target || !keyPath) {
-        sendJson(res, 400, { ok: false, error: "target and keyPath are required." });
+      if (!target) {
+        sendJson(res, 400, { ok: false, error: "target is required." });
         return;
       }
 

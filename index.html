@@ -833,6 +833,14 @@
                   <option value="quiet">Quiet</option>
                 </select>
               </label>
+              <div class="summary-row">
+                <span>Quiet mode</span>
+                <strong id="quietModeState">Off</strong>
+              </div>
+              <div class="summary-row">
+                <span>Driver view</span>
+                <strong id="driverViewState">Off</strong>
+              </div>
               <label class="field">
                 <span>Lane overlay</span>
                 <select id="laneOverlay">
@@ -851,8 +859,13 @@
               </label>
             </div>
             <div class="toggle-stack switch-grid">
+              <label><input id="quietMode" type="checkbox"> Quiet non-critical alert sounds on comma</label>
+              <label><input id="driverViewPreview" type="checkbox"> Driver-view diagnostics when parked/disengaged</label>
               <label><input id="roadEdgeOverlay" type="checkbox" checked> Road-edge overlay</label>
               <label><input id="showDebugHud" type="checkbox"> Debug HUD review</label>
+            </div>
+            <div class="warning-copy">
+              Driver monitoring itself stays locked. Quiet mode reduces non-critical sounds only; distracted/immediate warnings still stay active. Driver-view diagnostics are refused while engaged.
             </div>
             <label class="range-field">
               <span>Prompt lead time <strong id="promptLeadTimeValue">1.2s</strong></span>

@@ -70,7 +70,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 11,
+  schemaVersion: 12,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -157,6 +157,8 @@ const defaultProfile = {
     trafficRecordReview: true,
     visualTheme: "sunnypilot-dark",
     alertDensity: "normal",
+    quietMode: false,
+    driverViewPreview: false,
     laneOverlay: "standard",
     eventBannerStyle: "compact",
     roadEdgeOverlay: true,
@@ -287,10 +289,10 @@ const defaultProfile = {
     lwcTrafficBuffer: 1.2
   },
   connection: {
-    mode: "demo",
+    mode: "http",
     bridgeUrl: "",
     bridgeToken: "",
-    sshTarget: "",
+    sshTarget: "comma4",
     sshKeyPath: "",
     autoSync: true,
     syncOffroadOnly: true
@@ -320,7 +322,10 @@ const defaultSyncState = {
     version: "2026.07.02-xrm10",
     branch: "dev",
     commit: "344ec6a",
-    offroad: true
+    offroad: true,
+    engaged: false,
+    quietMode: false,
+    driverViewEnabled: false
   },
   route: {
     active: false,
@@ -484,6 +489,8 @@ const checkboxBindings = [
   ["trafficBlindSpotBlock", ["controllers", "trafficBlindSpotBlock"]],
   ["trafficRecordReview", ["controllers", "trafficRecordReview"]],
   ["roadEdgeOverlay", ["controllers", "roadEdgeOverlay"]],
+  ["quietMode", ["controllers", "quietMode"]],
+  ["driverViewPreview", ["controllers", "driverViewPreview"]],
   ["showDebugHud", ["controllers", "showDebugHud"]],
   ["largeText", ["controllers", "largeText"]],
   ["reduceMotion", ["controllers", "reduceMotion"]],
@@ -627,6 +634,8 @@ const els = {
   liveEndpointState: document.querySelector("#liveEndpointState"),
   liveSshState: document.querySelector("#liveSshState"),
   liveRouteState: document.querySelector("#liveRouteState"),
+  quietModeState: document.querySelector("#quietModeState"),
+  driverViewState: document.querySelector("#driverViewState"),
   liveQueueList: document.querySelector("#liveQueueList"),
   topConnectionState: document.querySelector("#topConnectionState"),
   topRoadState: document.querySelector("#topRoadState"),
@@ -806,6 +815,22 @@ function normalizeProfile(input) {
     });
   }
 
+  if (sourceSchema < 12) {
+    Object.assign(inputControllers, {
+      quietMode: false,
+      driverViewPreview: false
+    });
+  }
+
+  const inputConnection = {
+    ...(input.connection || {})
+  };
+
+  if (sourceSchema < 12) {
+    if (!inputConnection.mode || inputConnection.mode === "demo") inputConnection.mode = "http";
+    if (!inputConnection.sshTarget) inputConnection.sshTarget = "comma4";
+  }
+
   return {
     ...next,
     ...input,
@@ -821,10 +846,10 @@ function normalizeProfile(input) {
     },
     connection: {
       ...next.connection,
-      ...(input.connection || {}),
-      mode: ["demo", "http", "offline"].includes(input.connection?.mode) ? input.connection.mode : next.connection.mode,
-      autoSync: input.connection?.autoSync !== false,
-      syncOffroadOnly: input.connection?.syncOffroadOnly !== false
+      ...inputConnection,
+      mode: ["demo", "http", "offline"].includes(inputConnection.mode) ? inputConnection.mode : next.connection.mode,
+      autoSync: inputConnection.autoSync !== false,
+      syncOffroadOnly: inputConnection.syncOffroadOnly !== false
     },
     safetyPolicy: {
       ...next.safetyPolicy,
@@ -1218,7 +1243,7 @@ function renderConnection() {
   const statusLabel = statusLabelFor(status);
   const lastSeen = formatLastSeen(syncState.lastSeenAt, status);
   const pendingLabel = `${pendingCount} ${pendingCount === 1 ? "change" : "changes"}`;
-  const roadStateLabel = device.offroad === false ? "Inroad" : "Offroad";
+  const roadStateLabel = device.engaged ? "Engaged" : device.offroad === false ? "Inroad" : "Offroad";
   const route = normalizeRouteState(syncState.route);
   const routeLabel = route.active ? route.destination : "No route";
 
@@ -1237,6 +1262,8 @@ function renderConnection() {
   setText(els.liveEndpointState, endpointLabel());
   setText(els.liveSshState, syncState.sshStatus || "not checked");
   setText(els.liveRouteState, routeLabel);
+  setText(els.quietModeState, device.quietMode ? "On" : "Off");
+  setText(els.driverViewState, device.driverViewEnabled ? "On" : "Off");
   setText(els.topConnectionState, statusLabel);
   setText(els.topRoadState, roadStateLabel);
   setText(els.topLastSeen, lastSeen);
@@ -1458,7 +1485,10 @@ function markOnline(device = {}) {
     version: device.version || syncState.device.version,
     branch: device.branch || syncState.device.branch,
     commit: device.commit || syncState.device.commit,
-    offroad: device.offroad !== undefined ? Boolean(device.offroad) : syncState.device.offroad
+    offroad: device.offroad !== undefined ? Boolean(device.offroad) : syncState.device.offroad,
+    engaged: device.engaged !== undefined ? Boolean(device.engaged) : Boolean(syncState.device.engaged),
+    quietMode: device.quietMode !== undefined ? Boolean(device.quietMode) : Boolean(syncState.device.quietMode),
+    driverViewEnabled: device.driverViewEnabled !== undefined ? Boolean(device.driverViewEnabled) : Boolean(syncState.device.driverViewEnabled)
   };
   saveSyncState();
   renderConnection();
@@ -1997,11 +2027,11 @@ async function checkSshStatus() {
 
   const target = profile.connection.sshTarget.trim();
   const keyPath = profile.connection.sshKeyPath.trim();
-  if (!target || !keyPath) {
-    syncState.sshStatus = "target/key required";
+  if (!target) {
+    syncState.sshStatus = "target required";
     saveSyncState();
     renderConnection();
-    showToast("SSH target and key path required");
+    showToast("SSH target required");
     return;
   }
 
