@@ -70,7 +70,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 10,
+  schemaVersion: 11,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -122,6 +122,8 @@ const defaultProfile = {
     mergeCheckMode: "stop-clear-gap-confirm",
     signReviewMode: "log-all",
     signLearningMode: "review-only",
+    sidewalkStopPolicy: "stop-confirm",
+    roadBumpPolicy: "slow-confirm",
     roadEntryStopRequired: true,
     roadEntryCarCheckRequired: true,
     roadEntrySignCheckRequired: true,
@@ -135,6 +137,14 @@ const defaultProfile = {
     signPromptOnRoundabout: true,
     signPromptOnMerge: true,
     signLearningReviewOnly: true,
+    sidewalkDetectionLogging: true,
+    sidewalkStopRequired: true,
+    sidewalkDriverConfirmRequired: true,
+    sidewalkReviewOnly: true,
+    roadBumpDetectionLogging: true,
+    roadBumpSlowdownRequired: true,
+    roadBumpDriverConfirmRequired: true,
+    roadBumpReviewOnly: true,
     lwcMode: "comfort",
     lwcLaneWidthMode: "camera-estimate",
     lwcRoadEdgeMode: "guarded",
@@ -267,6 +277,10 @@ const defaultProfile = {
     roundaboutStopTime: 2.5,
     roundaboutClearGap: 5,
     signConfidenceGate: 80,
+    sidewalkConfidenceGate: 82,
+    sidewalkStopTime: 2,
+    roadBumpConfidenceGate: 75,
+    roadBumpSlowSpeed: 10,
     lwcLaneWidth: 3.7,
     lwcLeftCushion: 0.45,
     lwcRightCushion: 0.45,
@@ -373,6 +387,8 @@ const selectBindings = [
   ["mergeCheckMode", ["controllers", "mergeCheckMode"]],
   ["signReviewMode", ["controllers", "signReviewMode"]],
   ["signLearningMode", ["controllers", "signLearningMode"]],
+  ["sidewalkStopPolicy", ["controllers", "sidewalkStopPolicy"]],
+  ["roadBumpPolicy", ["controllers", "roadBumpPolicy"]],
   ["lwcMode", ["controllers", "lwcMode"]],
   ["lwcLaneWidthMode", ["controllers", "lwcLaneWidthMode"]],
   ["lwcRoadEdgeMode", ["controllers", "lwcRoadEdgeMode"]],
@@ -453,6 +469,14 @@ const checkboxBindings = [
   ["signPromptOnRoundabout", ["controllers", "signPromptOnRoundabout"]],
   ["signPromptOnMerge", ["controllers", "signPromptOnMerge"]],
   ["signLearningReviewOnly", ["controllers", "signLearningReviewOnly"]],
+  ["sidewalkDetectionLogging", ["controllers", "sidewalkDetectionLogging"]],
+  ["sidewalkStopRequired", ["controllers", "sidewalkStopRequired"]],
+  ["sidewalkDriverConfirmRequired", ["controllers", "sidewalkDriverConfirmRequired"]],
+  ["sidewalkReviewOnly", ["controllers", "sidewalkReviewOnly"]],
+  ["roadBumpDetectionLogging", ["controllers", "roadBumpDetectionLogging"]],
+  ["roadBumpSlowdownRequired", ["controllers", "roadBumpSlowdownRequired"]],
+  ["roadBumpDriverConfirmRequired", ["controllers", "roadBumpDriverConfirmRequired"]],
+  ["roadBumpReviewOnly", ["controllers", "roadBumpReviewOnly"]],
   ["trafficAutoManeuverBlock", ["controllers", "trafficAutoManeuverBlock"]],
   ["trafficRequireConfirmation", ["controllers", "trafficRequireConfirmation"]],
   ["trafficRequireSignal", ["controllers", "trafficRequireSignal"]],
@@ -538,6 +562,10 @@ const rangeBindings = [
   { id: "roundaboutStopTime", path: ["tuning", "roundaboutStopTime"], min: 1, max: 8, valueId: "roundaboutStopTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "roundaboutClearGap", path: ["tuning", "roundaboutClearGap"], min: 2, max: 10, valueId: "roundaboutClearGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "signConfidenceGate", path: ["tuning", "signConfidenceGate"], min: 50, max: 95, valueId: "signConfidenceGateValue", format: (v) => `${v}%` },
+  { id: "sidewalkConfidenceGate", path: ["tuning", "sidewalkConfidenceGate"], min: 60, max: 98, valueId: "sidewalkConfidenceGateValue", format: (v) => `${v}%` },
+  { id: "sidewalkStopTime", path: ["tuning", "sidewalkStopTime"], min: 1, max: 6, valueId: "sidewalkStopTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "roadBumpConfidenceGate", path: ["tuning", "roadBumpConfidenceGate"], min: 50, max: 95, valueId: "roadBumpConfidenceGateValue", format: (v) => `${v}%` },
+  { id: "roadBumpSlowSpeed", path: ["tuning", "roadBumpSlowSpeed"], min: 3, max: 20, valueId: "roadBumpSlowSpeedValue", format: (v) => `${v} mph` },
   { id: "lwcLaneWidth", path: ["tuning", "lwcLaneWidth"], min: 3, max: 4.4, valueId: "lwcLaneWidthValue", format: (v) => `${Number(v).toFixed(1)} m` },
   { id: "lwcLeftCushion", path: ["tuning", "lwcLeftCushion"], min: 0.2, max: 1, valueId: "lwcLeftCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
   { id: "lwcRightCushion", path: ["tuning", "lwcRightCushion"], min: 0.2, max: 1, valueId: "lwcRightCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
@@ -640,6 +668,8 @@ const els = {
   testRoadEntryPrompt: document.querySelector("#testRoadEntryPrompt"),
   testRoundaboutPrompt: document.querySelector("#testRoundaboutPrompt"),
   testSignPrompt: document.querySelector("#testSignPrompt"),
+  testSidewalkPrompt: document.querySelector("#testSidewalkPrompt"),
+  testRoadBumpPrompt: document.querySelector("#testRoadBumpPrompt"),
   confirmationModal: document.querySelector("#confirmationModal"),
   confirmationKicker: document.querySelector("#confirmationKicker"),
   confirmationTitle: document.querySelector("#confirmationTitle"),
@@ -748,6 +778,24 @@ function normalizeProfile(input) {
       signPromptOnRoundabout: true,
       signPromptOnMerge: true,
       signLearningReviewOnly: true,
+      confirmationPromptEnabled: true,
+      confirmationSound: true,
+      confirmationRequireTick: true
+    });
+  }
+
+  if (sourceSchema < 11) {
+    Object.assign(inputControllers, {
+      sidewalkStopPolicy: "stop-confirm",
+      roadBumpPolicy: "slow-confirm",
+      sidewalkDetectionLogging: true,
+      sidewalkStopRequired: true,
+      sidewalkDriverConfirmRequired: true,
+      sidewalkReviewOnly: true,
+      roadBumpDetectionLogging: true,
+      roadBumpSlowdownRequired: true,
+      roadBumpDriverConfirmRequired: true,
+      roadBumpReviewOnly: true,
       confirmationPromptEnabled: true,
       confirmationSound: true,
       confirmationRequireTick: true
@@ -907,6 +955,8 @@ function computeSafetyScore() {
   if (!c.roadEntryStopRequired || !c.roadEntryCarCheckRequired || !c.roadEntrySignCheckRequired) score -= 18;
   if (!c.roundaboutStopRequired || !c.roundaboutCarCheckRequired || !c.roundaboutSignCheckRequired) score -= 18;
   if (!c.signDetectionLogging || !c.signLearningReviewOnly) score -= 14;
+  if (!c.sidewalkDetectionLogging || !c.sidewalkStopRequired || !c.sidewalkReviewOnly) score -= 18;
+  if (!c.roadBumpDetectionLogging || !c.roadBumpSlowdownRequired || !c.roadBumpReviewOnly) score -= 14;
   if (c.lwcMode === "review") score -= 4;
   if (c.labMode === "closed-course") score -= 4;
   if (c.safetyEnvelope === "expanded-review") score -= 8;
@@ -938,6 +988,10 @@ function computeSafetyScore() {
   if (Number(t.roundaboutStopTime) < 2) score -= 8;
   if (Number(t.roundaboutClearGap) < 4) score -= 10;
   if (Number(t.signConfidenceGate) < 75) score -= 8;
+  if (Number(t.sidewalkConfidenceGate) < 75) score -= 8;
+  if (Number(t.sidewalkStopTime) < 1.5) score -= 8;
+  if (Number(t.roadBumpConfidenceGate) < 70) score -= 6;
+  if (Number(t.roadBumpSlowSpeed) > 15) score -= 8;
   if (Number(t.lwcTrafficBuffer) < 1 && c.lwcMode !== "off") score -= 6;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
@@ -1011,6 +1065,14 @@ function enforceGuardrails() {
   profile.controllers.roundaboutDriverConfirmRequired = true;
   profile.controllers.signDetectionLogging = true;
   profile.controllers.signLearningReviewOnly = true;
+  profile.controllers.sidewalkDetectionLogging = true;
+  profile.controllers.sidewalkStopRequired = true;
+  profile.controllers.sidewalkDriverConfirmRequired = true;
+  profile.controllers.sidewalkReviewOnly = true;
+  profile.controllers.roadBumpDetectionLogging = true;
+  profile.controllers.roadBumpSlowdownRequired = true;
+  profile.controllers.roadBumpDriverConfirmRequired = true;
+  profile.controllers.roadBumpReviewOnly = true;
   profile.controllers.navBlindSpotBlock = true;
   profile.controllers.navMapCameraAgree = true;
 
@@ -1798,14 +1860,20 @@ async function logSafetyEvent(event, kind, details = {}) {
       mergeCheckMode: profile.controllers.mergeCheckMode,
       roundaboutPolicy: profile.controllers.roundaboutPolicy,
       signReviewMode: profile.controllers.signReviewMode,
-      signLearningMode: profile.controllers.signLearningMode
+      signLearningMode: profile.controllers.signLearningMode,
+      sidewalkStopPolicy: profile.controllers.sidewalkStopPolicy,
+      roadBumpPolicy: profile.controllers.roadBumpPolicy
     },
     thresholds: {
       roadEntryStopTime: profile.tuning.roadEntryStopTime,
       roadEntryClearGap: profile.tuning.roadEntryClearGap,
       roundaboutStopTime: profile.tuning.roundaboutStopTime,
       roundaboutClearGap: profile.tuning.roundaboutClearGap,
-      signConfidenceGate: profile.tuning.signConfidenceGate
+      signConfidenceGate: profile.tuning.signConfidenceGate,
+      sidewalkConfidenceGate: profile.tuning.sidewalkConfidenceGate,
+      sidewalkStopTime: profile.tuning.sidewalkStopTime,
+      roadBumpConfidenceGate: profile.tuning.roadBumpConfidenceGate,
+      roadBumpSlowSpeed: profile.tuning.roadBumpSlowSpeed
     },
     details,
     policy: {
@@ -2149,6 +2217,12 @@ function computeNavReadiness() {
   addLabCheck(checks, c.roundaboutDriverConfirmRequired && c.confirmationRequireTick, "Roundabout confirmation", "Roundabout entry requires driver tick confirmation.", 18);
   addLabCheck(checks, Number(t.roundaboutStopTime) >= 2 && Number(t.roundaboutClearGap) >= 4, "Roundabout timing", "Roundabout entry should hold at least 2.0s and require at least 4.0s clear gap.", 12);
   addLabCheck(checks, c.signDetectionLogging && c.signLearningReviewOnly && Number(t.signConfidenceGate) >= 75, "Traffic sign review", "Signs must be logged for review only with confidence gate at or above 75%.", 14);
+  addLabCheck(checks, c.sidewalkDetectionLogging && c.sidewalkStopRequired && c.sidewalkReviewOnly, "Sidewalk stop gate", "Sidewalks, curbs, and pedestrian-edge detections require stop-and-confirm review only.", 18);
+  addLabCheck(checks, c.sidewalkDriverConfirmRequired && c.confirmationRequireTick, "Sidewalk confirmation", "Sidewalk and curb stops require driver tick confirmation.", 18);
+  addLabCheck(checks, Number(t.sidewalkConfidenceGate) >= 75 && Number(t.sidewalkStopTime) >= 1.5, "Sidewalk timing", "Sidewalk stop review should use at least 75% confidence and hold at least 1.5s.", 12);
+  addLabCheck(checks, c.roadBumpDetectionLogging && c.roadBumpSlowdownRequired && c.roadBumpReviewOnly, "Road-bump slow gate", "Road bumps, speed humps, and raised crossings require slowdown review only.", 14);
+  addLabCheck(checks, c.roadBumpDriverConfirmRequired && c.confirmationRequireTick, "Road-bump confirmation", "Road-bump slowdown requires driver tick confirmation.", 14);
+  addLabCheck(checks, Number(t.roadBumpConfidenceGate) >= 70 && Number(t.roadBumpSlowSpeed) <= 15, "Road-bump speed cap", "Road-bump review should use at least 70% confidence and cap target speed at or below 15 mph.", 12);
   addLabCheck(checks, c.maneuverType !== "u-turn" || c.uTurnPolicy !== "block", "U-turn policy", "U-turn is currently blocked by policy.", 20);
   addLabCheck(checks, c.maneuverType !== "u-turn" || c.navNoAutoUturnRoad, "U-turn road gate", "U-turn must stay blocked outside closed-course review.", 18);
   addLabCheck(checks, c.maneuverType !== "roundabout" || Number(t.navRoundaboutYieldGap) >= 3.5, "Roundabout yield gap", "Roundabout yield gap should be at least 3.5s.", 14);
@@ -2239,6 +2313,8 @@ function activeControllerCount() {
     "mergeCheckMode",
     "signReviewMode",
     "signLearningMode",
+    "sidewalkStopPolicy",
+    "roadBumpPolicy",
     "lwcMode",
     "lwcLaneWidthMode",
     "lwcRoadEdgeMode",
@@ -2349,6 +2425,18 @@ function labelFor(group, value) {
       "prompt-critical": "Prompt critical",
       "stop-signs-only": "Stop signs only",
       off: "Off"
+    },
+    sidewalkStopPolicy: {
+      "stop-confirm": "Stop and confirm",
+      "stop-log-only": "Stop and log",
+      "prompt-only": "Prompt only",
+      blocked: "Blocked"
+    },
+    roadBumpPolicy: {
+      "slow-confirm": "Slow and confirm",
+      "slow-log-only": "Slow and log",
+      "prompt-only": "Prompt only",
+      blocked: "Blocked"
     },
     navMode: {
       off: "Off",
@@ -2554,6 +2642,22 @@ function buildNavPlan() {
       requireMapCameraAgreement: profile.controllers.navMapCameraAgree,
       blockRoadUturn: profile.controllers.navNoAutoUturnRoad,
       recordManeuver: profile.controllers.navRecordManeuver,
+      surfaceSafety: {
+        sidewalkStopPolicy: profile.controllers.sidewalkStopPolicy,
+        sidewalkDetectionLogging: profile.controllers.sidewalkDetectionLogging,
+        sidewalkStopRequired: profile.controllers.sidewalkStopRequired,
+        sidewalkDriverConfirmRequired: profile.controllers.sidewalkDriverConfirmRequired,
+        sidewalkReviewOnly: profile.controllers.sidewalkReviewOnly,
+        sidewalkConfidenceGatePercent: profile.tuning.sidewalkConfidenceGate,
+        sidewalkStopTimeSeconds: profile.tuning.sidewalkStopTime,
+        roadBumpPolicy: profile.controllers.roadBumpPolicy,
+        roadBumpDetectionLogging: profile.controllers.roadBumpDetectionLogging,
+        roadBumpSlowdownRequired: profile.controllers.roadBumpSlowdownRequired,
+        roadBumpDriverConfirmRequired: profile.controllers.roadBumpDriverConfirmRequired,
+        roadBumpReviewOnly: profile.controllers.roadBumpReviewOnly,
+        roadBumpConfidenceGatePercent: profile.tuning.roadBumpConfidenceGate,
+        roadBumpSlowSpeedMph: profile.tuning.roadBumpSlowSpeed
+      },
       mapConfidencePercent: profile.tuning.navMapConfidence,
       cameraConfidencePercent: profile.tuning.navCameraConfidence,
       laneConfidencePercent: profile.tuning.navLaneConfidence,
@@ -2569,7 +2673,9 @@ function buildNavPlan() {
       "Camera agreement: lane lines, road edge, signs, arrows, and drivable path must agree with the route.",
       "Driver confirmation: lane route actions require signal, nudge, or explicit confirmation.",
       "Special maneuvers: U-turns and roundabouts stay closed-course or prompt-only until separately validated.",
-      "Fallback: any blind spot, low confidence, missing lane, or unclear yield condition blocks the maneuver and asks the driver to take over."
+      "Sidewalks and curbs: stop-and-confirm review only; the app does not decide pedestrian-edge clearance.",
+      "Road bumps: slow-down review only; the driver remains responsible for braking and speed choice.",
+      "Fallback: any blind spot, low confidence, missing lane, unclear yield condition, sidewalk edge, or road bump blocks the maneuver and asks the driver to take over."
     ]
   };
 }
@@ -3029,6 +3135,40 @@ function wireActions() {
         signLearningMode: profile.controllers.signLearningMode,
         confidenceGate: profile.tuning.signConfidenceGate,
         learningReviewOnly: profile.controllers.signLearningReviewOnly
+      }
+    );
+  });
+  els.testSidewalkPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Sidewalk",
+      "Stop for sidewalk or curb edge",
+      "Sidewalk, curb, pedestrian-edge, and raised-crossing detections require a full stop and driver tick before any review plan continues.",
+      {
+        maneuver: "sidewalk-stop",
+        sidewalkStopPolicy: profile.controllers.sidewalkStopPolicy,
+        stopRequired: profile.controllers.sidewalkStopRequired,
+        confidenceGate: profile.tuning.sidewalkConfidenceGate,
+        stopHoldSeconds: profile.tuning.sidewalkStopTime,
+        reviewOnly: profile.controllers.sidewalkReviewOnly,
+        driverConfirmationRequired: profile.controllers.sidewalkDriverConfirmRequired
+      }
+    );
+  });
+  els.testRoadBumpPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Road bump",
+      "Slow for road bump",
+      "Road bumps, speed humps, and raised crossings require slowdown review and driver tick before the route plan continues.",
+      {
+        maneuver: "road-bump-slowdown",
+        roadBumpPolicy: profile.controllers.roadBumpPolicy,
+        slowdownRequired: profile.controllers.roadBumpSlowdownRequired,
+        confidenceGate: profile.tuning.roadBumpConfidenceGate,
+        slowSpeedMph: profile.tuning.roadBumpSlowSpeed,
+        reviewOnly: profile.controllers.roadBumpReviewOnly,
+        driverConfirmationRequired: profile.controllers.roadBumpDriverConfirmRequired
       }
     );
   });

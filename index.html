@@ -1076,7 +1076,7 @@
               <span class="status-badge warn">Hold for tick</span>
             </div>
             <div class="warning-copy">
-              Road-entry and roundabout plans are blocked behind full-stop, clear-gap, sign-check, camera-agreement, and driver tick confirmation gates. Sign learning is review-only logging.
+              Road-entry, roundabout, sidewalk/curb, and road-bump plans are blocked behind full-stop or slow-down review, confidence, camera-agreement, and driver tick confirmation gates. Sign and surface learning stay review-only.
             </div>
             <div class="control-grid">
               <label class="field">
@@ -1114,6 +1114,24 @@
                   <option value="disabled">Disabled</option>
                 </select>
               </label>
+              <label class="field">
+                <span>Sidewalk / curb</span>
+                <select id="sidewalkStopPolicy">
+                  <option value="stop-confirm">Stop and confirm</option>
+                  <option value="stop-log-only">Stop and log</option>
+                  <option value="prompt-only">Prompt only</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Road bumps</span>
+                <select id="roadBumpPolicy">
+                  <option value="slow-confirm">Slow and confirm</option>
+                  <option value="slow-log-only">Slow and log</option>
+                  <option value="prompt-only">Prompt only</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
             </div>
             <div class="toggle-stack switch-grid">
               <label><input id="roadEntryStopRequired" type="checkbox" checked> Stop before entering or merging onto a road</label>
@@ -1129,6 +1147,14 @@
               <label><input id="signPromptOnRoundabout" type="checkbox" checked> Prompt on roundabout signs</label>
               <label><input id="signPromptOnMerge" type="checkbox" checked> Prompt on merge signs</label>
               <label><input id="signLearningReviewOnly" type="checkbox" checked> Keep sign learning review-only</label>
+              <label><input id="sidewalkDetectionLogging" type="checkbox" checked> Log sidewalks, curbs, pedestrian edges, and raised crossings</label>
+              <label><input id="sidewalkStopRequired" type="checkbox" checked> Stop for sidewalk or curb-edge detection</label>
+              <label><input id="sidewalkDriverConfirmRequired" type="checkbox" checked> Require driver tick before continuing after sidewalk stop</label>
+              <label><input id="sidewalkReviewOnly" type="checkbox" checked> Keep sidewalk/curb behavior review-only</label>
+              <label><input id="roadBumpDetectionLogging" type="checkbox" checked> Log road bumps, speed humps, and raised crossings</label>
+              <label><input id="roadBumpSlowdownRequired" type="checkbox" checked> Require slowdown for road bumps</label>
+              <label><input id="roadBumpDriverConfirmRequired" type="checkbox" checked> Require driver tick before continuing after road bump slowdown</label>
+              <label><input id="roadBumpReviewOnly" type="checkbox" checked> Keep road-bump behavior review-only</label>
             </div>
             <div class="range-grid">
               <label class="range-field">
@@ -1151,11 +1177,29 @@
                 <span>Sign confidence gate <strong id="signConfidenceGateValue">80%</strong></span>
                 <input id="signConfidenceGate" type="range" min="50" max="95" step="1" value="80">
               </label>
+              <label class="range-field">
+                <span>Sidewalk confidence <strong id="sidewalkConfidenceGateValue">82%</strong></span>
+                <input id="sidewalkConfidenceGate" type="range" min="60" max="98" step="1" value="82">
+              </label>
+              <label class="range-field">
+                <span>Sidewalk stop hold <strong id="sidewalkStopTimeValue">2.0s</strong></span>
+                <input id="sidewalkStopTime" type="range" min="1" max="6" step="0.5" value="2">
+              </label>
+              <label class="range-field">
+                <span>Road-bump confidence <strong id="roadBumpConfidenceGateValue">75%</strong></span>
+                <input id="roadBumpConfidenceGate" type="range" min="50" max="95" step="1" value="75">
+              </label>
+              <label class="range-field">
+                <span>Road-bump slow cap <strong id="roadBumpSlowSpeedValue">10 mph</strong></span>
+                <input id="roadBumpSlowSpeed" type="range" min="3" max="20" step="1" value="10">
+              </label>
             </div>
             <div class="button-row">
               <button class="primary-button" id="testRoadEntryPrompt" type="button">Test road-entry hold</button>
               <button class="ghost-button" id="testRoundaboutPrompt" type="button">Test roundabout hold</button>
               <button class="ghost-button" id="testSignPrompt" type="button">Test sign review</button>
+              <button class="ghost-button" id="testSidewalkPrompt" type="button">Test sidewalk stop</button>
+              <button class="ghost-button" id="testRoadBumpPrompt" type="button">Test road-bump slow</button>
             </div>
           </article>
 
