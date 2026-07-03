@@ -533,6 +533,10 @@ function parseKeyValueOutput(output) {
   return parsed;
 }
 
+function valueOrUndefined(values, key) {
+  return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : undefined;
+}
+
 async function readDeviceRuntime(profile = {}) {
   const target = deviceSshTarget(profile);
   const keyPath = deviceSshKeyPath(profile);
@@ -566,9 +570,9 @@ async function readDeviceRuntime(profile = {}) {
     navAutoStart: boolFromParam(values.navAutoStart),
     navActive: boolFromParam(values.navActive),
     carScreenRouteIntent: boolFromParam(values.carScreenRouteIntent),
-    carScreenRouteStatus: values.carScreenRouteStatus || undefined,
-    carScreenDestination: values.carScreenDestination || undefined,
-    carScreenRouteUpdatedAt: values.carScreenRouteUpdatedAt || undefined
+    carScreenRouteStatus: valueOrUndefined(values, "carScreenRouteStatus"),
+    carScreenDestination: valueOrUndefined(values, "carScreenDestination"),
+    carScreenRouteUpdatedAt: valueOrUndefined(values, "carScreenRouteUpdatedAt")
   };
 }
 
