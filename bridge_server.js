@@ -322,6 +322,42 @@ function readCarRoute() {
   }
 }
 
+function carRouteFromRuntime(runtime = {}) {
+  const navSource = String(runtime.navSource || "").trim();
+  const destination = String(runtime.carScreenDestination || "").trim();
+  const status = String(runtime.carScreenRouteStatus || "").trim();
+  const updatedAt = String(runtime.carScreenRouteUpdatedAt || "").trim();
+  const hasLiveRouteState = navSource || runtime.carScreenRouteIntent !== undefined || destination || status || updatedAt;
+  if (!hasLiveRouteState) return null;
+
+  const source = navSource === "2" ? "osm-mapd" : navSource === "1" ? "car-screen" : "off";
+  const provider = source === "car-screen" ? "car-screen-maps" : source === "osm-mapd" ? "osm-mapd" : "none";
+  const active = source !== "off" && runtime.carScreenRouteIntent === true && Boolean(destination);
+
+  return normalizeCarRoute({
+    active,
+    source,
+    provider,
+    status: status || (source === "off" ? "off" : destination ? "active" : "waiting"),
+    destination,
+    routeId: destination ? `comma-param-${updatedAt || "live"}` : "",
+    nextInstruction: destination
+      ? "Route intent staged on comma"
+      : (status || "Waiting for car-screen adapter"),
+    confidence: destination ? 82 : 0,
+    updatedAt: updatedAt || null
+  });
+}
+
+async function readLiveCarRoute(profile = {}) {
+  try {
+    const runtime = await readDeviceRuntime(profile);
+    return carRouteFromRuntime(runtime) || defaultCarRoute();
+  } catch {
+    return defaultCarRoute();
+  }
+}
+
 function writeCarRoute(route) {
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(carRoutePath, JSON.stringify(normalizeCarRoute(route), null, 2));
@@ -470,18 +506,32 @@ async function readDeviceRuntime(profile = {}) {
   if (!target) return { sshStatus: "not configured" };
 
   const output = await runSshCommand(target, keyPath, [
+    "printf branch=; cd /data/openpilot && git branch --show-current 2>/dev/null || true",
+    "printf commit=; cd /data/openpilot && git rev-parse --short HEAD 2>/dev/null || true",
     "printf offroad=; cat /data/params/d/IsOffroad 2>/dev/null || true; echo",
     "printf engaged=; cat /data/params/d/IsEngaged 2>/dev/null || true; echo",
     "printf quietMode=; cat /data/params/d/QuietMode 2>/dev/null || true; echo",
-    "printf driverViewEnabled=; cat /data/params/d/IsDriverViewEnabled 2>/dev/null || true; echo"
+    "printf driverViewEnabled=; cat /data/params/d/IsDriverViewEnabled 2>/dev/null || true; echo",
+    "printf navSource=; cat /data/params/d/Xrm10NavSource 2>/dev/null || true; echo",
+    "printf carScreenRouteIntent=; cat /data/params/d/Xrm10CarScreenRouteIntent 2>/dev/null || true; echo",
+    "printf carScreenRouteStatus=; cat /data/params/d/Xrm10CarScreenRouteStatus 2>/dev/null || true; echo",
+    "printf carScreenDestination=; cat /data/params/d/Xrm10CarScreenDestination 2>/dev/null || true; echo",
+    "printf carScreenRouteUpdatedAt=; cat /data/params/d/Xrm10CarScreenRouteUpdatedAt 2>/dev/null || true; echo"
   ].join("; "), 6500);
   const values = parseKeyValueOutput(output);
   return {
     sshStatus: "connected",
+    branch: values.branch || undefined,
+    commit: values.commit || undefined,
     offroad: boolFromParam(values.offroad),
     engaged: boolFromParam(values.engaged),
     quietMode: boolFromParam(values.quietMode),
-    driverViewEnabled: boolFromParam(values.driverViewEnabled)
+    driverViewEnabled: boolFromParam(values.driverViewEnabled),
+    navSource: values.navSource || undefined,
+    carScreenRouteIntent: boolFromParam(values.carScreenRouteIntent),
+    carScreenRouteStatus: values.carScreenRouteStatus || undefined,
+    carScreenDestination: values.carScreenDestination || undefined,
+    carScreenRouteUpdatedAt: values.carScreenRouteUpdatedAt || undefined
   };
 }
 
@@ -765,7 +815,7 @@ const server = http.createServer(async (req, res) => {
       online: true,
       device: await currentDeviceAsync(latestProfile),
       latestProfile: latestProfileMeta(),
-      route: readCarRoute(),
+      route: await readLiveCarRoute(latestProfile),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
       capabilities: buildCapabilityReport(latestProfile)
@@ -864,8 +914,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/car-route") {
     sendJson(res, 200, {
       ok: true,
-      device: currentDevice(),
-      route: readCarRoute()
+      device: await currentDeviceAsync(readLatestProfile()?.profile || {}),
+      route: await readLiveCarRoute(readLatestProfile()?.profile || {})
     });
     return;
   }
