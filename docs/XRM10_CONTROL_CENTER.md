@@ -15,6 +15,9 @@ It is designed for development workflow, not direct vehicle actuation.
   version, branch, commit, and category tiles.
 - Track online/offline device state, last seen time, pending profile changes,
   demo bridge status, and HTTP bridge sync status.
+- Show a Live capability card that separates controls into live-safe,
+  review/logging, route-intent, map-metadata, needs-integration, and blocked
+  driving-control buckets.
 - Use the top live stats bar to see connection, Offroad/Inroad state, last seen
   time, pending changes, live car route state, and road-state controls.
 - Use a sunnypilot-style section sidebar with Device, Toggles, Models,
@@ -92,6 +95,7 @@ Expected HTTP endpoints:
 
 ```text
 GET  /api/xrm10/status
+GET  /api/xrm10/capabilities
 POST /api/xrm10/profile
 POST /api/xrm10/road-state
 GET  /api/xrm10/car-route
@@ -107,6 +111,19 @@ POST /api/xrm10/ssh-status
 
 `GET /api/xrm10/status` should return whether the device is reachable plus
 device metadata such as name, ID, version, branch, commit, and offroad state.
+It may also include a `capabilities` report. `GET /api/xrm10/capabilities`
+returns the same report directly.
+
+Capability states are intentionally explicit:
+
+- `live-safe`: applied to app/bridge state only; no actuation.
+- `review-only`: active as logging, prompts, exports, or readiness checks.
+- `route-intent-only`: stores destination/route intent but does not steer.
+- `map-metadata-only`: stores map package metadata but does not install maps.
+- `needs-ondevice-integration`: requires a reviewed on-device adapter.
+- `blocked-live-drive`: blocked from phone live-apply because it affects
+  steering, braking, acceleration, or public-road autonomy.
+
 `POST /api/xrm10/profile` receives the full profile, changed parameters, and a
 policy block. The payload always marks `liveVehicleApplyAllowed` as `false`; the
 bridge must treat safety-critical changes as offroad review unless separate
@@ -202,8 +219,9 @@ audit records only; they must not be interpreted as permission to steer, merge,
 or enter a roundabout.
 
 `POST /api/xrm10/section-apply` receives one section plus the current profile
-and returns whether that section is staged and working. `GET
-/api/xrm10/section-status` checks the last known result.
+and returns an itemized capability result. Sections can be `applied`, `partial`,
+or `unknown`; driving controls may be present but still blocked from phone
+live-apply. `GET /api/xrm10/section-status` checks the last known result.
 
 `POST /api/xrm10/ssh-status` receives `target` and `keyPath`. The local bridge
 uses OpenSSH for a short status command. A real target and valid key path are
@@ -215,6 +233,12 @@ The app intentionally does not expose switches that disable driver monitoring,
 weaken excessive actuation checks, modify panda safety, or make manual override
 harder. Any future bridge from exported profiles to live device params must
 preserve those limits and add tests before install use.
+
+The app also does not allow unconfirmed phone live-apply for steering, braking,
+acceleration, lane-change automation, public-road stop-sign behavior, public-road
+roundabout entry, or navigation maneuvers. Those controls are reported as
+blocked or review-only until a separate on-device implementation, simulator
+coverage, bench tests, closed-course validation, and code review exist.
 
 Safety Lab controls represent simulation/offroad review values. They are not a
 live-car safety bypass and must not be wired into real vehicle behavior without

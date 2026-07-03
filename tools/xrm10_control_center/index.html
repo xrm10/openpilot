@@ -192,6 +192,20 @@
               <button class="ghost-button" id="homeRefreshSync" type="button">Refresh</button>
             </article>
 
+            <article class="settings-card" id="liveCapabilityCard">
+              <div class="card-heading">
+                <div>
+                  <p class="eyebrow">Live capability</p>
+                  <h2>What really applies</h2>
+                </div>
+                <span class="status-badge warn" id="liveCapabilityBadge">Checking</span>
+              </div>
+              <div class="warning-copy" id="liveCapabilitySummary">
+                Connect the bridge to see which controls are live-safe, review-only, need integration, or blocked from phone live-apply.
+              </div>
+              <div class="summary-grid compact" id="liveCapabilityList"></div>
+            </article>
+
             <div class="home-tile-grid" id="homeTileGrid">
               <button class="home-tile" type="button" data-section-target="device" data-search="device comma four hardware status">
                 <i data-lucide="hard-drive"></i><span>Device</span>

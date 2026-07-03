@@ -16,6 +16,7 @@ const sectionStatusPath = path.join(stateDir, "section_status.json");
 const carRoutePath = path.join(stateDir, "car_route.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
 const safetyEventsPath = path.join(stateDir, "safety_events.json");
+const appliedControlsPath = path.join(stateDir, "applied_controls.json");
 
 const device = {
   name: "comma four",
@@ -141,15 +142,215 @@ function readBody(req) {
 }
 
 function latestProfileMeta() {
+  const payload = readLatestProfile();
+  if (!payload) return null;
+  return {
+    receivedAt: payload.receivedAt,
+    changeCount: Array.isArray(payload.changes) ? payload.changes.length : 0
+  };
+}
+
+function readLatestProfile() {
   try {
-    const payload = JSON.parse(fs.readFileSync(latestProfilePath, "utf8"));
-    return {
-      receivedAt: payload.receivedAt,
-      changeCount: Array.isArray(payload.changes) ? payload.changes.length : 0
-    };
+    return JSON.parse(fs.readFileSync(latestProfilePath, "utf8"));
   } catch {
     return null;
   }
+}
+
+function readAppliedControls() {
+  try {
+    return JSON.parse(fs.readFileSync(appliedControlsPath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeAppliedControls(applied) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(appliedControlsPath, JSON.stringify(applied, null, 2));
+}
+
+const sectionCapabilities = {
+  device: [
+    ["deviceTarget", "Device profile target", "live-safe"],
+    ["connectionMode", "Bridge connection mode", "live-safe"],
+    ["autoSync", "Auto sync queue", "live-safe"],
+    ["sshTarget", "SSH status check target", "live-safe"]
+  ],
+  toggles: [
+    ["handsOnReminder", "Hands-on reminder preference", "live-safe"],
+    ["metricUnits", "Metric units preference", "live-safe"],
+    ["modelUncertaintyAlert", "Model uncertainty alert preference", "review-only"],
+    ["experimentalControls", "Experimental driving controls", "blocked-live-drive"]
+  ],
+  models: [
+    ["modelStackMode", "Model stack selection", "needs-ondevice-integration"],
+    ["visionPolicyMode", "Vision policy", "review-only"],
+    ["modelFallbackMode", "Model fallback policy", "review-only"],
+    ["modelCacheMode", "Model cache policy", "needs-ondevice-integration"]
+  ],
+  steering: [
+    ["laneChangeMode", "Lane-change behavior", "blocked-live-drive"],
+    ["lateralMode", "Lateral controller", "blocked-live-drive"],
+    ["torqueLimitMode", "Torque limit profile", "blocked-live-drive"],
+    ["laneBias", "Lane position bias", "blocked-live-drive"]
+  ],
+  cruise: [
+    ["longitudinalMode", "Longitudinal controller", "blocked-live-drive"],
+    ["followGap", "Follow gap", "blocked-live-drive"],
+    ["speedOffset", "Speed offset", "blocked-live-drive"],
+    ["stopResumeDelay", "Stop-resume delay", "blocked-live-drive"]
+  ],
+  traffic: [
+    ["fasterLaneMode", "Faster-lane suggestions", "review-only"],
+    ["trafficRequireConfirmation", "Traffic confirmation gate", "live-safe"],
+    ["lwcMode", "Lane width control profile", "review-only"],
+    ["trafficAutoManeuverBlock", "Automatic traffic maneuver block", "live-safe"]
+  ],
+  visuals: [
+    ["visualTheme", "Visual theme", "live-safe"],
+    ["alertDensity", "Alert density", "live-safe"],
+    ["laneOverlay", "Lane overlay", "live-safe"],
+    ["roadEdgeOverlay", "Road-edge overlay", "live-safe"]
+  ],
+  display: [
+    ["displayTheme", "Display theme", "live-safe"],
+    ["keepAwakeMode", "Keep-awake mode", "live-safe"],
+    ["unitsMode", "Units mode", "live-safe"],
+    ["screenBrightness", "Screen brightness profile", "live-safe"],
+    ["mapBrightness", "Map brightness profile", "live-safe"]
+  ],
+  maps: [
+    ["mapRouteSourceMode", "Route source", "route-intent-only"],
+    ["carScreenRouteSync", "Car-screen route sync", "route-intent-only"],
+    ["mapRegion", "Map region metadata", "map-metadata-only"],
+    ["gccMapPackMode", "GCC map package metadata", "map-metadata-only"]
+  ],
+  navPilot: [
+    ["navMode", "Navigation mode", "review-only"],
+    ["navSteeringMode", "Navigation steering", "blocked-live-drive"],
+    ["roundaboutPolicy", "Roundabout policy", "review-only"],
+    ["sidewalkStopPolicy", "Sidewalk/curb stop review", "review-only"],
+    ["roadBumpPolicy", "Road-bump slowdown review", "review-only"],
+    ["signReviewMode", "Traffic sign review", "review-only"],
+    ["driverConfirmMode", "Driver confirmation mode", "live-safe"]
+  ],
+  vehicle: [
+    ["vehicleModel", "Vehicle model metadata", "live-safe"],
+    ["vehicleYear", "Vehicle year metadata", "live-safe"],
+    ["regionProfile", "Region profile metadata", "live-safe"],
+    ["vehicleHarnessMode", "Harness mode", "needs-ondevice-integration"]
+  ],
+  software: [
+    ["installTarget", "Install target URL", "live-safe"],
+    ["customInstallUrl", "Custom installer URL", "live-safe"],
+    ["parameterPreviewMode", "Parameter preview mode", "live-safe"]
+  ],
+  safetyLab: [
+    ["labMode", "Safety lab mode", "review-only"],
+    ["testStage", "Test stage", "review-only"],
+    ["scenarioSet", "Scenario set", "review-only"],
+    ["labResultGate", "Lab result gate", "review-only"]
+  ],
+  developer: [
+    ["reviewLogCapture", "Review log capture", "live-safe"],
+    ["eventSnapshot", "Event snapshots", "live-safe"],
+    ["cabanaExport", "Cabana export preference", "live-safe"],
+    ["developerMode", "Developer review mode", "review-only"]
+  ],
+  migration: [
+    ["migrationSource", "Migration source", "live-safe"],
+    ["backupSlot", "Backup slot", "live-safe"]
+  ]
+};
+
+function capabilityMessage(status) {
+  return {
+    "live-safe": "Applied to the app/bridge live state. Does not change actuation.",
+    "route-intent-only": "Applied as route intent only. Does not steer or change lanes.",
+    "map-metadata-only": "Applied as map metadata only. Map files still require a real map pipeline.",
+    "review-only": "Active as review/logging/prompt behavior only.",
+    "needs-ondevice-integration": "Needs an on-device adapter before it can affect openpilot.",
+    "blocked-live-drive": "Blocked from phone live-apply because it affects steering, braking, acceleration, or public-road autonomy."
+  }[status] || "Unknown capability state.";
+}
+
+function valueForCapability(profile, key) {
+  if (!profile) return null;
+  if (profile.controllers && Object.prototype.hasOwnProperty.call(profile.controllers, key)) return profile.controllers[key];
+  if (profile.tuning && Object.prototype.hasOwnProperty.call(profile.tuning, key)) return profile.tuning[key];
+  if (Object.prototype.hasOwnProperty.call(profile, key)) return profile[key];
+  if (profile.connection && Object.prototype.hasOwnProperty.call(profile.connection, key)) return profile.connection[key];
+  return null;
+}
+
+function buildSectionCapability(section, profile = {}) {
+  const items = (sectionCapabilities[section] || []).map(([key, label, status]) => ({
+    key,
+    label,
+    value: valueForCapability(profile, key),
+    status,
+    message: capabilityMessage(status)
+  }));
+  const summary = summarizeCapabilityItems(items);
+  const state = summary.blockedLiveDrive || summary.needsIntegration ? "partial" : "applied";
+  return {
+    section,
+    state,
+    working: state === "applied",
+    summary,
+    items,
+    message: capabilitySummaryMessage(summary)
+  };
+}
+
+function summarizeCapabilityItems(items) {
+  return {
+    liveSafe: items.filter((item) => item.status === "live-safe").length,
+    reviewOnly: items.filter((item) => item.status === "review-only").length,
+    routeIntentOnly: items.filter((item) => item.status === "route-intent-only").length,
+    mapMetadataOnly: items.filter((item) => item.status === "map-metadata-only").length,
+    needsIntegration: items.filter((item) => item.status === "needs-ondevice-integration").length,
+    blockedLiveDrive: items.filter((item) => item.status === "blocked-live-drive").length,
+    total: items.length
+  };
+}
+
+function capabilitySummaryMessage(summary) {
+  const parts = [];
+  if (summary.liveSafe) parts.push(`${summary.liveSafe} live-safe`);
+  if (summary.reviewOnly) parts.push(`${summary.reviewOnly} review/logging`);
+  if (summary.routeIntentOnly) parts.push(`${summary.routeIntentOnly} route-intent`);
+  if (summary.mapMetadataOnly) parts.push(`${summary.mapMetadataOnly} map-metadata`);
+  if (summary.needsIntegration) parts.push(`${summary.needsIntegration} needs integration`);
+  if (summary.blockedLiveDrive) parts.push(`${summary.blockedLiveDrive} blocked driving`);
+  return parts.length ? parts.join(", ") : "No mapped controls in this section.";
+}
+
+function buildCapabilityReport(profile = null) {
+  const sourceProfile = profile || readLatestProfile()?.profile || {};
+  const sections = {};
+  for (const section of Object.keys(sectionCapabilities)) {
+    sections[section] = buildSectionCapability(section, sourceProfile);
+  }
+  const totals = Object.values(sections).reduce((acc, section) => {
+    for (const [key, value] of Object.entries(section.summary)) {
+      acc[key] = (acc[key] || 0) + value;
+    }
+    return acc;
+  }, {});
+  return {
+    generatedAt: new Date().toISOString(),
+    policy: {
+      publicRoadAutonomyFromPhone: false,
+      unconfirmedDrivingControls: false,
+      routeIntentOnly: true,
+      reviewPromptsEnabled: true
+    },
+    totals,
+    sections
+  };
 }
 
 function readSectionStatuses() {
@@ -339,7 +540,8 @@ const server = http.createServer(async (req, res) => {
       latestProfile: latestProfileMeta(),
       route: readCarRoute(),
       mapPackage: readMapPackage(),
-      safetyEventCount: readSafetyEvents().length
+      safetyEventCount: readSafetyEvents().length,
+      capabilities: buildCapabilityReport()
     });
     return;
   }
@@ -381,7 +583,8 @@ const server = http.createServer(async (req, res) => {
         acceptedChanges: changes.length,
         applied: "profile-staged",
         liveVehicleApplyAllowed: false,
-        device: currentDevice()
+        device: currentDevice(),
+        capabilities: buildCapabilityReport(payload.profile || {})
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -593,6 +796,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/capabilities") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      capabilities: buildCapabilityReport()
+    });
+    return;
+  }
+
   if (req.method === "POST" && parsed.pathname === "/api/xrm10/section-apply") {
     try {
       const body = await readBody(req);
@@ -612,12 +824,24 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      const capability = buildSectionCapability(section, payload.profile || {});
+      const appliedControls = readAppliedControls();
+      appliedControls[section] = {
+        section,
+        appliedAt: new Date().toISOString(),
+        capability,
+        profile: payload.profile || {}
+      };
+      writeAppliedControls(appliedControls);
+
       const statuses = readSectionStatuses();
       statuses[section] = {
         section,
-        working: true,
+        state: capability.state,
+        working: capability.working,
         appliedAt: new Date().toISOString(),
-        message: `${section} section staged and confirmed by bridge.`,
+        message: capability.message,
+        capability,
         device: currentDevice()
       };
       writeSectionStatuses(statuses);
@@ -642,8 +866,10 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, status || {
       ok: true,
       section,
+      state: "unknown",
       working: false,
       message: "No applied section record yet.",
+      capability: buildSectionCapability(section, readLatestProfile()?.profile || {}),
       device: currentDevice()
     });
     return;

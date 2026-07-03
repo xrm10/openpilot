@@ -16,6 +16,9 @@ tools/xrm10_control_center/index.html
 - Live sync status for online/offline device state, last seen time, pending
   changes, demo bridge testing, and an HTTP bridge mode for a future device
   service.
+- Live capability status that shows what is live-safe, review-only,
+  route-intent-only, map-metadata-only, needs integration, or blocked from phone
+  live-apply.
 - A top live stats bar with connection state, Offroad/Inroad state, last seen
   time, pending changes, live car route state, and road-state controls.
 - Tesla Model 3/Model Y HW4 profile metadata.
@@ -94,6 +97,12 @@ The exported JSON and live sync payloads are review/profile artifacts. Wiring
 them into on-device params requires a separate reviewed implementation and
 tests.
 
+Phone live-apply is blocked for steering, braking, acceleration, automatic lane
+changes, public-road stop-sign behavior, public-road roundabout entry, and
+unconfirmed navigation maneuvers. The app can show those controls as
+review/logging or blocked capability states, but it must not silently actuate
+them.
+
 ## Live sync bridge
 
 The app supports three connection modes in Device > Live sync:
@@ -121,6 +130,7 @@ HTTP bridge contract:
 
 ```text
 GET  /api/xrm10/status
+GET  /api/xrm10/capabilities
 POST /api/xrm10/profile
 POST /api/xrm10/road-state
 GET  /api/xrm10/car-route
@@ -149,6 +159,18 @@ POST /api/xrm10/ssh-status
   }
 }
 ```
+
+`GET /api/xrm10/capabilities` returns an itemized report for each settings
+section. The app uses it to stop pretending every toggle changes the car:
+
+- `live-safe`: app/bridge state can apply it without vehicle actuation.
+- `review-only`: logging, prompts, readiness checks, or exports only.
+- `route-intent-only`: route intent is stored, but steering is not started.
+- `map-metadata-only`: map package metadata is stored, but maps are not
+  installed.
+- `needs-ondevice-integration`: needs a real on-device adapter.
+- `blocked-live-drive`: cannot be applied from the phone because it affects
+  steering, braking, acceleration, or public-road autonomy.
 
 `POST /api/xrm10/profile` receives a profile sync payload with `changes`,
 `profile`, and `policy`. The bridge should reject safety-critical changes unless
@@ -222,8 +244,8 @@ only log-only payloads where `liveVehicleApplyAllowed` is `false`. `GET
 /api/xrm10/safety-events` returns the stored audit records.
 
 `POST /api/xrm10/section-apply` receives one section and the current profile.
-The bridge returns whether that section is staged and working. `GET
-/api/xrm10/section-status` checks the last known result.
+The bridge returns `applied`, `partial`, or `unknown` with itemized capability
+results. `GET /api/xrm10/section-status` checks the last known result.
 
 `POST /api/xrm10/ssh-status` receives `target` and `keyPath`. The included local
 bridge uses OpenSSH to run a short status command. This requires a real device
