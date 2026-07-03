@@ -341,7 +341,8 @@ const defaultSyncState = {
     totalBytes: 0,
     updatedAt: null,
     files: []
-  }
+  },
+  capabilities: null
 };
 
 const textBindings = [
@@ -610,6 +611,9 @@ const els = {
   homeSyncTitle: document.querySelector("#homeSyncTitle"),
   homeSyncText: document.querySelector("#homeSyncText"),
   homeRefreshSync: document.querySelector("#homeRefreshSync"),
+  liveCapabilityBadge: document.querySelector("#liveCapabilityBadge"),
+  liveCapabilitySummary: document.querySelector("#liveCapabilitySummary"),
+  liveCapabilityList: document.querySelector("#liveCapabilityList"),
   toolbarRefreshSync: document.querySelector("#toolbarRefreshSync"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
@@ -853,7 +857,8 @@ function normalizeSyncState(input) {
       ...(input.device || {})
     },
     route: normalizeRouteState(input.route || next.route),
-    mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage)
+    mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
+    capabilities: input.capabilities || next.capabilities
   };
 }
 
@@ -1288,7 +1293,47 @@ function renderConnection() {
       : `<div class="queue-empty">No pending changes. Online edits will sync immediately.</div>`;
   }
 
+  renderCapabilitySummary();
   renderCarRoute();
+}
+
+function renderCapabilitySummary() {
+  const report = syncState.capabilities;
+  const totals = report?.totals;
+  if (!els.liveCapabilitySummary || !els.liveCapabilityList) return;
+
+  if (!totals) {
+    setBadge(els.liveCapabilityBadge, "Unknown", "warn");
+    setText(els.liveCapabilitySummary, "Connect the HTTP bridge to see which controls are live-safe, review-only, need integration, or blocked from phone live-apply.");
+    els.liveCapabilityList.innerHTML = "";
+    return;
+  }
+
+  const live = Number(totals.liveSafe || 0);
+  const review = Number(totals.reviewOnly || 0);
+  const route = Number(totals.routeIntentOnly || 0);
+  const map = Number(totals.mapMetadataOnly || 0);
+  const needs = Number(totals.needsIntegration || 0);
+  const blocked = Number(totals.blockedLiveDrive || 0);
+
+  setBadge(els.liveCapabilityBadge, blocked || needs ? "Partial" : "Live-safe", blocked || needs ? "warn" : "pass");
+  setText(
+    els.liveCapabilitySummary,
+    `${live} controls are live-safe, ${review} are review/logging, ${route} are route intent, ${map} are map metadata, ${needs} need integration, and ${blocked} driving controls are blocked from phone live-apply.`
+  );
+  els.liveCapabilityList.innerHTML = [
+    ["Live-safe", live],
+    ["Review", review],
+    ["Route intent", route],
+    ["Map metadata", map],
+    ["Needs integration", needs],
+    ["Blocked driving", blocked]
+  ].map(([label, value]) => `
+    <div class="summary-row">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
 }
 
 function renderCarRoute() {
@@ -1462,12 +1507,14 @@ async function refreshConnection(showMessage = true) {
       if (status.route) syncState.route = normalizeRouteState(status.route);
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
       syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
+      if (status.capabilities) syncState.capabilities = status.capabilities;
       markOffline(status.message || "");
       return false;
     }
     if (status.route) syncState.route = normalizeRouteState(status.route);
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
     syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
+    if (status.capabilities) syncState.capabilities = status.capabilities;
     markOnline(status.device || status);
     await refreshCarRoute(false);
     if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
@@ -1476,6 +1523,25 @@ async function refreshConnection(showMessage = true) {
   } catch (error) {
     markOffline(error.message || "Bridge unavailable");
     if (showMessage) showToast("Bridge unavailable");
+    return false;
+  }
+}
+
+async function refreshCapabilities(showMessage = false) {
+  if (profile.connection?.mode !== "http") return false;
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) return false;
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/capabilities`, { method: "GET" });
+    if (response.capabilities) {
+      syncState.capabilities = response.capabilities;
+      saveSyncState();
+      renderConnection();
+    }
+    if (showMessage) showToast("Capabilities refreshed");
+    return true;
+  } catch (error) {
+    if (showMessage) showToast("Capability check failed");
     return false;
   }
 }
@@ -2063,11 +2129,12 @@ async function syncNow(reason = "manual") {
     const payload = buildSyncPayload(pending, reason);
     if (profile.connection.mode === "http") {
       const baseUrl = bridgeBaseUrl();
-      await fetchJson(`${baseUrl}/api/xrm10/profile`, {
+      const response = await fetchJson(`${baseUrl}/api/xrm10/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      if (response.capabilities) syncState.capabilities = response.capabilities;
     } else {
       await wait(240);
     }
@@ -2795,6 +2862,7 @@ function renderSectionApplyBars() {
 function sectionApplyTitle(section, state) {
   if (state.status === "applying") return "Applying live";
   if (state.status === "applied") return "Applied and confirmed";
+  if (state.status === "partial") return "Partially applied";
   if (state.status === "failed") return "Apply failed";
   if (state.status === "changed") return "Changed - not saved";
   if (state.status === "checking") return "Checking device";
@@ -2855,21 +2923,32 @@ async function applySection(section) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildSectionApplyPayload(section))
       });
+      await refreshCapabilities(false);
     } else {
       await wait(220);
       result = { ok: true, section, working: true, appliedAt: new Date().toISOString() };
     }
 
     sectionState[section] = {
-      status: result.working === false ? "failed" : "applied",
+      status: result.state === "partial" ? "partial" : result.working === false ? "failed" : "applied",
       appliedAt: Date.now(),
-      message: result.working === false
-        ? result.message || "Bridge reported not working."
-        : `${sectionMeta[section]?.[1] || section} applied live.`
+      message: result.message || (result.working === false
+        ? "Bridge reported not working."
+        : `${sectionMeta[section]?.[1] || section} applied live.`)
     };
+    if (result.capability) {
+      syncState.capabilities = {
+        ...(syncState.capabilities || {}),
+        sections: {
+          ...(syncState.capabilities?.sections || {}),
+          [section]: result.capability
+        }
+      };
+    }
     saveSectionState();
+    saveSyncState();
     renderSectionApplyBars();
-    showToast(sectionState[section].status === "applied" ? "Section applied" : "Section check failed");
+    showToast(sectionState[section].status === "applied" ? "Section applied" : sectionState[section].status === "partial" ? "Section partially applied" : "Section check failed");
   } catch (error) {
     sectionState[section] = {
       ...(sectionState[section] || {}),
@@ -2897,6 +2976,7 @@ async function checkSection(section) {
     if (profile.connection.mode === "http") {
       const params = new URLSearchParams({ section });
       result = await fetchJson(`${bridgeBaseUrl()}/api/xrm10/section-status?${params}`, { method: "GET" });
+      await refreshCapabilities(false);
     } else {
       await wait(180);
       result = sectionState[section]?.status === "applied"
@@ -2906,7 +2986,7 @@ async function checkSection(section) {
 
     sectionState[section] = {
       ...(sectionState[section] || {}),
-      status: result.working ? "applied" : "failed",
+      status: result.state === "partial" ? "partial" : result.working ? "applied" : "failed",
       message: result.message || (result.working ? "Bridge confirms section is working." : "Bridge has no working confirmation."),
       checkedAt: Date.now()
     };
