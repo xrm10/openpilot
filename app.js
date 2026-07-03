@@ -165,6 +165,7 @@ const defaultProfile = {
     carScreenRouteMode: "detect-destination",
     carScreenDestination: "",
     carScreenRouteSync: true,
+    carScreenRouteAutoStart: true,
     carScreenRouteNavPilot: true,
     carScreenRouteRequireConfirm: true,
     speedLimitSource: "map-vision",
@@ -488,6 +489,7 @@ const checkboxBindings = [
   ["offlineMaps", ["controllers", "offlineMaps"]],
   ["mapLaneGuidance", ["controllers", "mapLaneGuidance"]],
   ["carScreenRouteSync", ["controllers", "carScreenRouteSync"]],
+  ["carScreenRouteAutoStart", ["controllers", "carScreenRouteAutoStart"]],
   ["carScreenRouteNavPilot", ["controllers", "carScreenRouteNavPilot"]],
   ["carScreenRouteRequireConfirm", ["controllers", "carScreenRouteRequireConfirm"]],
   ["uaeDetailedMap", ["controllers", "uaeDetailedMap"]],
@@ -739,6 +741,7 @@ function normalizeProfile(input) {
       mapRouteSourceMode: "car-screen",
       carScreenRouteMode: "detect-destination",
       carScreenRouteSync: true,
+      carScreenRouteAutoStart: true,
       carScreenRouteNavPilot: true,
       carScreenRouteRequireConfirm: true,
       mapRegion: "gcc-uae-detailed",
@@ -1762,6 +1765,7 @@ async function useCarRouteForNav() {
   profile.controllers.mapRouteSourceMode = "car-screen";
   profile.controllers.carScreenRouteMode = profile.controllers.carScreenRouteMode === "disabled" ? "detect-destination" : profile.controllers.carScreenRouteMode;
   profile.controllers.carScreenRouteSync = true;
+  profile.controllers.carScreenRouteAutoStart = true;
   profile.controllers.carScreenRouteNavPilot = true;
   profile.controllers.carScreenRouteRequireConfirm = true;
   profile.controllers.navMapSourceMode = "car-screen-map";

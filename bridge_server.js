@@ -190,6 +190,7 @@ const sectionCapabilities = {
     ["mapRouteSourceMode", "Route source", "route-intent-only"],
     ["carScreenRouteMode", "Car-screen route mode", "route-intent-only"],
     ["carScreenRouteSync", "Stage car-screen route intent", "route-intent-only"],
+    ["carScreenRouteAutoStart", "Auto-start when car route is detected", "route-intent-only"],
     ["carScreenRouteNavPilot", "Show route intent on comma", "route-intent-only"],
     ["carScreenRouteRequireConfirm", "Advisory-only route intent", "route-intent-only"]
   ],
@@ -332,7 +333,8 @@ function carRouteFromRuntime(runtime = {}) {
 
   const source = navSource === "2" ? "osm-mapd" : navSource === "1" ? "car-screen" : "off";
   const provider = source === "car-screen" ? "car-screen-maps" : source === "osm-mapd" ? "osm-mapd" : "none";
-  const active = source !== "off" && runtime.carScreenRouteIntent === true && Boolean(destination);
+  const autoStart = runtime.navAutoStart !== false;
+  const active = source !== "off" && runtime.carScreenRouteIntent === true && autoStart && Boolean(destination);
 
   return normalizeCarRoute({
     active,
@@ -513,6 +515,8 @@ async function readDeviceRuntime(profile = {}) {
     "printf quietMode=; cat /data/params/d/QuietMode 2>/dev/null || true; echo",
     "printf driverViewEnabled=; cat /data/params/d/IsDriverViewEnabled 2>/dev/null || true; echo",
     "printf navSource=; cat /data/params/d/Xrm10NavSource 2>/dev/null || true; echo",
+    "printf navAutoStart=; cat /data/params/d/Xrm10NavAutoStart 2>/dev/null || true; echo",
+    "printf navActive=; cat /data/params/d/Xrm10NavActive 2>/dev/null || true; echo",
     "printf carScreenRouteIntent=; cat /data/params/d/Xrm10CarScreenRouteIntent 2>/dev/null || true; echo",
     "printf carScreenRouteStatus=; cat /data/params/d/Xrm10CarScreenRouteStatus 2>/dev/null || true; echo",
     "printf carScreenDestination=; cat /data/params/d/Xrm10CarScreenDestination 2>/dev/null || true; echo",
@@ -528,6 +532,8 @@ async function readDeviceRuntime(profile = {}) {
     quietMode: boolFromParam(values.quietMode),
     driverViewEnabled: boolFromParam(values.driverViewEnabled),
     navSource: values.navSource || undefined,
+    navAutoStart: boolFromParam(values.navAutoStart),
+    navActive: boolFromParam(values.navActive),
     carScreenRouteIntent: boolFromParam(values.carScreenRouteIntent),
     carScreenRouteStatus: values.carScreenRouteStatus || undefined,
     carScreenDestination: values.carScreenDestination || undefined,
@@ -621,6 +627,8 @@ function shellQuote(value) {
 async function writeCommaParam(profile, param, value) {
   const allowedParams = new Set([
     "Xrm10NavSource",
+    "Xrm10NavAutoStart",
+    "Xrm10NavActive",
     "Xrm10CarScreenRouteIntent",
     "Xrm10CarScreenRouteStatus",
     "Xrm10CarScreenDestination",
@@ -653,21 +661,26 @@ async function syncNavigationIntentParams(profile = {}) {
   const activeRoute = profile.computed?.activeCarRoute || {};
   const sourceMode = String(controllers.mapRouteSourceMode || "car-screen");
   const routeSync = controllers.carScreenRouteSync !== false;
+  const autoStart = controllers.carScreenRouteAutoStart !== false;
   const routeMode = String(controllers.carScreenRouteMode || "detect-destination");
   const destination = String(activeRoute.destination || controllers.carScreenDestination || "").trim();
   const sourceIndex = !routeSync || sourceMode === "disabled" || routeMode === "disabled"
     ? 0
     : sourceMode === "offline-cache" ? 2 : 1;
   const intentEnabled = sourceIndex === 1 && routeSync;
+  const navAutoStart = intentEnabled && autoStart;
+  const navActive = navAutoStart && Boolean(destination);
   const status = !intentEnabled
     ? "Navigation intent off"
     : destination
-      ? "Route intent staged"
-      : "Waiting for car-screen adapter";
+      ? navAutoStart ? "Route active from car-screen destination" : "Route detected; auto-start off"
+      : navAutoStart ? "Auto-start armed - waiting for car-screen route" : "Waiting for car-screen adapter";
   const updatedAt = new Date().toISOString();
 
   const writes = [
     ["Xrm10NavSource", sourceIndex],
+    ["Xrm10NavAutoStart", navAutoStart ? 1 : 0],
+    ["Xrm10NavActive", navActive ? 1 : 0],
     ["Xrm10CarScreenRouteIntent", intentEnabled ? 1 : 0],
     ["Xrm10CarScreenRouteStatus", status],
     ["Xrm10CarScreenDestination", destination],
