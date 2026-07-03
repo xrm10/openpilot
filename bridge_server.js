@@ -354,10 +354,41 @@ function carRouteFromRuntime(runtime = {}) {
 async function readLiveCarRoute(profile = {}) {
   try {
     const runtime = await readDeviceRuntime(profile);
+    await ensureAutoStartedRoute(profile, runtime);
     return carRouteFromRuntime(runtime) || defaultCarRoute();
   } catch {
     return defaultCarRoute();
   }
+}
+
+async function ensureAutoStartedRoute(profile = {}, runtime = {}) {
+  const destination = String(runtime.carScreenDestination || "").trim();
+  const autoStart = runtime.navAutoStart !== false;
+  const expectedActive = runtime.navSource === "1" && runtime.carScreenRouteIntent === true && autoStart && Boolean(destination);
+  const expectedStatus = expectedActive
+    ? "Route active from car-screen destination"
+    : runtime.navSource === "1" && runtime.carScreenRouteIntent === true && autoStart && !destination
+      ? "Auto-start armed - waiting for car-screen route"
+      : "";
+  const writes = [];
+
+  if (runtime.navActive !== expectedActive) writes.push(["Xrm10NavActive", expectedActive ? 1 : 0]);
+  if (expectedStatus && runtime.carScreenRouteStatus !== expectedStatus) writes.push(["Xrm10CarScreenRouteStatus", expectedStatus]);
+  if (!writes.length) return;
+
+  const updatedAt = new Date().toISOString();
+  writes.push(["Xrm10CarScreenRouteUpdatedAt", updatedAt]);
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}`
+  )).join("; ");
+  await runSshCommand(target, keyPath, command, 6500);
+
+  runtime.navActive = expectedActive;
+  if (expectedStatus) runtime.carScreenRouteStatus = expectedStatus;
+  runtime.carScreenRouteUpdatedAt = updatedAt;
 }
 
 function writeCarRoute(route) {
@@ -824,11 +855,12 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/status") {
     const latestProfile = readLatestProfile()?.profile || {};
+    const route = await readLiveCarRoute(latestProfile);
     sendJson(res, 200, {
       online: true,
       device: await currentDeviceAsync(latestProfile),
       latestProfile: latestProfileMeta(),
-      route: await readLiveCarRoute(latestProfile),
+      route,
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
       capabilities: buildCapabilityReport(latestProfile)
@@ -925,10 +957,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/car-route") {
+    const route = await readLiveCarRoute(readLatestProfile()?.profile || {});
     sendJson(res, 200, {
       ok: true,
       device: await currentDeviceAsync(readLatestProfile()?.profile || {}),
-      route: await readLiveCarRoute(readLatestProfile()?.profile || {})
+      route
     });
     return;
   }
