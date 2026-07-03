@@ -58,6 +58,10 @@ tools/xrm10_control_center/index.html
 - Traffic/LWC controls for faster-lane suggestions, traffic gap checks, and lane
   width control with driver-confirmation and blind-spot gates.
 - Faster-lane confirmation prompts with sound, cancel X, and confirm tick.
+- Road-entry, roundabout, and traffic-sign confirmation prompts with full-stop,
+  clear-gap, sign-check, and driver-confirm gates.
+- Safety-event logging for opened, accepted, and canceled confirmations without
+  live vehicle actuation.
 
 ## What it does not control
 
@@ -116,6 +120,8 @@ GET  /api/xrm10/car-route
 POST /api/xrm10/car-route
 GET  /api/xrm10/map-package
 POST /api/xrm10/map-package
+GET  /api/xrm10/safety-events
+POST /api/xrm10/safety-event
 POST /api/xrm10/section-apply
 GET  /api/xrm10/section-status?section=device
 POST /api/xrm10/ssh-status
@@ -204,6 +210,10 @@ change lanes, or start automated navigation from the phone.
 The local upload control records map file metadata such as PMTiles, MBTiles,
 OSM/PBF, or JSON files. It does not bundle proprietary map data into the repo.
 
+`POST /api/xrm10/safety-event` records confirmation events. The bridge accepts
+only log-only payloads where `liveVehicleApplyAllowed` is `false`. `GET
+/api/xrm10/safety-events` returns the stored audit records.
+
 `POST /api/xrm10/section-apply` receives one section and the current profile.
 The bridge returns whether that section is staged and working. `GET
 /api/xrm10/section-status` checks the last known result.
@@ -234,6 +244,14 @@ host and a valid local key path; the app does not expose private key contents.
    until separately validated.
 5. Fallback: blind spots, low confidence, missing lanes, unclear yield
    conditions, or missing confirmation block the maneuver.
+6. Road entry: stop before entering a road, check cross traffic and signs,
+   require the configured clear gap, then log a tick or X confirmation.
+7. Roundabout entry: stop before the yield line, check circulating traffic and
+   roundabout signs, require the configured clear gap, then log a tick or X
+   confirmation.
+8. Traffic signs: stop, yield, roundabout, speed, lane, and direction signs are
+   logged for review. Sign learning remains review-only until separately
+   validated.
 
 ## Active installer target
 

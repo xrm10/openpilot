@@ -70,7 +70,7 @@ const sectionMeta = {
 };
 
 const defaultProfile = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -118,6 +118,23 @@ const defaultProfile = {
     confirmationSound: true,
     confirmationRequireTick: true,
     navStartConfirmPopup: true,
+    roadEntryPolicy: "full-stop-confirm",
+    mergeCheckMode: "stop-clear-gap-confirm",
+    signReviewMode: "log-all",
+    signLearningMode: "review-only",
+    roadEntryStopRequired: true,
+    roadEntryCarCheckRequired: true,
+    roadEntrySignCheckRequired: true,
+    roadEntryDriverConfirmRequired: true,
+    roundaboutStopRequired: true,
+    roundaboutCarCheckRequired: true,
+    roundaboutSignCheckRequired: true,
+    roundaboutDriverConfirmRequired: true,
+    signDetectionLogging: true,
+    signPromptOnStop: true,
+    signPromptOnRoundabout: true,
+    signPromptOnMerge: true,
+    signLearningReviewOnly: true,
     lwcMode: "comfort",
     lwcLaneWidthMode: "camera-estimate",
     lwcRoadEdgeMode: "guarded",
@@ -166,9 +183,9 @@ const defaultProfile = {
     navMapSourceMode: "car-screen-map",
     cameraFusionMode: "map-camera-agree",
     navSteeringMode: "auto-confirmed-review",
-    roundaboutPolicy: "yield-and-prompt",
+    roundaboutPolicy: "full-stop-yield-confirm",
     uTurnPolicy: "closed-course-only",
-    exitLanePolicy: "early-confirm",
+    exitLanePolicy: "stop-before-merge",
     driverConfirmMode: "required",
     navRequireSignal: true,
     navRequireDriverNudge: false,
@@ -245,6 +262,11 @@ const defaultProfile = {
     fasterLaneSpeedDelta: 7,
     trafficGapMin: 3.5,
     trafficLookaheadDistance: 0.6,
+    roadEntryStopTime: 2.5,
+    roadEntryClearGap: 5,
+    roundaboutStopTime: 2.5,
+    roundaboutClearGap: 5,
+    signConfidenceGate: 80,
     lwcLaneWidth: 3.7,
     lwcLeftCushion: 0.45,
     lwcRightCushion: 0.45,
@@ -276,6 +298,7 @@ const defaultSyncState = {
   lastSyncAt: null,
   lastError: "",
   sshStatus: "not checked",
+  safetyEventCount: 0,
   pending: [],
   device: {
     name: "comma four",
@@ -346,6 +369,10 @@ const selectBindings = [
   ["trafficPlannerMode", ["controllers", "trafficPlannerMode"]],
   ["fasterLaneMode", ["controllers", "fasterLaneMode"]],
   ["trafficManeuverMode", ["controllers", "trafficManeuverMode"]],
+  ["roadEntryPolicy", ["controllers", "roadEntryPolicy"]],
+  ["mergeCheckMode", ["controllers", "mergeCheckMode"]],
+  ["signReviewMode", ["controllers", "signReviewMode"]],
+  ["signLearningMode", ["controllers", "signLearningMode"]],
   ["lwcMode", ["controllers", "lwcMode"]],
   ["lwcLaneWidthMode", ["controllers", "lwcLaneWidthMode"]],
   ["lwcRoadEdgeMode", ["controllers", "lwcRoadEdgeMode"]],
@@ -413,6 +440,19 @@ const checkboxBindings = [
   ["confirmationSound", ["controllers", "confirmationSound"]],
   ["confirmationRequireTick", ["controllers", "confirmationRequireTick"]],
   ["navStartConfirmPopup", ["controllers", "navStartConfirmPopup"]],
+  ["roadEntryStopRequired", ["controllers", "roadEntryStopRequired"]],
+  ["roadEntryCarCheckRequired", ["controllers", "roadEntryCarCheckRequired"]],
+  ["roadEntrySignCheckRequired", ["controllers", "roadEntrySignCheckRequired"]],
+  ["roadEntryDriverConfirmRequired", ["controllers", "roadEntryDriverConfirmRequired"]],
+  ["roundaboutStopRequired", ["controllers", "roundaboutStopRequired"]],
+  ["roundaboutCarCheckRequired", ["controllers", "roundaboutCarCheckRequired"]],
+  ["roundaboutSignCheckRequired", ["controllers", "roundaboutSignCheckRequired"]],
+  ["roundaboutDriverConfirmRequired", ["controllers", "roundaboutDriverConfirmRequired"]],
+  ["signDetectionLogging", ["controllers", "signDetectionLogging"]],
+  ["signPromptOnStop", ["controllers", "signPromptOnStop"]],
+  ["signPromptOnRoundabout", ["controllers", "signPromptOnRoundabout"]],
+  ["signPromptOnMerge", ["controllers", "signPromptOnMerge"]],
+  ["signLearningReviewOnly", ["controllers", "signLearningReviewOnly"]],
   ["trafficAutoManeuverBlock", ["controllers", "trafficAutoManeuverBlock"]],
   ["trafficRequireConfirmation", ["controllers", "trafficRequireConfirmation"]],
   ["trafficRequireSignal", ["controllers", "trafficRequireSignal"]],
@@ -493,6 +533,11 @@ const rangeBindings = [
   { id: "fasterLaneSpeedDelta", path: ["tuning", "fasterLaneSpeedDelta"], min: 3, max: 15, valueId: "fasterLaneSpeedDeltaValue", format: (v) => `${v} mph` },
   { id: "trafficGapMin", path: ["tuning", "trafficGapMin"], min: 2, max: 6, valueId: "trafficGapMinValue", format: (v) => `${Number(v).toFixed(1)}s` },
   { id: "trafficLookaheadDistance", path: ["tuning", "trafficLookaheadDistance"], min: 0.2, max: 1.5, valueId: "trafficLookaheadDistanceValue", format: (v) => `${Number(v).toFixed(1)} mi` },
+  { id: "roadEntryStopTime", path: ["tuning", "roadEntryStopTime"], min: 1, max: 8, valueId: "roadEntryStopTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "roadEntryClearGap", path: ["tuning", "roadEntryClearGap"], min: 2, max: 10, valueId: "roadEntryClearGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "roundaboutStopTime", path: ["tuning", "roundaboutStopTime"], min: 1, max: 8, valueId: "roundaboutStopTimeValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "roundaboutClearGap", path: ["tuning", "roundaboutClearGap"], min: 2, max: 10, valueId: "roundaboutClearGapValue", format: (v) => `${Number(v).toFixed(1)}s` },
+  { id: "signConfidenceGate", path: ["tuning", "signConfidenceGate"], min: 50, max: 95, valueId: "signConfidenceGateValue", format: (v) => `${v}%` },
   { id: "lwcLaneWidth", path: ["tuning", "lwcLaneWidth"], min: 3, max: 4.4, valueId: "lwcLaneWidthValue", format: (v) => `${Number(v).toFixed(1)} m` },
   { id: "lwcLeftCushion", path: ["tuning", "lwcLeftCushion"], min: 0.2, max: 1, valueId: "lwcLeftCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
   { id: "lwcRightCushion", path: ["tuning", "lwcRightCushion"], min: 0.2, max: 1, valueId: "lwcRightCushionValue", format: (v) => `${Number(v).toFixed(2)} m` },
@@ -504,6 +549,7 @@ let syncState = loadSyncState();
 let sectionState = loadSectionState();
 let syncDebounceTimer = null;
 let heartbeatTimer = null;
+let activeConfirmation = null;
 
 const els = {
   sectionEyebrow: document.querySelector("#sectionEyebrow"),
@@ -555,6 +601,7 @@ const els = {
   topLastSeen: document.querySelector("#topLastSeen"),
   topPendingCount: document.querySelector("#topPendingCount"),
   topRouteState: document.querySelector("#topRouteState"),
+  topSafetyEventCount: document.querySelector("#topSafetyEventCount"),
   setOffroad: document.querySelector("#setOffroad"),
   setOnroad: document.querySelector("#setOnroad"),
   syncNow: document.querySelector("#syncNow"),
@@ -590,6 +637,9 @@ const els = {
   gccMapUpload: document.querySelector("#gccMapUpload"),
   testFasterLanePrompt: document.querySelector("#testFasterLanePrompt"),
   testNavStartPrompt: document.querySelector("#testNavStartPrompt"),
+  testRoadEntryPrompt: document.querySelector("#testRoadEntryPrompt"),
+  testRoundaboutPrompt: document.querySelector("#testRoundaboutPrompt"),
+  testSignPrompt: document.querySelector("#testSignPrompt"),
   confirmationModal: document.querySelector("#confirmationModal"),
   confirmationKicker: document.querySelector("#confirmationKicker"),
   confirmationTitle: document.querySelector("#confirmationTitle"),
@@ -677,6 +727,33 @@ function normalizeProfile(input) {
     });
   }
 
+  if (sourceSchema < 10) {
+    Object.assign(inputControllers, {
+      roadEntryPolicy: "full-stop-confirm",
+      mergeCheckMode: "stop-clear-gap-confirm",
+      roundaboutPolicy: "full-stop-yield-confirm",
+      exitLanePolicy: "stop-before-merge",
+      signReviewMode: "log-all",
+      signLearningMode: "review-only",
+      roadEntryStopRequired: true,
+      roadEntryCarCheckRequired: true,
+      roadEntrySignCheckRequired: true,
+      roadEntryDriverConfirmRequired: true,
+      roundaboutStopRequired: true,
+      roundaboutCarCheckRequired: true,
+      roundaboutSignCheckRequired: true,
+      roundaboutDriverConfirmRequired: true,
+      signDetectionLogging: true,
+      signPromptOnStop: true,
+      signPromptOnRoundabout: true,
+      signPromptOnMerge: true,
+      signLearningReviewOnly: true,
+      confirmationPromptEnabled: true,
+      confirmationSound: true,
+      confirmationRequireTick: true
+    });
+  }
+
   return {
     ...next,
     ...input,
@@ -721,6 +798,7 @@ function normalizeSyncState(input) {
     lastSyncAt: Number(input.lastSyncAt) || null,
     lastError: String(input.lastError || ""),
     sshStatus: String(input.sshStatus || next.sshStatus),
+    safetyEventCount: clamp(input.safetyEventCount ?? next.safetyEventCount, 0, 9999),
     pending: Array.isArray(input.pending) ? input.pending.slice(0, 60) : [],
     device: {
       ...next.device,
@@ -826,6 +904,9 @@ function computeSafetyScore() {
   if (!c.trafficAutoManeuverBlock) score -= 18;
   if (!c.trafficBlindSpotBlock) score -= 18;
   if (!c.trafficRequireSignal && c.fasterLaneMode !== "off") score -= 10;
+  if (!c.roadEntryStopRequired || !c.roadEntryCarCheckRequired || !c.roadEntrySignCheckRequired) score -= 18;
+  if (!c.roundaboutStopRequired || !c.roundaboutCarCheckRequired || !c.roundaboutSignCheckRequired) score -= 18;
+  if (!c.signDetectionLogging || !c.signLearningReviewOnly) score -= 14;
   if (c.lwcMode === "review") score -= 4;
   if (c.labMode === "closed-course") score -= 4;
   if (c.safetyEnvelope === "expanded-review") score -= 8;
@@ -852,6 +933,11 @@ function computeSafetyScore() {
   if (Number(t.navManeuverSpeed) > 45 && c.navMode !== "off") score -= 6;
   if (Number(t.fasterLaneSpeedDelta) < 5 && c.fasterLaneMode !== "off") score -= 5;
   if (Number(t.trafficGapMin) < 3 && c.fasterLaneMode !== "off") score -= 10;
+  if (Number(t.roadEntryStopTime) < 2) score -= 8;
+  if (Number(t.roadEntryClearGap) < 4) score -= 10;
+  if (Number(t.roundaboutStopTime) < 2) score -= 8;
+  if (Number(t.roundaboutClearGap) < 4) score -= 10;
+  if (Number(t.signConfidenceGate) < 75) score -= 8;
   if (Number(t.lwcTrafficBuffer) < 1 && c.lwcMode !== "off") score -= 6;
   if (profile.deviceTarget !== "comma four") score -= 8;
 
@@ -915,6 +1001,16 @@ function enforceGuardrails() {
   profile.controllers.confirmationRequireTick = true;
   profile.controllers.fasterLaneConfirmPopup = true;
   profile.controllers.navStartConfirmPopup = true;
+  profile.controllers.roadEntryStopRequired = true;
+  profile.controllers.roadEntryCarCheckRequired = true;
+  profile.controllers.roadEntrySignCheckRequired = true;
+  profile.controllers.roadEntryDriverConfirmRequired = true;
+  profile.controllers.roundaboutStopRequired = true;
+  profile.controllers.roundaboutCarCheckRequired = true;
+  profile.controllers.roundaboutSignCheckRequired = true;
+  profile.controllers.roundaboutDriverConfirmRequired = true;
+  profile.controllers.signDetectionLogging = true;
+  profile.controllers.signLearningReviewOnly = true;
   profile.controllers.navBlindSpotBlock = true;
   profile.controllers.navMapCameraAgree = true;
 
@@ -1079,6 +1175,7 @@ function renderConnection() {
   setText(els.topLastSeen, lastSeen);
   setText(els.topPendingCount, String(pendingCount));
   setText(els.topRouteState, routeLabel);
+  setText(els.topSafetyEventCount, String(syncState.safetyEventCount || 0));
   setText(els.demoOnlineToggle, profile.connection?.mode === "demo"
     ? status === "online" || status === "syncing" ? "Demo offline" : "Demo online"
     : "Use demo bridge");
@@ -1302,11 +1399,13 @@ async function refreshConnection(showMessage = true) {
       syncState.device = { ...syncState.device, ...(status.device || status) };
       if (status.route) syncState.route = normalizeRouteState(status.route);
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+      syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
       markOffline(status.message || "");
       return false;
     }
     if (status.route) syncState.route = normalizeRouteState(status.route);
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+    syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
     markOnline(status.device || status);
     await refreshCarRoute(false);
     if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
@@ -1641,11 +1740,20 @@ async function syncMapPackage() {
   }
 }
 
-function showConfirmationPrompt(kind, title, message) {
+function showConfirmationPrompt(kind, title, message, details = {}) {
   if (!profile.controllers.confirmationPromptEnabled) {
     showToast("Confirmation popup disabled");
     return;
   }
+  activeConfirmation = {
+    id: `confirm-${Date.now()}`,
+    kind,
+    title,
+    message,
+    details,
+    openedAt: new Date().toISOString()
+  };
+  logSafetyEvent("confirmation-opened", kind, details);
   setText(els.confirmationKicker, kind);
   setText(els.confirmationTitle, title);
   setText(els.confirmationMessage, message);
@@ -1657,11 +1765,72 @@ function showConfirmationPrompt(kind, title, message) {
 }
 
 function hideConfirmationPrompt(result) {
+  const confirmation = activeConfirmation;
+  activeConfirmation = null;
   if (els.confirmationModal) {
     els.confirmationModal.classList.remove("show");
     els.confirmationModal.setAttribute("aria-hidden", "true");
   }
+  if (confirmation) {
+    logSafetyEvent(result === "accepted" ? "confirmation-accepted" : "confirmation-rejected", confirmation.kind, {
+      ...confirmation.details,
+      confirmationId: confirmation.id,
+      openedAt: confirmation.openedAt
+    });
+  }
   showToast(result === "accepted" ? "Confirmed with tick" : "Confirmation canceled");
+}
+
+async function logSafetyEvent(event, kind, details = {}) {
+  const payload = {
+    type: "xrm10.safety.event",
+    event,
+    kind,
+    generatedAt: new Date().toISOString(),
+    source: "xrm10-control-center",
+    route: normalizeRouteState(syncState.route),
+    mapPackage: normalizeMapPackageState(syncState.mapPackage),
+    profile: {
+      schemaVersion: profile.schemaVersion,
+      navMode: profile.controllers.navMode,
+      navSteeringMode: profile.controllers.navSteeringMode,
+      roadEntryPolicy: profile.controllers.roadEntryPolicy,
+      mergeCheckMode: profile.controllers.mergeCheckMode,
+      roundaboutPolicy: profile.controllers.roundaboutPolicy,
+      signReviewMode: profile.controllers.signReviewMode,
+      signLearningMode: profile.controllers.signLearningMode
+    },
+    thresholds: {
+      roadEntryStopTime: profile.tuning.roadEntryStopTime,
+      roadEntryClearGap: profile.tuning.roadEntryClearGap,
+      roundaboutStopTime: profile.tuning.roundaboutStopTime,
+      roundaboutClearGap: profile.tuning.roundaboutClearGap,
+      signConfidenceGate: profile.tuning.signConfidenceGate
+    },
+    details,
+    policy: {
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      driverConfirmationRequired: true,
+      publicRoadAutonomyEnabled: false
+    }
+  };
+
+  if (profile.connection?.mode !== "http") return;
+  try {
+    const baseUrl = bridgeBaseUrl();
+    if (!baseUrl) return;
+    const response = await fetchJson(`${baseUrl}/api/xrm10/safety-event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    syncState.safetyEventCount = clamp(response.eventCount ?? syncState.safetyEventCount, 0, 9999);
+    saveSyncState();
+    renderConnection();
+  } catch {
+    // Safety event logging should not block the UI; failures remain visible in bridge logs.
+  }
 }
 
 function playConfirmationSound() {
@@ -1973,6 +2142,13 @@ function computeNavReadiness() {
   addLabCheck(checks, c.navRequireDriverNudge || hasUiConfirm || c.navSteeringMode === "advisory", "Driver confirmation gate", "Steering plans require driver nudge or UI tick confirmation outside advisory mode.", 18);
   addLabCheck(checks, c.navRequireSignal || !["highway-exit", "highway-merge", "lane-route"].includes(c.maneuverType), "Signal gate", "Lane-route maneuvers require turn signal gate.", 12);
   addLabCheck(checks, c.navBlindSpotBlock, "Blind spot block", "Blind spot block must stay enabled.", 18);
+  addLabCheck(checks, c.roadEntryStopRequired && c.roadEntryCarCheckRequired && c.roadEntrySignCheckRequired, "Road-entry hold", "Road entry requires full stop, cross-traffic check, and sign check.", 18);
+  addLabCheck(checks, c.roadEntryDriverConfirmRequired && c.confirmationRequireTick, "Road-entry confirmation", "Road entry requires driver tick confirmation.", 18);
+  addLabCheck(checks, Number(t.roadEntryStopTime) >= 2 && Number(t.roadEntryClearGap) >= 4, "Road-entry timing", "Road entry should hold at least 2.0s and require at least 4.0s clear gap.", 12);
+  addLabCheck(checks, c.roundaboutStopRequired && c.roundaboutCarCheckRequired && c.roundaboutSignCheckRequired, "Roundabout hold", "Roundabout entry requires full stop, circulating-traffic check, and sign check.", 18);
+  addLabCheck(checks, c.roundaboutDriverConfirmRequired && c.confirmationRequireTick, "Roundabout confirmation", "Roundabout entry requires driver tick confirmation.", 18);
+  addLabCheck(checks, Number(t.roundaboutStopTime) >= 2 && Number(t.roundaboutClearGap) >= 4, "Roundabout timing", "Roundabout entry should hold at least 2.0s and require at least 4.0s clear gap.", 12);
+  addLabCheck(checks, c.signDetectionLogging && c.signLearningReviewOnly && Number(t.signConfidenceGate) >= 75, "Traffic sign review", "Signs must be logged for review only with confidence gate at or above 75%.", 14);
   addLabCheck(checks, c.maneuverType !== "u-turn" || c.uTurnPolicy !== "block", "U-turn policy", "U-turn is currently blocked by policy.", 20);
   addLabCheck(checks, c.maneuverType !== "u-turn" || c.navNoAutoUturnRoad, "U-turn road gate", "U-turn must stay blocked outside closed-course review.", 18);
   addLabCheck(checks, c.maneuverType !== "roundabout" || Number(t.navRoundaboutYieldGap) >= 3.5, "Roundabout yield gap", "Roundabout yield gap should be at least 3.5s.", 14);
@@ -2059,6 +2235,10 @@ function activeControllerCount() {
     "trafficPlannerMode",
     "fasterLaneMode",
     "trafficManeuverMode",
+    "roadEntryPolicy",
+    "mergeCheckMode",
+    "signReviewMode",
+    "signLearningMode",
     "lwcMode",
     "lwcLaneWidthMode",
     "lwcRoadEdgeMode",
@@ -2151,6 +2331,24 @@ function labelFor(group, value) {
       off: "Off",
       suggest: "Suggest",
       "driver-confirmed": "Driver confirmed"
+    },
+    roadEntryPolicy: {
+      "full-stop-confirm": "Full stop confirm",
+      "hold-until-clear": "Hold until clear",
+      "prompt-only": "Prompt only",
+      blocked: "Blocked"
+    },
+    mergeCheckMode: {
+      "stop-clear-gap-confirm": "Stop, clear gap, confirm",
+      "clear-gap-confirm": "Clear gap confirm",
+      "prompt-only": "Prompt only",
+      blocked: "Blocked"
+    },
+    signReviewMode: {
+      "log-all": "Log all",
+      "prompt-critical": "Prompt critical",
+      "stop-signs-only": "Stop signs only",
+      off: "Off"
     },
     navMode: {
       off: "Off",
@@ -2764,7 +2962,13 @@ function wireActions() {
     showConfirmationPrompt(
       "Faster lane",
       "Confirm faster-lane suggestion",
-      "The planner found a faster lane. Confirm only after mirrors, blind spot, signal, and camera agreement are clear."
+      "The planner found a faster lane. Confirm only after mirrors, blind spot, signal, and camera agreement are clear.",
+      {
+        maneuver: "faster-lane",
+        laneChangeMode: profile.controllers.laneChangeMode,
+        fasterLaneMode: profile.controllers.fasterLaneMode,
+        driverConfirmationRequired: true
+      }
     );
   });
   els.testNavStartPrompt?.addEventListener("click", () => {
@@ -2772,7 +2976,60 @@ function wireActions() {
     showConfirmationPrompt(
       "Route start",
       "Confirm route-start review",
-      "Car-screen maps has a destination. Confirm before starting the route steering review plan."
+      "Car-screen maps has a destination. Confirm before starting the route steering review plan.",
+      {
+        maneuver: "route-start",
+        routeSource: profile.controllers.mapRouteSourceMode,
+        destination: syncState.route.destination || "",
+        driverConfirmationRequired: true
+      }
+    );
+  });
+  els.testRoadEntryPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Road entry",
+      "Stop and check before road entry",
+      "Hold at a full stop, check cross traffic and signs, then use the tick only when the road-entry review is clear.",
+      {
+        maneuver: "road-entry",
+        stopRequired: profile.controllers.roadEntryStopRequired,
+        carCheckRequired: profile.controllers.roadEntryCarCheckRequired,
+        signCheckRequired: profile.controllers.roadEntrySignCheckRequired,
+        clearGapSeconds: profile.tuning.roadEntryClearGap,
+        driverConfirmationRequired: profile.controllers.roadEntryDriverConfirmRequired
+      }
+    );
+  });
+  els.testRoundaboutPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Roundabout",
+      "Stop and yield before roundabout",
+      "Hold before the roundabout, check circulating traffic and signs, then use the tick only after the clear-gap review passes.",
+      {
+        maneuver: "roundabout-entry",
+        stopRequired: profile.controllers.roundaboutStopRequired,
+        carCheckRequired: profile.controllers.roundaboutCarCheckRequired,
+        signCheckRequired: profile.controllers.roundaboutSignCheckRequired,
+        clearGapSeconds: profile.tuning.roundaboutClearGap,
+        driverConfirmationRequired: profile.controllers.roundaboutDriverConfirmRequired
+      }
+    );
+  });
+  els.testSignPrompt?.addEventListener("click", () => {
+    readForm();
+    showConfirmationPrompt(
+      "Traffic sign",
+      "Confirm sign review",
+      "Sign detection is review-only. Confirm that stop, yield, roundabout, speed, and lane signs were logged before any driving decision.",
+      {
+        maneuver: "sign-review",
+        signReviewMode: profile.controllers.signReviewMode,
+        signLearningMode: profile.controllers.signLearningMode,
+        confidenceGate: profile.tuning.signConfidenceGate,
+        learningReviewOnly: profile.controllers.signLearningReviewOnly
+      }
     );
   });
   els.confirmationAccept?.addEventListener("click", () => hideConfirmationPrompt("accepted"));
