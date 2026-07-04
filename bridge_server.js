@@ -14,6 +14,8 @@ const stateDir = path.join(root, ".sync_state");
 const latestProfilePath = path.join(stateDir, "latest_profile.json");
 const sectionStatusPath = path.join(stateDir, "section_status.json");
 const carRoutePath = path.join(stateDir, "car_route.json");
+const navDrivePlanPath = path.join(stateDir, "nav_drive_plan.json");
+const navDriveEventsPath = path.join(stateDir, "nav_drive_events.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
 const safetyEventsPath = path.join(stateDir, "safety_events.json");
 const appliedControlsPath = path.join(stateDir, "applied_controls.json");
@@ -192,7 +194,16 @@ const sectionCapabilities = {
     ["carScreenRouteSync", "Stage car-screen route intent", "route-intent-only"],
     ["carScreenRouteAutoStart", "Auto-start when car route is detected", "route-intent-only"],
     ["carScreenRouteNavPilot", "Show route intent on comma", "route-intent-only"],
-    ["carScreenRouteRequireConfirm", "Advisory-only route intent", "route-intent-only"]
+    ["carScreenRouteRequireConfirm", "Advisory-only route intent", "route-intent-only"],
+    ["navPlanPrompts", "Nav Drive Plan prompts", "review-only"],
+    ["navPlanSigns", "Sign checkpoints", "review-only"],
+    ["navPlanTrafficLights", "Traffic light checkpoints", "review-only"],
+    ["navPlanRoundabouts", "Roundabout yield plan", "review-only"],
+    ["navPlanSpeedBumps", "Speed bump slowdown plan", "review-only"],
+    ["navPlanLaneSuggestions", "Faster-lane suggestion prompts", "review-only"],
+    ["navPlanReplayOnly", "Replay before road testing", "review-only"],
+    ["navPlanClosedCourseOnly", "Closed-course physical testing", "review-only"],
+    ["navPlanLearningReview", "Learning review logs", "review-only"]
   ],
   software: [
     ["installTarget", "Install target URL", "live-safe"],
@@ -428,6 +439,149 @@ function normalizeCarRoute(route = {}) {
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : next.confidence,
     updatedAt: route.updatedAt || null
   };
+}
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function defaultNavDrivePlan() {
+  return {
+    active: false,
+    status: "waiting",
+    mode: "advisory-simulation",
+    routeId: "",
+    destination: "",
+    nextAction: "Waiting for route",
+    confidence: 0,
+    updatedAt: null,
+    simulatedAt: null,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps: []
+  };
+}
+
+function readNavDrivePlan() {
+  try {
+    return normalizeNavDrivePlan(JSON.parse(fs.readFileSync(navDrivePlanPath, "utf8")));
+  } catch {
+    return defaultNavDrivePlan();
+  }
+}
+
+function writeNavDrivePlan(plan) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(navDrivePlanPath, JSON.stringify(normalizeNavDrivePlan(plan), null, 2));
+}
+
+function normalizeNavDriveStep(step = {}, index = 0) {
+  const safeIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const title = String(step.title || `Drive plan step ${safeIndex + 1}`);
+  const id = String(step.id || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `step-${safeIndex + 1}`);
+  const order = Number(step.order ?? safeIndex + 1);
+  return {
+    id,
+    order: Number.isFinite(order) ? order : safeIndex + 1,
+    type: String(step.type || "review"),
+    title,
+    detail: String(step.detail || ""),
+    status: String(step.status || "pending"),
+    confidence: clampNumber(step.confidence ?? 75, 0, 100),
+    requiresConfirmation: step.requiresConfirmation !== false,
+    logKind: String(step.logKind || step.type || "review")
+  };
+}
+
+function normalizeNavDrivePlan(plan = {}) {
+  const next = defaultNavDrivePlan();
+  const steps = Array.isArray(plan.steps) ? plan.steps.slice(0, 14).map(normalizeNavDriveStep) : [];
+  return {
+    ...next,
+    ...plan,
+    active: Boolean(plan.active && steps.length),
+    status: String(plan.status || (steps.length ? "ready" : next.status)),
+    mode: String(plan.mode || next.mode),
+    routeId: String(plan.routeId || ""),
+    destination: String(plan.destination || ""),
+    nextAction: String(plan.nextAction || steps[0]?.title || next.nextAction),
+    confidence: clampNumber(plan.confidence ?? next.confidence, 0, 100),
+    updatedAt: plan.updatedAt || null,
+    simulatedAt: plan.simulatedAt || null,
+    policy: {
+      ...next.policy,
+      ...(plan.policy || {}),
+      routeIntentOnly: true,
+      simulationOnly: plan.policy?.simulationOnly !== false,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  };
+}
+
+function readNavDriveEvents() {
+  try {
+    const events = JSON.parse(fs.readFileSync(navDriveEventsPath, "utf8"));
+    return normalizeNavDriveEvents(events);
+  } catch {
+    return [];
+  }
+}
+
+function writeNavDriveEvents(events) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(navDriveEventsPath, JSON.stringify(normalizeNavDriveEvents(events).slice(-300), null, 2));
+}
+
+function normalizeNavDriveEvents(events = []) {
+  return Array.isArray(events)
+    ? events.slice(-300).map((event) => ({
+        receivedAt: event.receivedAt || new Date().toISOString(),
+        generatedAt: event.generatedAt || null,
+        type: String(event.type || "xrm10.nav.drive.event"),
+        event: String(event.event || "nav-drive-event"),
+        source: String(event.source || "xrm10-control-center"),
+        route: event.route || null,
+        step: event.step ? normalizeNavDriveStep(event.step) : null,
+        gps: event.gps || {},
+        speed: event.speed || {},
+        cameraState: event.cameraState || {},
+        policy: {
+          ...(event.policy || {}),
+          logOnly: true,
+          routeIntentOnly: true,
+          simulationOnly: true,
+          closedCourseOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      }))
+    : [];
+}
+
+function assertNavDrivePolicy(policy = {}) {
+  if (
+    policy.liveVehicleApplyAllowed !== false ||
+    policy.publicRoadAutonomyEnabled === true ||
+    policy.automaticCodeChangesAllowed === true ||
+    policy.closedCourseOnly !== true
+  ) {
+    throw new Error("Nav Drive Plan accepts advisory/replay/closed-course logs only. Live vehicle control and automatic code changes are blocked.");
+  }
 }
 
 function defaultMapPackage() {
@@ -938,6 +1092,8 @@ const server = http.createServer(async (req, res) => {
       device: await currentDeviceAsync(latestProfile),
       latestProfile: latestProfileMeta(),
       route,
+      navDrivePlan: readNavDrivePlan(),
+      navDriveEvents: readNavDriveEvents(),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
       capabilities: buildCapabilityReport(latestProfile)
@@ -1105,6 +1261,89 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid car-route payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/nav-drive-plan") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      plan: readNavDrivePlan(),
+      events: readNavDriveEvents()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/nav-drive-plan") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      assertNavDrivePolicy(payload.policy || payload.plan?.policy || {});
+
+      const plan = normalizeNavDrivePlan({
+        ...(payload.plan || {}),
+        updatedAt: new Date().toISOString()
+      });
+      writeNavDrivePlan(plan);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "nav-drive-plan-staged",
+        liveVehicleApplyAllowed: false,
+        publicRoadAutonomyEnabled: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        plan,
+        eventCount: readNavDriveEvents().length
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid nav-drive-plan payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/nav-drive-events") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      events: readNavDriveEvents()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/nav-drive-event") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      assertNavDrivePolicy(payload.policy || {});
+
+      const events = readNavDriveEvents();
+      const event = normalizeNavDriveEvents([{
+        ...payload,
+        receivedAt: new Date().toISOString()
+      }])[0];
+      events.push(event);
+      writeNavDriveEvents(events);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "nav-drive-event-logged",
+        liveVehicleApplyAllowed: false,
+        publicRoadAutonomyEnabled: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        eventCount: readNavDriveEvents().length,
+        events: readNavDriveEvents()
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid nav-drive-event payload"
       });
     }
     return;

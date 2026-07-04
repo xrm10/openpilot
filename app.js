@@ -61,7 +61,7 @@ const sectionMeta = {
 const visibleSections = new Set(Object.keys(sectionMeta));
 
 const defaultProfile = {
-  schemaVersion: 12,
+  schemaVersion: 13,
   activeSection: "home",
   profileName: "XRM10 Model 3 HW4",
   vehicleModel: "Tesla Model 3",
@@ -171,6 +171,16 @@ const defaultProfile = {
     carScreenRouteAutoStart: true,
     carScreenRouteNavPilot: true,
     carScreenRouteRequireConfirm: true,
+    navPlanPrompts: true,
+    navPlanSound: true,
+    navPlanSigns: true,
+    navPlanTrafficLights: true,
+    navPlanRoundabouts: true,
+    navPlanSpeedBumps: true,
+    navPlanLaneSuggestions: true,
+    navPlanReplayOnly: true,
+    navPlanClosedCourseOnly: true,
+    navPlanLearningReview: true,
     speedLimitSource: "map-vision",
     mapRegion: "gcc-uae-detailed",
     gccMapPackMode: "uae-detailed-priority",
@@ -336,6 +346,27 @@ const defaultSyncState = {
     confidence: 0,
     updatedAt: null
   },
+  navDrivePlan: {
+    active: false,
+    status: "waiting",
+    mode: "advisory-simulation",
+    routeId: "",
+    destination: "",
+    nextAction: "Waiting for route",
+    confidence: 0,
+    updatedAt: null,
+    simulatedAt: null,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps: []
+  },
+  navDriveEvents: [],
   mapPackage: {
     status: "not loaded",
     name: "UAE detailed + GCC all",
@@ -501,6 +532,16 @@ const checkboxBindings = [
   ["carScreenRouteAutoStart", ["controllers", "carScreenRouteAutoStart"]],
   ["carScreenRouteNavPilot", ["controllers", "carScreenRouteNavPilot"]],
   ["carScreenRouteRequireConfirm", ["controllers", "carScreenRouteRequireConfirm"]],
+  ["navPlanPrompts", ["controllers", "navPlanPrompts"]],
+  ["navPlanSound", ["controllers", "navPlanSound"]],
+  ["navPlanSigns", ["controllers", "navPlanSigns"]],
+  ["navPlanTrafficLights", ["controllers", "navPlanTrafficLights"]],
+  ["navPlanRoundabouts", ["controllers", "navPlanRoundabouts"]],
+  ["navPlanSpeedBumps", ["controllers", "navPlanSpeedBumps"]],
+  ["navPlanLaneSuggestions", ["controllers", "navPlanLaneSuggestions"]],
+  ["navPlanReplayOnly", ["controllers", "navPlanReplayOnly"]],
+  ["navPlanClosedCourseOnly", ["controllers", "navPlanClosedCourseOnly"]],
+  ["navPlanLearningReview", ["controllers", "navPlanLearningReview"]],
   ["uaeDetailedMap", ["controllers", "uaeDetailedMap"]],
   ["gccAllMaps", ["controllers", "gccAllMaps"]],
   ["gccBahrainMap", ["controllers", "gccBahrainMap"]],
@@ -676,6 +717,16 @@ const els = {
   readCarRoute: document.querySelector("#readCarRoute"),
   setDemoCarRoute: document.querySelector("#setDemoCarRoute"),
   useCarRouteForNav: document.querySelector("#useCarRouteForNav"),
+  navDrivePlanStatus: document.querySelector("#navDrivePlanStatus"),
+  navDriveNext: document.querySelector("#navDriveNext"),
+  navDriveConfidence: document.querySelector("#navDriveConfidence"),
+  navDriveMode: document.querySelector("#navDriveMode"),
+  navDriveLogCount: document.querySelector("#navDriveLogCount"),
+  navDrivePlanList: document.querySelector("#navDrivePlanList"),
+  buildNavDrivePlan: document.querySelector("#buildNavDrivePlan"),
+  runNavSimulation: document.querySelector("#runNavSimulation"),
+  logNavPrompt: document.querySelector("#logNavPrompt"),
+  exportNavDriveLog: document.querySelector("#exportNavDriveLog"),
   gccMapPackageStatus: document.querySelector("#gccMapPackageStatus"),
   gccMapPackageFiles: document.querySelector("#gccMapPackageFiles"),
   uploadGccMaps: document.querySelector("#uploadGccMaps"),
@@ -832,6 +883,21 @@ function normalizeProfile(input) {
     });
   }
 
+  if (sourceSchema < 13) {
+    Object.assign(inputControllers, {
+      navPlanPrompts: true,
+      navPlanSound: true,
+      navPlanSigns: true,
+      navPlanTrafficLights: true,
+      navPlanRoundabouts: true,
+      navPlanSpeedBumps: true,
+      navPlanLaneSuggestions: true,
+      navPlanReplayOnly: true,
+      navPlanClosedCourseOnly: true,
+      navPlanLearningReview: true
+    });
+  }
+
   const inputConnection = {
     ...(input.connection || {})
   };
@@ -892,6 +958,8 @@ function normalizeSyncState(input) {
       ...(input.device || {})
     },
     route: normalizeRouteState(input.route || next.route),
+    navDrivePlan: normalizeNavDrivePlan(input.navDrivePlan || next.navDrivePlan),
+    navDriveEvents: normalizeNavDriveEvents(input.navDriveEvents || next.navDriveEvents),
     mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
     capabilities: input.capabilities || next.capabilities
   };
@@ -918,6 +986,75 @@ function normalizeRouteState(input = {}) {
     confidence: clamp(input.confidence ?? next.confidence, 0, 100),
     updatedAt: input.updatedAt || null
   };
+}
+
+function normalizeNavDrivePlan(input = {}) {
+  const next = clone(defaultSyncState.navDrivePlan);
+  const steps = Array.isArray(input.steps) ? input.steps.slice(0, 14).map(normalizeNavDriveStep) : [];
+  const confidence = Number(input.confidence ?? next.confidence);
+  return {
+    ...next,
+    ...input,
+    active: Boolean(input.active && steps.length),
+    status: String(input.status || (steps.length ? "ready" : next.status)),
+    mode: String(input.mode || next.mode),
+    routeId: String(input.routeId || ""),
+    destination: String(input.destination || ""),
+    nextAction: String(input.nextAction || steps[0]?.title || next.nextAction),
+    confidence: Number.isFinite(confidence) ? clamp(confidence, 0, 100) : next.confidence,
+    updatedAt: input.updatedAt || null,
+    simulatedAt: input.simulatedAt || null,
+    policy: {
+      ...next.policy,
+      ...(input.policy || {}),
+      routeIntentOnly: true,
+      simulationOnly: input.policy?.simulationOnly !== false,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  };
+}
+
+function normalizeNavDriveStep(step = {}, index = 0) {
+  const title = String(step.title || `Drive plan step ${index + 1}`);
+  const safeIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const order = Number(step.order ?? safeIndex + 1);
+  return {
+    id: String(step.id || slug(title)),
+    order: Number.isFinite(order) ? order : safeIndex + 1,
+    type: String(step.type || "review"),
+    title,
+    detail: String(step.detail || ""),
+    status: String(step.status || "pending"),
+    confidence: clamp(step.confidence ?? 75, 0, 100),
+    requiresConfirmation: step.requiresConfirmation !== false,
+    logKind: String(step.logKind || step.type || "review")
+  };
+}
+
+function normalizeNavDriveEvents(input = []) {
+  return Array.isArray(input)
+    ? input.slice(-300).map((event) => ({
+        receivedAt: event.receivedAt || event.generatedAt || null,
+        generatedAt: event.generatedAt || event.receivedAt || new Date().toISOString(),
+        event: String(event.event || "nav-drive-event"),
+        route: event.route || null,
+        step: event.step || null,
+        gps: event.gps || {},
+        speed: event.speed || {},
+        cameraState: event.cameraState || {},
+        policy: {
+          ...(event.policy || {}),
+          logOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      }))
+    : [];
 }
 
 function normalizeMapPackageState(input = {}) {
@@ -1142,6 +1279,11 @@ function enforceGuardrails() {
   profile.controllers.confirmationPromptEnabled = true;
   profile.controllers.confirmationSound = true;
   profile.controllers.confirmationRequireTick = true;
+  profile.controllers.navPlanPrompts = true;
+  profile.controllers.navPlanSound = true;
+  profile.controllers.navPlanReplayOnly = true;
+  profile.controllers.navPlanClosedCourseOnly = true;
+  profile.controllers.navPlanLearningReview = true;
   profile.controllers.fasterLaneConfirmPopup = true;
   profile.controllers.navStartConfirmPopup = true;
   profile.controllers.roadEntryStopRequired = true;
@@ -1381,6 +1523,7 @@ function renderConnection() {
 
   renderCapabilitySummary();
   renderCarRoute();
+  renderNavDrivePlan();
 }
 
 function renderCapabilitySummary() {
@@ -1443,6 +1586,43 @@ function renderCarRoute() {
   if (els.openGoogleMaps) {
     els.openGoogleMaps.disabled = !routeActive && !profile.controllers.carScreenDestination && !profile.controllers.googleMapsLink;
   }
+}
+
+function renderNavDrivePlan() {
+  const plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  const events = normalizeNavDriveEvents(syncState.navDriveEvents);
+  const active = Boolean(plan.active && plan.steps.length);
+  const statusClassName = active
+    ? plan.status === "simulated" ? "pass" : "warn"
+    : plan.status === "error" ? "stop" : "warn";
+  const statusLabel = active
+    ? plan.status === "simulated" ? "Simulated" : "Ready"
+    : "Waiting";
+
+  setBadge(els.navDrivePlanStatus, statusLabel, statusClassName);
+  setText(els.navDriveNext, active ? plan.nextAction : "Waiting for route");
+  setText(els.navDriveConfidence, `${Math.round(plan.confidence)}%`);
+  setText(els.navDriveMode, plan.policy.closedCourseOnly ? "Replay + closed course" : "Simulation locked");
+  setText(els.navDriveLogCount, `${events.length} event${events.length === 1 ? "" : "s"}`);
+
+  if (!els.navDrivePlanList) return;
+  if (!active) {
+    els.navDrivePlanList.innerHTML = `<div class="queue-empty">Start a destination or build from the current route to create a drive plan.</div>`;
+    return;
+  }
+
+  els.navDrivePlanList.innerHTML = plan.steps
+    .map((step, index) => `
+      <div class="drive-plan-step">
+        <span class="drive-plan-step-icon">${index + 1}</span>
+        <div>
+          <h3>${escapeHtml(step.title)}</h3>
+          <p>${escapeHtml(step.detail)}</p>
+        </div>
+        <small>${escapeHtml(step.status)}</small>
+      </div>
+    `)
+    .join("");
 }
 
 function renderMapPackage() {
@@ -1597,6 +1777,8 @@ async function refreshConnection(showMessage = true) {
     if (status.online === false) {
       syncState.device = { ...syncState.device, ...(status.device || status) };
       if (status.route) syncState.route = normalizeRouteState(status.route);
+      if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
+      if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
       syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
       if (status.capabilities) syncState.capabilities = status.capabilities;
@@ -1604,6 +1786,8 @@ async function refreshConnection(showMessage = true) {
       return false;
     }
     if (status.route) syncState.route = normalizeRouteState(status.route);
+    if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
+    if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
     syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
     if (status.capabilities) syncState.capabilities = status.capabilities;
@@ -1805,6 +1989,7 @@ async function startAppRoute() {
       if (response.device) markOnline(response.device);
       saveSyncState();
       renderConnection();
+      await buildNavDrivePlan(false);
       markSectionChanged("maps", "carScreenDestination");
       showToast("Destination started");
       return;
@@ -1825,6 +2010,7 @@ async function startAppRoute() {
   syncState.route = buildLocalCarRoute(destination, "app-route", routeInput);
   saveSyncState();
   renderConnection();
+  await buildNavDrivePlan(false);
   markSectionChanged("maps", "carScreenDestination");
   showToast("Destination staged locally");
 }
@@ -1883,6 +2069,10 @@ async function clearAppRoute() {
   }
 
   saveSyncState();
+  syncState.navDrivePlan = normalizeNavDrivePlan({ active: false, status: "waiting", nextAction: "Waiting for destination", steps: [] });
+  syncState.navDriveEvents = [];
+  saveSyncState();
+  await syncNavDrivePlanToBridge(syncState.navDrivePlan);
   renderConnection();
   markSectionChanged("maps", "carScreenDestination");
   showToast("Route cleared");
@@ -1931,6 +2121,360 @@ async function useCarRouteForNav() {
   markSectionChanged("navPilot", "navMapSourceMode");
   writeForm();
   showToast(syncState.route?.active ? "Car route linked to Nav Pilot" : "Nav Pilot set for car route");
+}
+
+function planningRouteFromState() {
+  const activeRoute = normalizeRouteState(syncState.route);
+  if (activeRoute.active) return activeRoute;
+  const routeInput = routeInputFromForm();
+  return routeInput.destination
+    ? buildLocalCarRoute(routeInput.destination, "app-route", routeInput)
+    : normalizeRouteState({});
+}
+
+function buildNavDrivePlanFromRoute(routeInput = normalizeRouteState({})) {
+  const route = normalizeRouteState(routeInput);
+  const c = profile.controllers;
+  const now = new Date().toISOString();
+  const confidence = route.active ? Math.max(70, Number(route.confidence) || 82) : 0;
+  const steps = [];
+  const addStep = (id, type, title, detail, options = {}) => {
+    steps.push(normalizeNavDriveStep({
+      id,
+      order: steps.length + 1,
+      type,
+      title,
+      detail,
+      status: options.status || "advisory",
+      confidence: options.confidence ?? confidence,
+      requiresConfirmation: options.requiresConfirmation !== false,
+      logKind: options.logKind || type
+    }, steps.length));
+  };
+
+  if (!route.active) {
+    return normalizeNavDrivePlan({
+      active: false,
+      status: "waiting",
+      nextAction: "Waiting for destination",
+      updatedAt: now,
+      steps: []
+    });
+  }
+
+  addStep(
+    "keep-lane-monitor",
+    "lane-keep",
+    "Keep lane and monitor route",
+    `Track route to ${route.destination}. Watch lane lines, drivable path, map intent, and driver takeover state.`,
+    { requiresConfirmation: false }
+  );
+
+  if (profile.controllers.mapLaneGuidance) {
+    addStep(
+      "prepare-exit-turn",
+      "route-maneuver",
+      "Prepare exit or turn",
+      `Use the route preview distance ${Number(profile.tuning.routePreviewDistance).toFixed(1)} mi to warn before exits, highway splits, and turns.`
+    );
+  }
+
+  if (c.navPlanTrafficLights) {
+    addStep(
+      "traffic-light-check",
+      "traffic-light",
+      "Traffic light checkpoint",
+      "Log red/yellow/green state and camera agreement. Stopping or moving remains a reviewed prompt, not a phone command."
+    );
+  }
+
+  if (c.navPlanSigns) {
+    addStep(
+      "road-sign-check",
+      "road-sign",
+      "Stop, yield, and speed sign checkpoint",
+      `Detect critical signs above ${profile.tuning.signConfidenceGate}% confidence and log what the camera saw before the plan continues.`
+    );
+  }
+
+  if (c.navPlanRoundabouts) {
+    addStep(
+      "roundabout-yield",
+      "roundabout",
+      "Roundabout yield plan",
+      `Hold/yield review until circulating traffic has a ${Number(profile.tuning.roundaboutClearGap).toFixed(1)}s clear gap, then require tick confirmation.`
+    );
+  }
+
+  if (c.sidewalkDetectionLogging) {
+    addStep(
+      "sidewalk-curb-stop",
+      "sidewalk",
+      "Sidewalk and curb stop check",
+      `Stop-and-confirm review for sidewalks, curb edges, pedestrian edges, and raised crossings above ${profile.tuning.sidewalkConfidenceGate}% confidence.`
+    );
+  }
+
+  if (c.navPlanSpeedBumps) {
+    addStep(
+      "speed-bump-slowdown",
+      "speed-bump",
+      "Speed bump slowdown",
+      `Slowdown review target is ${profile.tuning.roadBumpSlowSpeed} mph when bumps, humps, or raised crossings are detected.`
+    );
+  }
+
+  if (c.navPlanLaneSuggestions) {
+    addStep(
+      "faster-lane-suggestion",
+      "lane-suggestion",
+      "Faster-lane suggestion",
+      `Suggest only when the adjacent lane is at least ${profile.tuning.fasterLaneSpeedDelta} mph faster and blind-spot, signal, and camera checks agree.`
+    );
+  }
+
+  if (c.navPlanReplayOnly) {
+    addStep(
+      "simulation-replay-gate",
+      "simulation",
+      "Run replay before car testing",
+      "Replay logs must pass without warnings before any closed-course test. Failures create review notes only."
+    );
+  }
+
+  if (c.navPlanLearningReview) {
+    addStep(
+      "learning-review-queue",
+      "learning-review",
+      "Learning review queue",
+      "Collect candidate improvements from logs for manual code review. The app never auto-edits or auto-deploys driving code."
+    );
+  }
+
+  if (c.navPlanClosedCourseOnly) {
+    addStep(
+      "closed-course-gate",
+      "closed-course",
+      "Closed-course physical test gate",
+      "Physical validation is limited to a controlled closed course with driver takeover, manual override, and safety observer ready."
+    );
+  }
+
+  return normalizeNavDrivePlan({
+    active: true,
+    status: "ready",
+    mode: "advisory-simulation",
+    routeId: route.routeId || `drive-plan-${Date.now()}`,
+    destination: route.destination,
+    nextAction: steps[0]?.title || "Keep lane and monitor route",
+    confidence,
+    updatedAt: now,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  });
+}
+
+async function buildNavDrivePlan(showMessage = true) {
+  readForm();
+  const route = planningRouteFromState();
+  const plan = buildNavDrivePlanFromRoute(route);
+  syncState.navDrivePlan = plan;
+  saveSyncState();
+  renderNavDrivePlan();
+  markSectionChanged("maps", "buildNavDrivePlan");
+  await syncNavDrivePlanToBridge(plan);
+  if (showMessage) showToast(plan.active ? "Drive plan built" : "Destination required");
+  return plan;
+}
+
+async function syncNavDrivePlanToBridge(plan = syncState.navDrivePlan) {
+  if (profile.connection?.mode !== "http") return false;
+  try {
+    const baseUrl = bridgeBaseUrl();
+    if (!baseUrl) return false;
+    const response = await fetchJson(`${baseUrl}/api/xrm10/nav-drive-plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan,
+        policy: {
+          routeIntentOnly: true,
+          simulationOnly: true,
+          closedCourseOnly: true,
+          logOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.plan) {
+      syncState.navDrivePlan = normalizeNavDrivePlan(response.plan);
+      saveSyncState();
+      renderNavDrivePlan();
+    }
+    return true;
+  } catch (error) {
+    syncState.navDrivePlan = normalizeNavDrivePlan({
+      ...syncState.navDrivePlan,
+      status: "error",
+      nextAction: error.message || "Drive plan bridge sync failed"
+    });
+    saveSyncState();
+    renderNavDrivePlan();
+    return false;
+  }
+}
+
+async function runNavSimulation() {
+  readForm();
+  let plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  if (!plan.active) plan = await buildNavDrivePlan(false);
+  if (!plan.active) {
+    showToast("Build a destination first");
+    return;
+  }
+
+  const simulatedAt = new Date().toISOString();
+  const simulatedSteps = plan.steps.map((step) => ({
+    ...step,
+    status: step.requiresConfirmation ? "prompt-ready" : "simulated"
+  }));
+  syncState.navDrivePlan = normalizeNavDrivePlan({
+    ...plan,
+    status: "simulated",
+    simulatedAt,
+    updatedAt: simulatedAt,
+    nextAction: simulatedSteps.find((step) => step.requiresConfirmation)?.title || simulatedSteps[0]?.title || plan.nextAction,
+    steps: simulatedSteps
+  });
+
+  saveSyncState();
+  renderNavDrivePlan();
+  await syncNavDrivePlanToBridge(syncState.navDrivePlan);
+
+  for (const step of simulatedSteps) {
+    await logNavDriveEvent("simulation-step", step, { silent: true });
+  }
+
+  const nextPrompt = simulatedSteps.find((step) => step.requiresConfirmation);
+  if (nextPrompt && profile.controllers.navPlanPrompts) {
+    showConfirmationPrompt(
+      "Nav Drive Plan",
+      nextPrompt.title,
+      nextPrompt.detail,
+      {
+        maneuver: nextPrompt.type,
+        routeDestination: syncState.navDrivePlan.destination,
+        simulationOnly: true,
+        closedCourseOnly: true
+      }
+    );
+  }
+  showToast("Simulation logged");
+}
+
+async function logCurrentNavPrompt() {
+  let plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  if (!plan.active) plan = await buildNavDrivePlan(false);
+  if (!plan.active) {
+    showToast("No drive plan to log");
+    return;
+  }
+
+  const step = plan.steps.find((item) => item.requiresConfirmation) || plan.steps[0];
+  await logNavDriveEvent("manual-prompt", step);
+  if (profile.controllers.navPlanPrompts) {
+    showConfirmationPrompt(
+      "Nav Drive Plan",
+      step.title,
+      step.detail,
+      {
+        maneuver: step.type,
+        routeDestination: plan.destination,
+        simulationOnly: true,
+        closedCourseOnly: true
+      }
+    );
+  }
+}
+
+async function logNavDriveEvent(event, step = {}, options = {}) {
+  const payload = navDriveEventPayload(event, step);
+  syncState.navDriveEvents = normalizeNavDriveEvents([...(syncState.navDriveEvents || []), payload]);
+  saveSyncState();
+  renderNavDrivePlan();
+
+  if (profile.connection?.mode === "http") {
+    try {
+      const baseUrl = bridgeBaseUrl();
+      const response = await fetchJson(`${baseUrl}/api/xrm10/nav-drive-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (Array.isArray(response.events)) {
+        syncState.navDriveEvents = normalizeNavDriveEvents(response.events);
+      } else if (Number.isFinite(Number(response.eventCount))) {
+        syncState.navDriveEvents = normalizeNavDriveEvents(syncState.navDriveEvents).slice(-Number(response.eventCount));
+      }
+      saveSyncState();
+      renderNavDrivePlan();
+    } catch {
+      // Replay logging remains local if the bridge is unreachable.
+    }
+  }
+
+  if (!options.silent) showToast("Nav prompt logged");
+  return payload;
+}
+
+function navDriveEventPayload(event, step = {}) {
+  const route = normalizeRouteState(syncState.route);
+  const routeInput = route.active ? route : planningRouteFromState();
+  return {
+    type: "xrm10.nav.drive.event",
+    event,
+    generatedAt: new Date().toISOString(),
+    source: "xrm10-control-center",
+    route: routeInput,
+    step: normalizeNavDriveStep(step),
+    gps: {
+      latitude: routeInput.latitude || null,
+      longitude: routeInput.longitude || null,
+      routeId: routeInput.routeId || null
+    },
+    speed: {
+      plannedMph: profile.tuning.navManeuverSpeed,
+      bumpSlowdownMph: profile.tuning.roadBumpSlowSpeed,
+      source: "configured-threshold"
+    },
+    cameraState: {
+      source: "replay-placeholder",
+      mapCameraAgreement: profile.controllers.navMapCameraAgree,
+      fusionMode: profile.controllers.cameraFusionMode,
+      signsEnabled: profile.controllers.navPlanSigns,
+      trafficLightsEnabled: profile.controllers.navPlanTrafficLights,
+      roundaboutsEnabled: profile.controllers.navPlanRoundabouts,
+      speedBumpsEnabled: profile.controllers.navPlanSpeedBumps
+    },
+    policy: {
+      logOnly: true,
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    }
+  };
 }
 
 async function stageUaeMapPack() {
@@ -2927,6 +3471,42 @@ function downloadNavPlan() {
   showToast("Nav plan downloaded");
 }
 
+function exportNavDriveLog() {
+  const payload = {
+    type: "xrm10.nav.drive.replay",
+    generatedAt: new Date().toISOString(),
+    route: normalizeRouteState(syncState.route),
+    plan: normalizeNavDrivePlan(syncState.navDrivePlan),
+    events: normalizeNavDriveEvents(syncState.navDriveEvents),
+    thresholds: {
+      routePreviewDistance: profile.tuning.routePreviewDistance,
+      navManeuverSpeed: profile.tuning.navManeuverSpeed,
+      signConfidenceGate: profile.tuning.signConfidenceGate,
+      sidewalkConfidenceGate: profile.tuning.sidewalkConfidenceGate,
+      roundaboutClearGap: profile.tuning.roundaboutClearGap,
+      roadBumpConfidenceGate: profile.tuning.roadBumpConfidenceGate,
+      roadBumpSlowSpeed: profile.tuning.roadBumpSlowSpeed,
+      fasterLaneSpeedDelta: profile.tuning.fasterLaneSpeedDelta
+    },
+    policy: {
+      replayFirst: true,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-nav-drive-replay.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Replay log exported");
+}
+
 function importProfile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -3337,6 +3917,10 @@ function wireActions() {
   els.readCarRoute?.addEventListener("click", () => refreshCarRoute(true));
   els.setDemoCarRoute?.addEventListener("click", startAppRoute);
   els.useCarRouteForNav?.addEventListener("click", useCarRouteForNav);
+  els.buildNavDrivePlan?.addEventListener("click", () => buildNavDrivePlan(true));
+  els.runNavSimulation?.addEventListener("click", runNavSimulation);
+  els.logNavPrompt?.addEventListener("click", logCurrentNavPrompt);
+  els.exportNavDriveLog?.addEventListener("click", exportNavDriveLog);
   els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
   els.gccMapUpload?.addEventListener("change", (event) => {
     handleGccMapUpload(event.target.files);

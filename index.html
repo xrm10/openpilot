@@ -1003,6 +1003,56 @@
             </div>
           </article>
 
+          <article class="settings-card nav-drive-plan-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Nav Drive Plan</p>
+                <h2>Route actions and replay</h2>
+              </div>
+              <span class="status-badge warn" id="navDrivePlanStatus">Waiting</span>
+            </div>
+            <div class="warning-copy">
+              Advisory and simulation only. This logs route maneuvers, prompts, sign/light/bump checks, and replay data without sending live steering, braking, throttle, or lane-change commands.
+            </div>
+            <div class="route-status-grid">
+              <div class="summary-row">
+                <span>Next action</span>
+                <strong id="navDriveNext">Waiting for route</strong>
+              </div>
+              <div class="summary-row">
+                <span>Confidence</span>
+                <strong id="navDriveConfidence">0%</strong>
+              </div>
+              <div class="summary-row">
+                <span>Mode</span>
+                <strong id="navDriveMode">Simulation locked</strong>
+              </div>
+              <div class="summary-row">
+                <span>Replay log</span>
+                <strong id="navDriveLogCount">0 events</strong>
+              </div>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="navPlanPrompts" type="checkbox" checked> Confirmation prompts for maneuvers</label>
+              <label><input id="navPlanSound" type="checkbox" checked> Sound before confirmation</label>
+              <label><input id="navPlanSigns" type="checkbox" checked> Sign detection checkpoints</label>
+              <label><input id="navPlanTrafficLights" type="checkbox" checked> Traffic light checkpoints</label>
+              <label><input id="navPlanRoundabouts" type="checkbox" checked> Roundabout yield plan</label>
+              <label><input id="navPlanSpeedBumps" type="checkbox" checked> Speed bump slowdown plan</label>
+              <label><input id="navPlanLaneSuggestions" type="checkbox" checked> Faster-lane suggestions only</label>
+              <label><input id="navPlanReplayOnly" type="checkbox" checked> Replay/simulation before road test</label>
+              <label><input id="navPlanClosedCourseOnly" type="checkbox" checked> Closed-course physical testing only</label>
+              <label><input id="navPlanLearningReview" type="checkbox" checked> Learning review log, no auto-code changes</label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="buildNavDrivePlan" type="button">Build drive plan</button>
+              <button class="primary-button" id="runNavSimulation" type="button">Run simulation</button>
+              <button class="ghost-button" id="logNavPrompt" type="button">Log prompt</button>
+              <button class="ghost-button" id="exportNavDriveLog" type="button">Export replay log</button>
+            </div>
+            <div class="drive-plan-list" id="navDrivePlanList" aria-live="polite"></div>
+          </article>
+
           <article class="settings-card">
             <div class="card-heading">
               <div>
