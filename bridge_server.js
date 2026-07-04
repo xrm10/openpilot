@@ -308,6 +308,9 @@ function defaultCarRoute() {
     provider: "car-screen-maps",
     status: "waiting",
     destination: "",
+    latitude: "",
+    longitude: "",
+    googleMapsUrl: "",
     routeId: "",
     nextInstruction: "Waiting for destination",
     confidence: 0,
@@ -326,13 +329,17 @@ function readCarRoute() {
 function carRouteFromRuntime(runtime = {}) {
   const navSource = String(runtime.navSource || "").trim();
   const destination = String(runtime.carScreenDestination || "").trim();
+  const latitude = String(runtime.routeLatitude || "").trim();
+  const longitude = String(runtime.routeLongitude || "").trim();
+  const googleMapsUrl = String(runtime.routeGoogleMapsUrl || "").trim();
   const status = String(runtime.carScreenRouteStatus || "").trim();
   const updatedAt = String(runtime.carScreenRouteUpdatedAt || "").trim();
   const hasLiveRouteState = navSource || runtime.carScreenRouteIntent !== undefined || destination || status || updatedAt;
   if (!hasLiveRouteState) return null;
 
-  const source = navSource === "2" ? "osm-mapd" : navSource === "1" ? "car-screen" : "off";
-  const provider = source === "car-screen" ? "car-screen-maps" : source === "osm-mapd" ? "osm-mapd" : "none";
+  const rawRouteSource = String(runtime.routeSource || "").trim();
+  const source = rawRouteSource || (navSource === "2" ? "osm-mapd" : navSource === "1" ? "car-screen" : "off");
+  const provider = source === "app-route" ? "google-maps-link" : source === "car-screen" ? "car-screen-maps" : source === "osm-mapd" ? "osm-mapd" : "none";
   const autoStart = runtime.navAutoStart !== false;
   const active = source !== "off" && runtime.carScreenRouteIntent === true && autoStart && Boolean(destination);
 
@@ -342,6 +349,9 @@ function carRouteFromRuntime(runtime = {}) {
     provider,
     status: status || (source === "off" ? "off" : destination ? "active" : "waiting"),
     destination,
+    latitude,
+    longitude,
+    googleMapsUrl,
     routeId: destination ? `comma-param-${updatedAt || "live"}` : "",
     nextInstruction: destination
       ? "Route intent staged on comma"
@@ -399,6 +409,8 @@ function writeCarRoute(route) {
 function normalizeCarRoute(route = {}) {
   const next = defaultCarRoute();
   const destination = String(route.destination || "").trim();
+  const latitude = route.latitude === undefined || route.latitude === null ? "" : String(route.latitude).trim();
+  const longitude = route.longitude === undefined || route.longitude === null ? "" : String(route.longitude).trim();
   const confidence = Number(route.confidence ?? next.confidence);
   return {
     ...next,
@@ -408,6 +420,9 @@ function normalizeCarRoute(route = {}) {
     provider: String(route.provider || next.provider),
     status: String(route.status || (destination ? "active" : next.status)),
     destination,
+    latitude,
+    longitude,
+    googleMapsUrl: String(route.googleMapsUrl || ""),
     routeId: String(route.routeId || ""),
     nextInstruction: String(route.nextInstruction || (destination ? "Route intent ready for driver-confirmed Nav Pilot" : next.nextInstruction)),
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : next.confidence,
@@ -555,7 +570,11 @@ async function readDeviceRuntime(profile = {}) {
     "printf carScreenRouteIntent=; cat /data/params/d/Xrm10CarScreenRouteIntent 2>/dev/null || true; echo",
     "printf carScreenRouteStatus=; cat /data/params/d/Xrm10CarScreenRouteStatus 2>/dev/null || true; echo",
     "printf carScreenDestination=; cat /data/params/d/Xrm10CarScreenDestination 2>/dev/null || true; echo",
-    "printf carScreenRouteUpdatedAt=; cat /data/params/d/Xrm10CarScreenRouteUpdatedAt 2>/dev/null || true; echo"
+    "printf carScreenRouteUpdatedAt=; cat /data/params/d/Xrm10CarScreenRouteUpdatedAt 2>/dev/null || true; echo",
+    "printf routeLatitude=; cat /data/params/d/Xrm10RouteLatitude 2>/dev/null || true; echo",
+    "printf routeLongitude=; cat /data/params/d/Xrm10RouteLongitude 2>/dev/null || true; echo",
+    "printf routeGoogleMapsUrl=; cat /data/params/d/Xrm10RouteGoogleMapsUrl 2>/dev/null || true; echo",
+    "printf routeSource=; cat /data/params/d/Xrm10RouteSource 2>/dev/null || true; echo"
   ].join("; "), 6500);
   const values = parseKeyValueOutput(output);
   return {
@@ -572,7 +591,11 @@ async function readDeviceRuntime(profile = {}) {
     carScreenRouteIntent: boolFromParam(values.carScreenRouteIntent),
     carScreenRouteStatus: valueOrUndefined(values, "carScreenRouteStatus"),
     carScreenDestination: valueOrUndefined(values, "carScreenDestination"),
-    carScreenRouteUpdatedAt: valueOrUndefined(values, "carScreenRouteUpdatedAt")
+    carScreenRouteUpdatedAt: valueOrUndefined(values, "carScreenRouteUpdatedAt"),
+    routeLatitude: valueOrUndefined(values, "routeLatitude"),
+    routeLongitude: valueOrUndefined(values, "routeLongitude"),
+    routeGoogleMapsUrl: valueOrUndefined(values, "routeGoogleMapsUrl"),
+    routeSource: valueOrUndefined(values, "routeSource")
   };
 }
 
@@ -699,6 +722,9 @@ async function syncNavigationIntentParams(profile = {}) {
   const autoStart = controllers.carScreenRouteAutoStart !== false;
   const routeMode = String(controllers.carScreenRouteMode || "detect-destination");
   const destination = String(activeRoute.destination || controllers.carScreenDestination || "").trim();
+  const latitude = String(activeRoute.latitude || controllers.routeLatitude || "").trim();
+  const longitude = String(activeRoute.longitude || controllers.routeLongitude || "").trim();
+  const googleMapsUrl = String(activeRoute.googleMapsUrl || controllers.googleMapsLink || "").trim();
   const sourceIndex = !routeSync || sourceMode === "disabled" || routeMode === "disabled"
     ? 0
     : sourceMode === "offline-cache" ? 2 : 1;
@@ -719,7 +745,11 @@ async function syncNavigationIntentParams(profile = {}) {
     ["Xrm10CarScreenRouteIntent", intentEnabled ? 1 : 0],
     ["Xrm10CarScreenRouteStatus", status],
     ["Xrm10CarScreenDestination", destination],
-    ["Xrm10CarScreenRouteUpdatedAt", updatedAt]
+    ["Xrm10CarScreenRouteUpdatedAt", updatedAt],
+    ["Xrm10RouteLatitude", intentEnabled ? latitude : ""],
+    ["Xrm10RouteLongitude", intentEnabled ? longitude : ""],
+    ["Xrm10RouteGoogleMapsUrl", intentEnabled ? googleMapsUrl : ""],
+    ["Xrm10RouteSource", destination ? String(activeRoute.source || sourceMode || "app-route") : ""]
   ];
 
   const target = deviceSshTarget(profile);
@@ -766,6 +796,49 @@ async function syncNavigationIntentParams(profile = {}) {
       ? `${results.length - refused.length} nav param${results.length - refused.length === 1 ? "" : "s"} applied, ${refused.length} refused.`
       : `${results.length} nav intent params applied on comma.`,
     results
+  };
+}
+
+async function applyRouteIntentToComma(profile = {}, route = defaultCarRoute()) {
+  const normalized = normalizeCarRoute(route);
+  const active = Boolean(normalized.active && normalized.destination);
+  const status = active
+    ? "Route active from app destination"
+    : "Auto-start armed - waiting for car-screen route";
+  const updatedAt = new Date().toISOString();
+  const writes = [
+    ["Xrm10NavSource", 1],
+    ["Xrm10NavAutoStart", 1],
+    ["Xrm10NavActive", active ? 1 : 0],
+    ["Xrm10CarScreenRouteIntent", 1],
+    ["Xrm10CarScreenRouteStatus", status],
+    ["Xrm10CarScreenDestination", active ? normalized.destination : ""],
+    ["Xrm10CarScreenRouteUpdatedAt", updatedAt],
+    ["Xrm10RouteLatitude", active ? normalized.latitude : ""],
+    ["Xrm10RouteLongitude", active ? normalized.longitude : ""],
+    ["Xrm10RouteGoogleMapsUrl", active ? normalized.googleMapsUrl : ""],
+    ["Xrm10RouteSource", active ? normalized.source : ""]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+  const output = await runSshCommand(target, keyPath, command, 6500);
+
+  return {
+    output,
+    updatedAt,
+    status,
+    results: writes.map(([param, value]) => {
+      const expected = String(value ?? "");
+      return {
+        param,
+        value: expected,
+        ok: output.includes(`${param}=${expected}`)
+      };
+    })
   };
 }
 
@@ -987,10 +1060,13 @@ const server = http.createServer(async (req, res) => {
       const active = payload.active !== false && Boolean(destination);
       const route = normalizeCarRoute({
         active,
-        source: String(payload.source || "car-screen"),
+        source: String(payload.source || "app-route"),
         provider: String(payload.provider || "car-screen-maps"),
         status: active ? "active" : "waiting",
         destination,
+        latitude: payload.latitude ?? "",
+        longitude: payload.longitude ?? "",
+        googleMapsUrl: String(payload.googleMapsUrl || ""),
         routeId: String(payload.routeId || `car-route-${Date.now()}`),
         nextInstruction: String(payload.nextInstruction || (active
           ? "Route intent ready for driver-confirmed Nav Pilot"
@@ -1000,12 +1076,30 @@ const server = http.createServer(async (req, res) => {
       });
       writeCarRoute(route);
 
+      let deviceParamApply = null;
+      try {
+        deviceParamApply = await applyRouteIntentToComma(readLatestProfile()?.profile || {}, route);
+        route.status = deviceParamApply.status;
+        route.updatedAt = deviceParamApply.updatedAt;
+        route.nextInstruction = active
+          ? "Destination staged on comma Navigation screen"
+          : "Route cleared on comma";
+        writeCarRoute(route);
+      } catch (error) {
+        deviceParamApply = {
+          state: "partial",
+          working: false,
+          error: error.message || "SSH route apply failed"
+        };
+      }
+
       sendJson(res, 200, {
         ok: true,
         accepted: "car-route-intent-staged",
         liveVehicleApplyAllowed: false,
-        device: currentDevice(),
-        route
+        device: await currentDeviceAsync(readLatestProfile()?.profile || {}),
+        route,
+        deviceParams: deviceParamApply
       });
     } catch (error) {
       sendJson(res, 400, {

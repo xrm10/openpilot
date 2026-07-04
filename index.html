@@ -956,7 +956,7 @@
                 <span>Route source</span>
                 <select id="mapRouteSourceMode">
                   <option value="car-screen">Car-screen adapter</option>
-                  <option value="app-route">Control center route</option>
+                  <option value="app-route">App destination</option>
                   <option value="offline-cache">Offline map cache</option>
                   <option value="disabled">Disabled</option>
                 </select>
@@ -970,8 +970,20 @@
                 </select>
               </label>
               <label class="field">
-                <span>Demo destination</span>
-                <input id="carScreenDestination" placeholder="Destination from car screen">
+                <span>Destination</span>
+                <input id="carScreenDestination" placeholder="Search place, address, or paste coordinates">
+              </label>
+              <label class="field">
+                <span>Google Maps link</span>
+                <input id="googleMapsLink" placeholder="Paste shared Google Maps URL">
+              </label>
+              <label class="field">
+                <span>Latitude</span>
+                <input id="routeLatitude" inputmode="decimal" placeholder="Optional">
+              </label>
+              <label class="field">
+                <span>Longitude</span>
+                <input id="routeLongitude" inputmode="decimal" placeholder="Optional">
               </label>
             </div>
             <div class="toggle-stack switch-grid">
@@ -981,12 +993,13 @@
               <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Keep route intent advisory only</label>
             </div>
             <div class="warning-copy">
-              This requires a real Tesla car-screen route adapter. Until that adapter writes a destination, the comma screen will show route status only. It does not steer, brake, accelerate, or change lanes.
+              Start writes the destination to the comma Navigation screen as route intent. Google Maps opens as the picker on your phone. It does not steer, brake, accelerate, or change lanes.
             </div>
             <div class="button-row">
+              <button class="primary-button" id="startAppRoute" type="button">Start destination</button>
               <button class="primary-button" id="readCarRoute" type="button">Read nav status</button>
-              <button class="ghost-button" id="setDemoCarRoute" type="button">Set demo route</button>
-              <button class="ghost-button" id="useCarRouteForNav" type="button">Use in Nav Pilot</button>
+              <button class="ghost-button" id="openGoogleMaps" type="button">Open Google Maps</button>
+              <button class="ghost-button" id="clearAppRoute" type="button">Clear route</button>
             </div>
           </article>
 

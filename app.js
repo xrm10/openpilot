@@ -164,6 +164,9 @@ const defaultProfile = {
     mapRouteSourceMode: "car-screen",
     carScreenRouteMode: "detect-destination",
     carScreenDestination: "",
+    googleMapsLink: "",
+    routeLatitude: "",
+    routeLongitude: "",
     carScreenRouteSync: true,
     carScreenRouteAutoStart: true,
     carScreenRouteNavPilot: true,
@@ -325,6 +328,9 @@ const defaultSyncState = {
     provider: "car-screen-maps",
     status: "waiting",
     destination: "",
+    latitude: "",
+    longitude: "",
+    googleMapsUrl: "",
     routeId: "",
     nextInstruction: "Waiting for destination",
     confidence: 0,
@@ -347,6 +353,9 @@ const textBindings = [
   ["customInstallUrl", ["customInstallUrl"]],
   ["vinNickname", ["controllers", "vinNickname"]],
   ["carScreenDestination", ["controllers", "carScreenDestination"]],
+  ["googleMapsLink", ["controllers", "googleMapsLink"]],
+  ["routeLatitude", ["controllers", "routeLatitude"]],
+  ["routeLongitude", ["controllers", "routeLongitude"]],
   ["bridgeUrl", ["connection", "bridgeUrl"]],
   ["bridgeToken", ["connection", "bridgeToken"]],
   ["sshTarget", ["connection", "sshTarget"]],
@@ -661,6 +670,9 @@ const els = {
   carRouteSource: document.querySelector("#carRouteSource"),
   carRouteUpdated: document.querySelector("#carRouteUpdated"),
   carRouteNext: document.querySelector("#carRouteNext"),
+  startAppRoute: document.querySelector("#startAppRoute"),
+  openGoogleMaps: document.querySelector("#openGoogleMaps"),
+  clearAppRoute: document.querySelector("#clearAppRoute"),
   readCarRoute: document.querySelector("#readCarRoute"),
   setDemoCarRoute: document.querySelector("#setDemoCarRoute"),
   useCarRouteForNav: document.querySelector("#useCarRouteForNav"),
@@ -740,6 +752,10 @@ function normalizeProfile(input) {
       navStartConfirmPopup: true,
       mapRouteSourceMode: "car-screen",
       carScreenRouteMode: "detect-destination",
+      carScreenDestination: "",
+      googleMapsLink: "",
+      routeLatitude: "",
+      routeLongitude: "",
       carScreenRouteSync: true,
       carScreenRouteAutoStart: true,
       carScreenRouteNavPilot: true,
@@ -884,6 +900,8 @@ function normalizeSyncState(input) {
 function normalizeRouteState(input = {}) {
   const next = clone(defaultSyncState.route);
   const destination = String(input.destination || "").trim();
+  const latitude = input.latitude === undefined || input.latitude === null ? "" : String(input.latitude).trim();
+  const longitude = input.longitude === undefined || input.longitude === null ? "" : String(input.longitude).trim();
   return {
     ...next,
     ...input,
@@ -892,6 +910,9 @@ function normalizeRouteState(input = {}) {
     provider: String(input.provider || next.provider),
     status: String(input.status || (destination ? "active" : next.status)),
     destination,
+    latitude,
+    longitude,
+    googleMapsUrl: String(input.googleMapsUrl || ""),
     routeId: String(input.routeId || ""),
     nextInstruction: String(input.nextInstruction || (destination ? "Route loaded from car screen" : next.nextInstruction)),
     confidence: clamp(input.confidence ?? next.confidence, 0, 100),
@@ -919,6 +940,50 @@ function normalizeMapPackageState(input = {}) {
     totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
     updatedAt: input.updatedAt || null,
     files
+  };
+}
+
+function parseCoordinatePair(value = "") {
+  const text = String(value || "").trim();
+  const match = text.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return {
+    latitude: String(latitude),
+    longitude: String(longitude)
+  };
+}
+
+function parseGoogleMapsCoordinates(url = "") {
+  const text = String(url || "").trim();
+  if (!text) return null;
+  return parseCoordinatePair(text);
+}
+
+function googleMapsUrlForRoute(destination, latitude = "", longitude = "") {
+  const coords = parseCoordinatePair(`${latitude},${longitude}`);
+  const query = coords ? `${coords.latitude},${coords.longitude}` : String(destination || "").trim();
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "https://www.google.com/maps";
+}
+
+function routeInputFromForm() {
+  readForm();
+  const link = profile.controllers.googleMapsLink.trim();
+  const linkCoords = parseGoogleMapsCoordinates(link);
+  const typedCoords = parseCoordinatePair(`${profile.controllers.routeLatitude},${profile.controllers.routeLongitude}`)
+    || parseCoordinatePair(profile.controllers.carScreenDestination);
+  const coords = typedCoords || linkCoords;
+  const destination = profile.controllers.carScreenDestination.trim()
+    || (coords ? `${coords.latitude},${coords.longitude}` : "")
+    || link;
+  return {
+    destination,
+    latitude: coords?.latitude || "",
+    longitude: coords?.longitude || "",
+    googleMapsUrl: link || googleMapsUrlForRoute(destination, coords?.latitude, coords?.longitude)
   };
 }
 
@@ -1375,6 +1440,9 @@ function renderCarRoute() {
   if (els.useCarRouteForNav) {
     els.useCarRouteForNav.disabled = !routeActive && !profile.controllers.carScreenDestination;
   }
+  if (els.openGoogleMaps) {
+    els.openGoogleMaps.disabled = !routeActive && !profile.controllers.carScreenDestination && !profile.controllers.googleMapsLink;
+  }
 }
 
 function renderMapPackage() {
@@ -1409,7 +1477,7 @@ function formatBytes(bytes) {
 function sourceLabelForRoute(source) {
   return {
     "car-screen": "Car screen maps",
-    "app-route": "Control center",
+    "app-route": "App destination",
     "offline-cache": "Offline cache",
     "manual-demo": "Manual demo"
   }[source] || source || "Car screen maps";
@@ -1681,17 +1749,34 @@ async function refreshCarRoute(showMessage = true) {
   }
 
   if (!syncState.route?.active && profile.controllers.carScreenDestination) {
-    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "manual-demo");
+    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "app-route", routeInputFromForm());
     saveSyncState();
   }
   renderConnection();
-  if (showMessage) showToast(syncState.route.active ? "Demo car route loaded" : "No demo route yet");
+  if (showMessage) showToast(syncState.route.active ? "App destination loaded" : "No destination yet");
   return Boolean(syncState.route.active);
 }
 
-async function setDemoCarRoute() {
+async function startAppRoute() {
   readForm();
-  const destination = profile.controllers.carScreenDestination.trim() || "Demo destination from car screen";
+  const routeInput = routeInputFromForm();
+  const destination = routeInput.destination.trim();
+  if (!destination) {
+    showToast("Destination required");
+    return;
+  }
+
+  profile.controllers.carScreenDestination = destination;
+  profile.controllers.routeLatitude = routeInput.latitude;
+  profile.controllers.routeLongitude = routeInput.longitude;
+  profile.controllers.googleMapsLink = routeInput.googleMapsUrl;
+  profile.controllers.mapRouteSourceMode = "app-route";
+  profile.controllers.carScreenRouteMode = "detect-destination";
+  profile.controllers.carScreenRouteSync = true;
+  profile.controllers.carScreenRouteAutoStart = true;
+  profile.controllers.carScreenRouteNavPilot = true;
+  saveProfile();
+  writeForm();
 
   if (profile.connection?.mode === "http") {
     try {
@@ -1702,9 +1787,13 @@ async function setDemoCarRoute() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           active: true,
-          source: "car-screen",
-          provider: "car-screen-maps",
+          source: "app-route",
+          provider: "google-maps-link",
           destination,
+          latitude: routeInput.latitude,
+          longitude: routeInput.longitude,
+          googleMapsUrl: routeInput.googleMapsUrl,
+          nextInstruction: "Destination staged on comma Navigation screen",
           policy: {
             routeIntentOnly: true,
             liveVehicleApplyAllowed: false,
@@ -1717,7 +1806,7 @@ async function setDemoCarRoute() {
       saveSyncState();
       renderConnection();
       markSectionChanged("maps", "carScreenDestination");
-      showToast("Car route staged");
+      showToast("Destination started");
       return;
     } catch (error) {
       syncState.route = normalizeRouteState({
@@ -1728,37 +1817,89 @@ async function setDemoCarRoute() {
       });
       saveSyncState();
       renderConnection();
-      showToast("Car route failed");
+      showToast("Destination failed");
       return;
     }
   }
 
-  syncState.route = buildLocalCarRoute(destination, "manual-demo");
+  syncState.route = buildLocalCarRoute(destination, "app-route", routeInput);
   saveSyncState();
   renderConnection();
   markSectionChanged("maps", "carScreenDestination");
-  showToast("Demo car route staged");
+  showToast("Destination staged locally");
 }
 
-function buildLocalCarRoute(destination, source = "car-screen") {
+function buildLocalCarRoute(destination, source = "car-screen", metadata = {}) {
   return normalizeRouteState({
     active: true,
     source,
-    provider: source === "manual-demo" ? "control-center-demo" : "car-screen-maps",
+    provider: source === "app-route" ? "google-maps-link" : source === "manual-demo" ? "control-center-demo" : "car-screen-maps",
     status: "active",
     destination,
+    latitude: metadata.latitude || "",
+    longitude: metadata.longitude || "",
+    googleMapsUrl: metadata.googleMapsUrl || googleMapsUrlForRoute(destination, metadata.latitude, metadata.longitude),
     routeId: `local-${Date.now()}`,
-    nextInstruction: "Route intent ready for driver-confirmed Nav Pilot",
+    nextInstruction: "Destination staged on comma Navigation screen",
     confidence: 82,
     updatedAt: new Date().toISOString()
   });
+}
+
+async function clearAppRoute() {
+  readForm();
+  profile.controllers.carScreenDestination = "";
+  profile.controllers.routeLatitude = "";
+  profile.controllers.routeLongitude = "";
+  profile.controllers.googleMapsLink = "";
+  saveProfile();
+  writeForm();
+
+  if (profile.connection?.mode === "http") {
+    try {
+      const baseUrl = bridgeBaseUrl();
+      const response = await fetchJson(`${baseUrl}/api/xrm10/car-route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          active: false,
+          source: "app-route",
+          destination: "",
+          policy: {
+            routeIntentOnly: true,
+            liveVehicleApplyAllowed: false,
+            driverConfirmationRequired: true
+          }
+        })
+      });
+      syncState.route = normalizeRouteState(response.route || {});
+      if (response.device) markOnline(response.device);
+    } catch (error) {
+      syncState.route = normalizeRouteState({ active: false, status: "waiting", nextInstruction: "Route cleared locally" });
+      showToast("Bridge clear failed");
+    }
+  } else {
+    syncState.route = normalizeRouteState({ active: false, status: "waiting", nextInstruction: "Route cleared locally" });
+  }
+
+  saveSyncState();
+  renderConnection();
+  markSectionChanged("maps", "carScreenDestination");
+  showToast("Route cleared");
+}
+
+function openGoogleMapsForRoute() {
+  const routeInput = routeInputFromForm();
+  const route = normalizeRouteState(syncState.route);
+  const url = routeInput.googleMapsUrl || route.googleMapsUrl || googleMapsUrlForRoute(route.destination || routeInput.destination, route.latitude || routeInput.latitude, route.longitude || routeInput.longitude);
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 async function useCarRouteForNav() {
   readForm();
   const hasRoute = syncState.route?.active || await refreshCarRoute(false);
   if (!hasRoute && profile.controllers.carScreenDestination) {
-    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "manual-demo");
+    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "app-route", routeInputFromForm());
     saveSyncState();
   }
 
@@ -2577,6 +2718,9 @@ function exportProfile() {
         active: route.active,
         source: route.source,
         destination: route.destination,
+        latitude: route.latitude,
+        longitude: route.longitude,
+        googleMapsUrl: route.googleMapsUrl,
         routeId: route.routeId,
         updatedAt: route.updatedAt
       },
@@ -2871,9 +3015,6 @@ function pruneAppSections() {
 
   const routeMode = byId("carScreenRouteMode");
   routeMode?.querySelector('option[value="manual-demo"]')?.remove();
-
-  const demoDestination = byId("carScreenDestination")?.closest(".field");
-  demoDestination?.remove();
   byId("setDemoCarRoute")?.remove();
   byId("useCarRouteForNav")?.remove();
 
@@ -3190,8 +3331,11 @@ function wireActions() {
   });
 
   els.exportNavPlan?.addEventListener("click", downloadNavPlan);
+  els.startAppRoute?.addEventListener("click", startAppRoute);
+  els.clearAppRoute?.addEventListener("click", clearAppRoute);
+  els.openGoogleMaps?.addEventListener("click", openGoogleMapsForRoute);
   els.readCarRoute?.addEventListener("click", () => refreshCarRoute(true));
-  els.setDemoCarRoute?.addEventListener("click", setDemoCarRoute);
+  els.setDemoCarRoute?.addEventListener("click", startAppRoute);
   els.useCarRouteForNav?.addEventListener("click", useCarRouteForNav);
   els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
   els.gccMapUpload?.addEventListener("change", (event) => {
