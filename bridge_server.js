@@ -25,7 +25,7 @@ const steeringUploadsIndexPath = path.join(steeringUploadsDir, "index.json");
 const device = {
   name: "comma four",
   id: "6dea66ada857421f",
-  version: "2026.07.02-xrm10",
+  version: "2026.07.05-xrm10-v1-starter",
   branch: "dev",
   commit: "344ec6a",
   offroad: true

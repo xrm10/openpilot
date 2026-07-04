@@ -1,6 +1,8 @@
 const STORAGE_KEY = "xrm10-control-center-profile-v1";
 const SYNC_STATE_KEY = "xrm10-control-center-sync-v1";
 const SECTION_STATE_KEY = "xrm10-control-center-section-state-v1";
+const XRM10_RELEASE_NAME = "XRM10 v1 starter";
+const XRM10_RELEASE_VERSION = "2026.07.05-xrm10-v1-starter";
 
 const safetyLocks = [
   {
@@ -32,9 +34,9 @@ const safetyLocks = [
 const installTargets = [
   {
     id: "xrm10-dev",
-    label: "XRM10 sunnypilot dev",
+    label: "XRM10 v1 starter",
     url: "https://installer.comma.ai/xrm10/dev",
-    meta: "active development target"
+    meta: "starter development target"
   },
   {
     id: "xrm10-backup",
@@ -63,7 +65,7 @@ const visibleSections = new Set(Object.keys(sectionMeta));
 const defaultProfile = {
   schemaVersion: 13,
   activeSection: "home",
-  profileName: "XRM10 Model 3 HW4",
+  profileName: "XRM10 v1 Starter HW4",
   vehicleModel: "Tesla Model 3",
   vehicleYear: "2024",
   deviceTarget: "comma four",
@@ -324,7 +326,7 @@ const defaultSyncState = {
   device: {
     name: "comma four",
     id: "6dea66ada857421f",
-    version: "2026.07.02-xrm10",
+    version: XRM10_RELEASE_VERSION,
     branch: "dev",
     commit: "344ec6a",
     offroad: true,
@@ -1406,7 +1408,7 @@ function render() {
   setBadge(els.moduleBadge, `${activeControllerCount()} modules`, stateClass);
   setText(els.sidebarStatus, controllerLabel());
   setText(els.activeBranchLabel, branchLabel);
-  setText(els.activeBranchMeta, activeInstallUrl());
+  setText(els.activeBranchMeta, `${XRM10_RELEASE_NAME} - ${activeInstallUrl()}`);
   if (els.branchStatusDot) els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
   setText(els.previewTitle, previewTitle());
   setText(els.previewText, previewText());
@@ -3118,6 +3120,7 @@ function activeControllerCount() {
 function controllerSummaryRows() {
   const rows = [
     ["Install", activeInstallUrl()],
+    ["Release", XRM10_RELEASE_NAME],
     ["Vehicle", `${profile.vehicleYear} ${profile.vehicleModel}`],
     ["Steering", `${labelFor("lateralMode", profile.controllers.lateralMode)}, ${labelFor("laneCenterMode", profile.controllers.laneCenterMode)}`],
     ["Cruise", `${labelFor("longitudinalMode", profile.controllers.longitudinalMode)}, ${Number(profile.tuning.followGap).toFixed(1)}s gap`],
@@ -3247,6 +3250,8 @@ function exportProfile() {
     ...exported,
     computed: {
       safetyScore: computeSafetyScore(),
+      releaseName: XRM10_RELEASE_NAME,
+      releaseVersion: XRM10_RELEASE_VERSION,
       installUrl: activeInstallUrl(),
       controllerState: controllerLabel(),
       activeControllerModules: activeControllerCount(),
