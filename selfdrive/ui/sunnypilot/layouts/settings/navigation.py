@@ -64,8 +64,8 @@ class NavigationLayout(Widget):
     )
 
     self._car_screen_intent = toggle_item_sp(
-      title=lambda: tr("Use Car Screen Destination"),
-      description=lambda: tr("Reads route intent staged by the XRM10 bridge. This does not steer, brake, accelerate, or change lanes by itself."),
+      title=lambda: tr("Use Route Destination"),
+      description=lambda: tr("Reads route intent staged by the XRM10 app or car-screen bridge. This does not steer, brake, accelerate, or change lanes by itself."),
       initial_state=read_xrm10_bool("Xrm10CarScreenRouteIntent"),
       callback=lambda state: write_xrm10_param("Xrm10CarScreenRouteIntent", state),
     )
@@ -94,6 +94,21 @@ class NavigationLayout(Widget):
       self._destination_text,
     )
 
+    self._route_source = text_item(
+      lambda: tr("Route Source"),
+      self._route_source_text,
+    )
+
+    self._coordinates = text_item(
+      lambda: tr("Coordinates"),
+      self._coordinates_text,
+    )
+
+    self._google_maps_url = text_item(
+      lambda: tr("Google Maps"),
+      self._google_maps_text,
+    )
+
     self._updated_at = text_item(
       lambda: tr("Last Updated"),
       self._updated_at_text,
@@ -111,6 +126,9 @@ class NavigationLayout(Widget):
       self._nav_activity,
       self._route_status,
       self._destination,
+      self._route_source,
+      self._coordinates,
+      self._google_maps_url,
       self._updated_at,
       self._mapd_version,
     ]
@@ -119,7 +137,7 @@ class NavigationLayout(Widget):
   def _source_description(self):
     source = read_xrm10_int("Xrm10NavSource")
     if source == 1:
-      return tr("Car screen: accepts destination intent from the XRM10 bridge when a supported car-screen route adapter is connected. Driver remains responsible for navigation decisions.")
+      return tr("Route intent: accepts destination from the XRM10 app or a supported car-screen route adapter. Driver remains responsible for navigation decisions.")
     if source == 2:
       return tr("OSM: uses downloaded OpenStreetMap data for map context such as road names and speed limits. It does not create autonomous navigation.")
     return tr("Off: no navigation route intent is staged.")
@@ -144,6 +162,22 @@ class NavigationLayout(Widget):
 
   def _destination_text(self):
     return read_xrm10_param("Xrm10CarScreenDestination") or tr("None")
+
+  def _route_source_text(self):
+    source = read_xrm10_param("Xrm10RouteSource")
+    if source == "app-route":
+      return tr("App destination")
+    if source == "car-screen":
+      return tr("Car screen")
+    return source or tr("Waiting")
+
+  def _coordinates_text(self):
+    latitude = read_xrm10_param("Xrm10RouteLatitude")
+    longitude = read_xrm10_param("Xrm10RouteLongitude")
+    return f"{latitude}, {longitude}" if latitude and longitude else tr("None")
+
+  def _google_maps_text(self):
+    return tr("Ready") if read_xrm10_param("Xrm10RouteGoogleMapsUrl") else tr("None")
 
   def _updated_at_text(self):
     return read_xrm10_param("Xrm10CarScreenRouteUpdatedAt") or tr("Never")
