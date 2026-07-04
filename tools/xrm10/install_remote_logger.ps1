@@ -87,6 +87,7 @@ $config = [ordered]@{
   http_token = $HttpToken
   ssh_dest = $SshDest
   ssh_key = $SshKey
+  upload_timeout_seconds = 300
   max_spool_packages = 60
   max_sent_packages = 30
 }
@@ -120,14 +121,14 @@ Path('$remoteConfig').write_bytes(base64.b64decode('$configB64'))
 PY"
 Run-Ssh $writeConfigCommand 20 | Out-Null
 
-Write-Host "Running one collection pass..."
-Run-Ssh "python3 $remoteScript --once --config $remoteConfig" 180
+Write-Host "Running one collection/upload pass..."
+Run-Ssh "python3 $remoteScript --once --config $remoteConfig" 900
 
 if (-not $NoStart) {
   Write-Host "Starting background remote logger..."
   $startCommand = "if [ -f $remoteDir/logger.pid ]; then kill `$(cat $remoteDir/logger.pid) 2>/dev/null || true; fi; nohup python3 $remoteScript --daemon --config $remoteConfig >> $remoteDir/logger.log 2>&1 & echo `$! > $remoteDir/logger.pid; sleep 1; cat $remoteDir/logger.pid"
-  $pid = Run-Ssh $startCommand 20
-  Write-Host "Remote logger started with PID $($pid.Trim())."
+  $remotePid = Run-Ssh $startCommand 20
+  Write-Host "Remote logger started with PID $($remotePid.Trim())."
 }
 
 Write-Host "Remote logger status:"

@@ -39,6 +39,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
   "http_token": "",
   "ssh_dest": "",
   "ssh_key": "",
+  "upload_timeout_seconds": 300,
   "max_spool_packages": 60,
   "max_sent_packages": 30,
 }
@@ -244,6 +245,29 @@ def make_package(config: dict[str, Any], paths: dict[str, Path]) -> Path | None:
     (paths["state"] / "latest_status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
     return None
 
+  route_names = [route.name for route in routes]
+  last_routes_path = paths["state"] / "last_routes.json"
+  try:
+    last_routes = json.loads(last_routes_path.read_text(encoding="utf-8"))
+  except Exception:
+    last_routes = None
+  if last_routes is None:
+    try:
+      latest = json.loads((paths["state"] / "latest_status.json").read_text(encoding="utf-8"))
+      last_routes = latest.get("routes")
+    except Exception:
+      last_routes = None
+
+  if last_routes == route_names:
+    status = {
+      "generatedAt": utc_now(),
+      "status": "no-new-routes",
+      "message": "Recent route set has not changed; pending uploads will still retry.",
+      "routes": route_names,
+    }
+    (paths["state"] / "latest_status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
+    return None
+
   stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
   host = safe_name(socket.gethostname())
   package_name = f"xrm10-steering-{host}-{stamp}.tgz"
@@ -263,9 +287,10 @@ def make_package(config: dict[str, Any], paths: dict[str, Path]) -> Path | None:
     "status": "spooled",
     "package": package_path.name,
     "bytes": package_path.stat().st_size,
-    "routes": [route.name for route in routes],
+    "routes": route_names,
   }
   (paths["state"] / "latest_status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
+  last_routes_path.write_text(json.dumps(route_names, indent=2), encoding="utf-8")
   return package_path
 
 
@@ -284,8 +309,9 @@ def upload_http(package: Path, config: dict[str, Any]) -> bool:
 
   data = package.read_bytes()
   req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+  timeout = max(30, min(900, int(config.get("upload_timeout_seconds", 300))))
   try:
-    with urllib.request.urlopen(req, timeout=60) as response:
+    with urllib.request.urlopen(req, timeout=timeout) as response:
       return 200 <= int(response.status) < 300
   except (urllib.error.URLError, TimeoutError, OSError):
     return False

@@ -51,6 +51,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\xrm10\install_remote
 ssh comma4 "tail -n 60 /data/xrm10_remote_logger/logger.log; ls -lh /data/xrm10_remote_logger/spool /data/xrm10_remote_logger/sent"
 ```
 
+## Analyze Steering Logs On The Comma
+
+```powershell
+scp .\tools\xrm10\analyze_steering_logs.py comma4:/tmp/xrm10_analyze_steering_logs.py
+ssh comma4 "cd /data/openpilot && /usr/local/venv/bin/python /tmp/xrm10_analyze_steering_logs.py --segments 6 --prefer rlog --output-dir /data/xrm10_remote_logger/analysis_rlog"
+scp comma4:/data/xrm10_remote_logger/analysis_rlog/steering_summary.md .\steering_summary.md
+```
+
+Use rlogs for real steering analysis. qlogs are useful for a quick check but may be too sparse.
+
 ## What It Collects
 
 - recent `qlog*` and `rlog*` route files
@@ -60,6 +70,8 @@ ssh comma4 "tail -n 60 /data/xrm10_remote_logger/logger.log; ls -lh /data/xrm10_
 - manager log, journal, dmesg, network, route, and disk metadata
 
 Camera video is disabled by default to keep uploads smaller.
+
+The logger avoids creating duplicate packages when the recent route set has not changed. Pending packages still retry upload even when no new package is created.
 
 ## Safety Boundary
 
