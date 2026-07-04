@@ -19,6 +19,8 @@ const navDriveEventsPath = path.join(stateDir, "nav_drive_events.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
 const safetyEventsPath = path.join(stateDir, "safety_events.json");
 const appliedControlsPath = path.join(stateDir, "applied_controls.json");
+const steeringUploadsDir = path.join(stateDir, "steering_uploads");
+const steeringUploadsIndexPath = path.join(steeringUploadsDir, "index.json");
 
 const device = {
   name: "comma four",
@@ -123,7 +125,7 @@ function sendJson(res, status, payload) {
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-XRM10-Token, X-XRM10-Log-Name, X-XRM10-Device",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   };
 }
@@ -141,6 +143,73 @@ function readBody(req) {
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
+}
+
+function safeUploadName(value = "") {
+  const cleaned = String(value || "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 140);
+  return cleaned || `xrm10-steering-${Date.now()}.tgz`;
+}
+
+function readSteeringUploadIndex() {
+  try {
+    const uploads = JSON.parse(fs.readFileSync(steeringUploadsIndexPath, "utf8"));
+    return Array.isArray(uploads) ? uploads : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSteeringUploadIndex(uploads) {
+  fs.mkdirSync(steeringUploadsDir, { recursive: true });
+  fs.writeFileSync(steeringUploadsIndexPath, JSON.stringify(uploads.slice(-500), null, 2));
+}
+
+function receiveUploadToFile(req, filePath, maxBytes = 512 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let bytes = 0;
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const stream = fs.createWriteStream(filePath, { flags: "wx" });
+
+    stream.on("error", reject);
+    req.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        stream.destroy();
+        req.destroy();
+        reject(new Error("Upload too large"));
+        return;
+      }
+      stream.write(chunk);
+    });
+    req.on("end", () => {
+      stream.end(() => resolve(bytes));
+    });
+    req.on("error", (error) => {
+      stream.destroy();
+      reject(error);
+    });
+  });
+}
+
+function uploadTokenAccepted(req, parsed) {
+  const expected = String(process.env.XRM10_UPLOAD_TOKEN || "").trim();
+  if (!expected) {
+    const forwardedFor = String(req.headers["x-forwarded-for"] || "").trim();
+    const remote = String(req.socket?.remoteAddress || "").replace(/^::ffff:/, "");
+    return !forwardedFor && (
+      remote === "::1" ||
+      remote === "127.0.0.1" ||
+      remote.startsWith("10.") ||
+      remote.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(remote) ||
+      remote.startsWith("169.254.")
+    );
+  }
+  const supplied = String(req.headers["x-xrm10-token"] || parsed.searchParams.get("token") || "").trim();
+  return supplied === expected;
 }
 
 function latestProfileMeta() {
@@ -1344,6 +1413,61 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid nav-drive-event payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/steering-log-uploads") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      uploads: readSteeringUploadIndex()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/steering-log-upload") {
+    let filePath = "";
+    try {
+      if (!uploadTokenAccepted(req, parsed)) {
+        sendJson(res, 401, {
+          ok: false,
+          error: "Invalid steering log upload token."
+        });
+        return;
+      }
+
+      const requestedName = req.headers["x-xrm10-log-name"] || parsed.searchParams.get("name") || "";
+      const fileName = `${new Date().toISOString().replace(/[:.]/g, "-")}-${safeUploadName(requestedName)}`;
+      filePath = path.join(steeringUploadsDir, fileName);
+      const bytes = await receiveUploadToFile(req, filePath);
+      const uploads = readSteeringUploadIndex();
+      const entry = {
+        receivedAt: new Date().toISOString(),
+        fileName,
+        bytes,
+        deviceName: String(req.headers["x-xrm10-device"] || ""),
+        sourceAddress: req.socket?.remoteAddress || "",
+        contentType: String(req.headers["content-type"] || "application/octet-stream"),
+        path: filePath
+      };
+      uploads.push(entry);
+      writeSteeringUploadIndex(uploads);
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "steering-log-uploaded",
+        upload: entry,
+        uploadCount: uploads.length
+      });
+    } catch (error) {
+      if (filePath) {
+        try { fs.unlinkSync(filePath); } catch {}
+      }
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid steering log upload"
       });
     }
     return;
