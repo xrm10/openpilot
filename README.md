@@ -1,3 +1,17 @@
+## XRM10 v1 Starter
+
+XRM10 v1 starter is the first organized development package for this xrm10 openpilot/sunnypilot fork.
+
+It includes the XRM10 Control Center app, local bridge, network-resilient remote steering logger, steering log analyzer, route-intent UI, and Nav Drive Plan simulation/replay tooling.
+
+This is official for the `xrm10/openpilot` development repo. It is not an official comma.ai, openpilot, or sunnypilot product release.
+
+Start here: [`docs/XRM10_V1_STARTER.md`](docs/XRM10_V1_STARTER.md)
+
+Safety boundary: v1 starter does not command live steering, braking, throttle, or lane changes from the phone app. Driver monitoring, manual override, panda safety, and excessive actuation checks remain locked.
+
+---
+
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
 
 ## 🌞 What is sunnypilot?
