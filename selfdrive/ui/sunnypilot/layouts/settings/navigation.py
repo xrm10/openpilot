@@ -4,191 +4,156 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-from pathlib import Path
+from time import monotonic
 
-from openpilot.common.params import Params
-from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, toggle_item_sp
-from openpilot.system.ui.widgets.list_view import text_item
-from openpilot.system.ui.widgets.scroller_tici import Scroller
-from openpilot.system.ui.widgets import Widget
-
-NAV_SOURCE_BUTTONS = [lambda: tr("Off"), lambda: tr("Car screen"), lambda: tr("OSM")]
-XRM10_PARAM_DIR = Path("/data/params/d")
-
-
-def read_xrm10_param(key: str, default: str = "") -> str:
-  try:
-    return (XRM10_PARAM_DIR / key).read_text().strip()
-  except OSError:
-    return default
+from openpilot.system.ui.widgets.scroller import Scroller
+from openpilot.selfdrive.ui.mici.layouts.settings.navigation import (
+  NAV_SOURCE_OPTIONS,
+  Xrm10NavActionButton,
+  Xrm10NavSourceToggle,
+  Xrm10NavToggle,
+  clamped_nav_source,
+)
+from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import (
+  Xrm10ColorCard,
+  now_iso,
+  read_bool_param,
+  read_param,
+  write_param,
+)
 
 
-def write_xrm10_param(key: str, value: str | int | bool) -> None:
-  try:
-    (XRM10_PARAM_DIR / key).write_text(str(int(value) if isinstance(value, bool) else value))
-  except OSError:
-    pass
-
-
-def read_xrm10_bool(key: str, default: bool = False) -> bool:
-  value = read_xrm10_param(key, "1" if default else "0").lower()
-  return value in ("1", "true")
-
-
-def read_xrm10_int(key: str, default: int = 0) -> int:
-  try:
-    return int(read_xrm10_param(key, str(default)))
-  except ValueError:
-    return default
-
-
-class NavigationLayout(Widget):
+class NavigationLayout(Scroller):
   def __init__(self):
-    super().__init__()
+    super().__init__(snap_items=False, spacing=20, pad=20, scroll_indicator=True, edge_shadows=True)
 
-    self._params = Params()
-    items = self._initialize_items()
-    self._scroller = Scroller(items, line_separator=True, spacing=0)
+    self._source = Xrm10NavSourceToggle()
+    self._intent = Xrm10NavToggle(
+      "use route destination",
+      "Xrm10CarScreenRouteIntent",
+      "accept app/car-screen destination",
+      True,
+    )
+    self._auto_start = Xrm10NavToggle(
+      "auto-start route display",
+      "Xrm10NavAutoStart",
+      "show route when destination appears",
+      True,
+    )
+    self._active_display = Xrm10NavToggle(
+      "active route display",
+      "Xrm10NavActive",
+      "display only, no driving command",
+      False,
+    )
+    self._activity = Xrm10ColorCard("navigation activity", "waiting", "yellow")
+    self._destination = Xrm10ColorCard("destination", "none", "blue")
+    self._route = Xrm10ColorCard("route status", "not connected", "grey")
+    self._coordinates = Xrm10ColorCard("coordinates", "none", "grey")
+    self._maps = Xrm10ColorCard("maps link", "none", "grey")
+    self._updated = Xrm10ColorCard("last update", "never", "grey")
+    self._last_refresh = 0.0
 
-  def _initialize_items(self):
-    self._source = multiple_button_item_sp(
-      title=lambda: tr("Navigation Source"),
-      description=self._source_description,
-      buttons=NAV_SOURCE_BUTTONS,
-      selected_index=read_xrm10_int("Xrm10NavSource"),
-      callback=lambda index: write_xrm10_param("Xrm10NavSource", index),
-      button_width=360,
-      inline=False,
+    self._sync = Xrm10NavActionButton(
+      "sync route now",
+      "request bridge refresh",
+      self._request_sync,
+    )
+    self._clear = Xrm10NavActionButton(
+      "clear route display",
+      "turn active route off",
+      self._clear_route,
     )
 
-    self._car_screen_intent = toggle_item_sp(
-      title=lambda: tr("Use Route Destination"),
-      description=lambda: tr("Reads route intent staged by the XRM10 app or car-screen bridge. This does not steer, brake, accelerate, or change lanes by itself."),
-      initial_state=read_xrm10_bool("Xrm10CarScreenRouteIntent"),
-      callback=lambda state: write_xrm10_param("Xrm10CarScreenRouteIntent", state),
-    )
-
-    self._auto_start = toggle_item_sp(
-      title=lambda: tr("Start When Car Route Is Detected"),
-      description=lambda: tr("Automatically marks navigation intent active when a connected car-screen adapter reports a destination. Driver control and openpilot safety limits remain unchanged."),
-      initial_state=read_xrm10_bool("Xrm10NavAutoStart", True),
-      callback=lambda state: write_xrm10_param("Xrm10NavAutoStart", state),
-    )
-
-    self._nav_activity = text_item(
-      lambda: tr("Navigation Activity"),
-      self._nav_activity_text,
-      description=lambda: tr("Active means a destination was detected and staged as route intent. It is not autonomous steering or braking."),
-    )
-
-    self._route_status = text_item(
-      lambda: tr("Route Status"),
-      self._route_status_text,
-      description=lambda: tr("A Tesla screen route adapter must write the detected destination here before this can be used by navigation logic."),
-    )
-
-    self._destination = text_item(
-      lambda: tr("Destination"),
-      self._destination_text,
-    )
-
-    self._route_source = text_item(
-      lambda: tr("Route Source"),
-      self._route_source_text,
-    )
-
-    self._coordinates = text_item(
-      lambda: tr("Coordinates"),
-      self._coordinates_text,
-    )
-
-    self._google_maps_url = text_item(
-      lambda: tr("Google Maps"),
-      self._google_maps_text,
-    )
-
-    self._updated_at = text_item(
-      lambda: tr("Last Updated"),
-      self._updated_at_text,
-    )
-
-    self._mapd_version = text_item(
-      lambda: tr("mapd Version"),
-      lambda: ui_state.params.get("MapdVersion") or tr("Not installed"),
-    )
-
-    items = [
+    self._scroller.add_widgets([
+      Xrm10ColorCard("navigation", "xrm10 card format\nroute intent, map status, and live sync", "blue"),
       self._source,
-      self._car_screen_intent,
+      self._intent,
       self._auto_start,
-      self._nav_activity,
-      self._route_status,
+      self._active_display,
+      self._activity,
       self._destination,
-      self._route_source,
+      self._route,
       self._coordinates,
-      self._google_maps_url,
-      self._updated_at,
-      self._mapd_version,
-    ]
-    return items
+      self._maps,
+      self._updated,
+      self._sync,
+      self._clear,
+      Xrm10ColorCard("safety gate", "navigation screen does not steer, brake, accelerate, or change lanes\nit stages route intent and review data only", "red"),
+    ])
 
-  def _source_description(self):
-    source = read_xrm10_int("Xrm10NavSource")
-    if source == 1:
-      return tr("Route intent: accepts destination from the XRM10 app or a supported car-screen route adapter. Driver remains responsible for navigation decisions.")
-    if source == 2:
-      return tr("OSM: uses downloaded OpenStreetMap data for map context such as road names and speed limits. It does not create autonomous navigation.")
-    return tr("Off: no navigation route intent is staged.")
+  def _request_sync(self):
+    write_param("Xrm10NavSyncRequested", now_iso())
+    write_param("Xrm10CarScreenRouteStatus", "sync requested from comma UI")
+    write_param("Xrm10CarScreenRouteUpdatedAt", now_iso())
 
-  def _route_status_text(self):
-    return read_xrm10_param("Xrm10CarScreenRouteStatus") or tr("Not connected")
+  def _clear_route(self):
+    write_param("Xrm10NavActive", "0")
+    write_param("Xrm10CarScreenRouteStatus", "route display cleared from comma UI")
+    write_param("Xrm10CarScreenDestination", "")
+    write_param("Xrm10RouteLatitude", "")
+    write_param("Xrm10RouteLongitude", "")
+    write_param("Xrm10RouteGoogleMapsUrl", "")
+    write_param("Xrm10RouteSource", "")
+    write_param("Xrm10CarScreenRouteUpdatedAt", now_iso())
+    self._refresh(force=True)
 
-  def _nav_activity_text(self):
-    source = read_xrm10_int("Xrm10NavSource")
-    intent_enabled = read_xrm10_bool("Xrm10CarScreenRouteIntent")
-    auto_start = read_xrm10_bool("Xrm10NavAutoStart", True)
-    destination = read_xrm10_param("Xrm10CarScreenDestination")
-    if source == 0 or not intent_enabled:
-      return tr("Off")
-    if auto_start and destination:
-      return tr("Active from car-screen route")
-    if auto_start:
-      return tr("Armed - waiting for car-screen route")
-    if destination:
-      return tr("Route detected - auto-start off")
-    return tr("Waiting for car-screen adapter")
-
-  def _destination_text(self):
-    return read_xrm10_param("Xrm10CarScreenDestination") or tr("None")
-
-  def _route_source_text(self):
-    source = read_xrm10_param("Xrm10RouteSource")
-    if source == "app-route":
-      return tr("App destination")
-    if source == "car-screen":
-      return tr("Car screen")
-    return source or tr("Waiting")
-
-  def _coordinates_text(self):
-    latitude = read_xrm10_param("Xrm10RouteLatitude")
-    longitude = read_xrm10_param("Xrm10RouteLongitude")
-    return f"{latitude}, {longitude}" if latitude and longitude else tr("None")
-
-  def _google_maps_text(self):
-    return tr("Ready") if read_xrm10_param("Xrm10RouteGoogleMapsUrl") else tr("None")
-
-  def _updated_at_text(self):
-    return read_xrm10_param("Xrm10CarScreenRouteUpdatedAt") or tr("Never")
+  def show_event(self):
+    super().show_event()
+    self._refresh(force=True)
 
   def _update_state(self):
     super()._update_state()
-    self._car_screen_intent.action_item.set_state(read_xrm10_bool("Xrm10CarScreenRouteIntent"))
-    self._auto_start.action_item.set_state(read_xrm10_bool("Xrm10NavAutoStart", True))
+    self._refresh()
 
-  def _render(self, rect):
-    self._scroller.render(rect)
+  def _activity_text(self) -> str:
+    source = clamped_nav_source()
+    intent_enabled = read_bool_param("Xrm10CarScreenRouteIntent", True)
+    auto_start = read_bool_param("Xrm10NavAutoStart", True)
+    active = read_bool_param("Xrm10NavActive", False)
+    destination = read_param("Xrm10CarScreenDestination")
+    if source == 0 or not intent_enabled:
+      return "off"
+    if active:
+      return "active route display"
+    if auto_start and destination:
+      return "armed with destination"
+    if auto_start:
+      return "armed - waiting for route"
+    if destination:
+      return "route detected - auto-start off"
+    return "waiting for app/car screen"
 
-  def show_event(self):
-    self._scroller.show_event()
+  def _refresh(self, force: bool = False):
+    if not force and monotonic() - self._last_refresh < 1.0:
+      return
+    self._last_refresh = monotonic()
+
+    self._source.refresh()
+    self._intent.refresh()
+    self._auto_start.refresh()
+    self._active_display.refresh()
+
+    source = clamped_nav_source()
+    destination = read_param("Xrm10CarScreenDestination") or "none"
+    route_status = read_param("Xrm10CarScreenRouteStatus") or "not connected"
+    route_source = read_param("Xrm10RouteSource") or NAV_SOURCE_OPTIONS[source]
+    latitude = read_param("Xrm10RouteLatitude")
+    longitude = read_param("Xrm10RouteLongitude")
+    maps_url = read_param("Xrm10RouteGoogleMapsUrl")
+    updated_at = read_param("Xrm10CarScreenRouteUpdatedAt") or "never"
+    active = read_bool_param("Xrm10NavActive", False)
+
+    self._activity.set_value(self._activity_text())
+    self._destination.set_value(destination)
+    self._route.set_value(f"{route_status}\nsource: {route_source}")
+    self._coordinates.set_value(f"{latitude}, {longitude}" if latitude and longitude else "none")
+    self._maps.set_value("ready" if maps_url else "none")
+    self._updated.set_value(updated_at[:19] if updated_at != "never" else updated_at)
+
+    self._activity.set_color("green" if active else "yellow" if source else "grey")
+    self._destination.set_color("green" if destination != "none" else "blue")
+    self._route.set_color("green" if "active" in route_status.lower() else "yellow" if "sync" in route_status.lower() else "grey")
+    self._coordinates.set_color("green" if latitude and longitude else "grey")
+    self._maps.set_color("green" if maps_url else "grey")
+    self._updated.set_color("green" if updated_at != "never" else "grey")
