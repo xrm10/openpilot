@@ -6,8 +6,8 @@ from openpilot.selfdrive.ui.mici.layouts.settings.network.network_layout import 
 from openpilot.selfdrive.ui.mici.layouts.settings.device import DeviceLayoutMici, PairBigButton
 from openpilot.selfdrive.ui.mici.layouts.settings.developer import DeveloperLayoutMici
 from openpilot.selfdrive.ui.mici.layouts.settings.firehose import FirehoseLayout
+from openpilot.selfdrive.ui.mici.layouts.settings.navigation import NavigationLayout
 from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import Xrm10SmartLayout
-from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 
 
