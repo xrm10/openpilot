@@ -480,11 +480,162 @@ h2 {
   font-size: 17px;
 }
 
+.drive-console {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.drive-hero-card,
+.drive-status-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.drive-hero-card {
+  order: 1;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-color: rgba(82, 214, 200, 0.24);
+  background: linear-gradient(180deg, rgba(82, 214, 200, 0.08), var(--panel));
+}
+
+.drive-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.drive-hero-top h2 {
+  margin-bottom: 0;
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.drive-hero-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.drive-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drive-mini-grid div {
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+}
+
+.drive-mini-grid span,
+.drive-status-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.drive-mini-grid strong,
+.drive-status-card strong {
+  display: block;
+  margin-top: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-status-grid {
+  order: 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.drive-status-card {
+  display: grid;
+  min-height: 124px;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+}
+
+.drive-status-card svg {
+  width: 25px;
+  height: 25px;
+  color: var(--cyan);
+}
+
+.drive-status-card strong {
+  font-size: 19px;
+}
+
+.drive-status-card small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-action-card {
+  order: 2;
+  padding: 16px;
+}
+
+.drive-action-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drive-action-button {
+  display: grid;
+  min-height: 82px;
+  place-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--panel-2);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.drive-action-button:hover {
+  border-color: var(--cyan);
+}
+
+.drive-action-button svg {
+  width: 24px;
+  height: 24px;
+  color: var(--cyan);
+}
+
+body[data-drive-state="engaged"] .drive-hero-card {
+  border-color: rgba(117, 213, 107, 0.34);
+  background: linear-gradient(180deg, rgba(117, 213, 107, 0.09), var(--panel));
+}
+
+body[data-drive-state="offline"] .drive-hero-card {
+  border-color: rgba(240, 185, 79, 0.34);
+  background: linear-gradient(180deg, rgba(240, 185, 79, 0.1), var(--panel));
+}
+
 .home-device-card {
   overflow: hidden;
   margin-bottom: 18px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -578,7 +729,7 @@ h2 {
   gap: 16px;
   margin-bottom: 22px;
   border: 1px solid rgba(240, 185, 79, 0.38);
-  border-radius: 18px;
+  border-radius: var(--radius);
   background: rgba(240, 185, 79, 0.1);
   padding: 18px 22px;
 }
@@ -623,13 +774,13 @@ h2 {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 16px;
-  min-height: 168px;
+  gap: 12px;
+  min-height: 138px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius);
   color: var(--text);
   background: var(--panel);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 850;
 }
 
@@ -1702,7 +1853,7 @@ button:focus-visible {
   }
 
   .live-stats-bar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
     margin-bottom: 14px;
     padding: 7px;
@@ -1769,6 +1920,50 @@ button:focus-visible {
 
   .settings-search {
     margin-bottom: 16px;
+  }
+
+  .drive-hero-card {
+    padding: 15px;
+  }
+
+  .drive-hero-top {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .drive-hero-top h2 {
+    font-size: 24px;
+  }
+
+  .drive-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .drive-mini-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .drive-mini-grid div {
+    min-height: 58px;
+    padding: 9px;
+  }
+
+  .drive-status-card {
+    min-height: 112px;
+    padding: 12px;
+  }
+
+  .drive-status-card strong {
+    font-size: 17px;
+  }
+
+  .drive-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .drive-action-button {
+    min-height: 76px;
   }
 
   .device-status-row {

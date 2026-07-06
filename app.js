@@ -53,11 +53,11 @@ const installTargets = [
 ];
 
 const sectionMeta = {
-  home: ["XRM10", "Command"],
-  device: ["Operate", "Live Device"],
-  maps: ["Navigate", "Route + Maps"],
-  developer: ["Learn", "Learning Engine"],
-  safetyLab: ["Test", "Simulation Lab"],
+  home: ["XRM10", "Drive"],
+  device: ["Status", "Live Device"],
+  maps: ["Route", "Navigation"],
+  developer: ["Logs", "Review"],
+  safetyLab: ["Test", "Simulation"],
   software: ["Deploy", "Software"]
 };
 
@@ -694,6 +694,23 @@ const els = {
   homeSyncTitle: document.querySelector("#homeSyncTitle"),
   homeSyncText: document.querySelector("#homeSyncText"),
   homeRefreshSync: document.querySelector("#homeRefreshSync"),
+  driveConsoleTitle: document.querySelector("#driveConsoleTitle"),
+  driveConsoleBadge: document.querySelector("#driveConsoleBadge"),
+  driveConsoleText: document.querySelector("#driveConsoleText"),
+  driveRoadState: document.querySelector("#driveRoadState"),
+  driveSshState: document.querySelector("#driveSshState"),
+  driveCommit: document.querySelector("#driveCommit"),
+  driveLogStatus: document.querySelector("#driveLogStatus"),
+  driveLogDetail: document.querySelector("#driveLogDetail"),
+  driveRouteStatus: document.querySelector("#driveRouteStatus"),
+  driveRouteDetail: document.querySelector("#driveRouteDetail"),
+  driveSafetyStatus: document.querySelector("#driveSafetyStatus"),
+  driveSafetyDetail: document.querySelector("#driveSafetyDetail"),
+  driveLearnStatus: document.querySelector("#driveLearnStatus"),
+  driveLearnDetail: document.querySelector("#driveLearnDetail"),
+  driveOpenNavigate: document.querySelector("#driveOpenNavigate"),
+  driveOpenLogs: document.querySelector("#driveOpenLogs"),
+  driveOpenTest: document.querySelector("#driveOpenTest"),
   liveCapabilityBadge: document.querySelector("#liveCapabilityBadge"),
   liveCapabilitySummary: document.querySelector("#liveCapabilitySummary"),
   liveCapabilityList: document.querySelector("#liveCapabilityList"),
@@ -1534,7 +1551,9 @@ function render() {
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
   renderTargets();
   renderSectionApplyBars();
-  renderSection(profile.activeSection);
+  const startupSection = sectionFromUrl() || "home";
+  profile.activeSection = startupSection;
+  renderSection(startupSection);
   filterHomeTiles();
 
   if (window.lucide) {
@@ -1619,6 +1638,7 @@ function renderConnection() {
       : "Likely parked or bridge not connected. Settings you change here save to the profile and can sync when the device reconnects.");
   }
 
+  renderDriveConsole({ device, status, statusLabel, roadStateLabel, route, routeLabel });
   if (els.liveQueueList) {
     els.liveQueueList.innerHTML = pendingCount
       ? syncState.pending
@@ -1641,6 +1661,81 @@ function renderConnection() {
   renderCarRoute();
   renderNavDrivePlan();
   renderIntelligence();
+}
+
+function renderDriveConsole({ device, status, statusLabel, roadStateLabel, route, routeLabel }) {
+  const report = normalizeIntelligenceReport(syncState.intelligence);
+  const summary = report.summary;
+  const uploads = Number(summary.uploadCount || 0);
+  const uploadedBytes = Number(summary.uploadedBytes || 0);
+  const navEvents = Number(summary.navEventCount || 0);
+  const safetyEvents = Number(summary.safetyEventCount || syncState.safetyEventCount || 0);
+  const routeActive = Boolean(route?.active);
+  const isEngaged = Boolean(device.engaged);
+  const isOnline = status === "online" || status === "syncing";
+  const roadLabel = isEngaged ? "Engaged" : device.offroad === false ? "Inroad" : "Offroad";
+  const navSource = String(device.navSource ?? "");
+  const sourceLabel = navSource === "2"
+    ? "OSM/mapd"
+    : navSource === "1"
+      ? "Car screen"
+      : sourceLabelForRoute(route?.source);
+  const score = Math.round(report.score || 0);
+  const recommendations = report.recommendations.length || summary.recommendationCount || 0;
+
+  let title = "Bridge offline";
+  let text = "Keep the laptop bridge running, then refresh before changing anything.";
+  let badge = "Offline";
+  let badgeClass = "warn";
+  if (isOnline && isEngaged) {
+    title = "Logging current drive";
+    text = "comma is engaged. The app will watch status; heavy log upload waits until offroad.";
+    badge = "Driving";
+    badgeClass = "pass";
+  } else if (isOnline && device.offroad === false) {
+    title = "Inroad standby";
+    text = "comma is inroad. Use this view for status; save heavy review work for offroad.";
+    badge = "Inroad";
+    badgeClass = "warn";
+  } else if (isOnline) {
+    title = "Ready offroad";
+    text = "Good time to sync settings, upload logs, run review, or check navigation.";
+    badge = "Ready";
+    badgeClass = "pass";
+  }
+
+  setText(els.driveConsoleTitle, title);
+  setText(els.driveConsoleText, text);
+  setBadge(els.driveConsoleBadge, badge, badgeClass);
+  setText(els.driveRoadState, roadLabel);
+  setText(els.driveSshState, syncState.sshStatus || "not checked");
+  setText(els.driveCommit, String(device.commit || "---").slice(0, 7));
+
+  const logStatus = isEngaged
+    ? "Recording"
+    : uploads > 0
+      ? `${uploads} package${uploads === 1 ? "" : "s"}`
+      : "Waiting";
+  const logDetail = isEngaged
+    ? "Upload after offroad"
+    : uploads > 0
+      ? `${formatBytes(uploadedBytes)} uploaded`
+      : "No XRM10 uploads yet";
+  setText(els.driveLogStatus, logStatus);
+  setText(els.driveLogDetail, logDetail);
+
+  setText(els.driveRouteStatus, routeActive ? "Route staged" : sourceLabel);
+  setText(els.driveRouteDetail, routeActive ? routeLabel : route?.nextInstruction || "Waiting for destination");
+
+  setText(els.driveSafetyStatus, "Guarded");
+  setText(els.driveSafetyDetail, `${safetyEvents} safety event${safetyEvents === 1 ? "" : "s"} logged`);
+
+  setText(els.driveLearnStatus, `${score}/100`);
+  setText(els.driveLearnDetail, recommendations
+    ? `${recommendations} review item${recommendations === 1 ? "" : "s"}`
+    : navEvents ? `${navEvents} nav event${navEvents === 1 ? "" : "s"}` : "Needs fresh logs");
+
+  document.body.dataset.driveState = isEngaged ? "engaged" : isOnline ? "online" : "offline";
 }
 
 function renderCapabilitySummary() {
@@ -1782,7 +1877,7 @@ function renderIntelligence() {
     els.smartSystemSummary,
     recommendationCount
       ? `${recommendationCount} review item${recommendationCount === 1 ? "" : "s"} - ${report.deploy.nextStep}`
-      : "Run a learning review after logs, route simulation, and safety events are available."
+      : "Run a review after logs, route simulation, and safety events are available."
   );
 
   if (els.smartPipelineList) {
@@ -1828,7 +1923,7 @@ function renderIntelligence() {
           </div>
         </div>
       `).join("")
-      : `<div class="queue-empty">No learning review yet. Run review after the bridge has logs or simulation events.</div>`;
+      : `<div class="queue-empty">No review yet. Run review after the bridge has logs or simulation events.</div>`;
   }
 }
 
@@ -1844,6 +1939,7 @@ function sourceLabelForRoute(source) {
   return {
     "car-screen": "Car screen maps",
     "app-route": "App destination",
+    "osm-mapd": "OSM/mapd",
     "offline-cache": "Offline cache",
     "manual-demo": "Manual demo"
   }[source] || source || "Car screen maps";
@@ -2027,10 +2123,10 @@ async function refreshIntelligence(showMessage = false) {
     if (response.device) markOnline(response.device);
     saveSyncState();
     renderIntelligence();
-    if (showMessage) showToast("Learning report refreshed");
+    if (showMessage) showToast("Review report refreshed");
     return true;
   } catch (error) {
-    if (showMessage) showToast("Learning refresh failed");
+    if (showMessage) showToast("Review refresh failed");
     return false;
   }
 }
@@ -2066,10 +2162,10 @@ async function runIntelligenceReview() {
     saveSyncState();
     renderIntelligence();
     markSectionChanged("developer", "runIntelligenceReview");
-    showToast("Learning review updated");
+    showToast("Review updated");
     return true;
   } catch (error) {
-    showToast("Learning review failed");
+    showToast("Review failed");
     return false;
   }
 }
@@ -2542,7 +2638,7 @@ function buildNavDrivePlanFromRoute(routeInput = normalizeRouteState({})) {
     addStep(
       "learning-review-queue",
       "learning-review",
-      "Learning review queue",
+      "Review queue",
       "Collect candidate improvements from logs for manual code review. The app never auto-edits or auto-deploys driving code."
     );
   }
@@ -3837,10 +3933,10 @@ function exportIntelligenceReport() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${slug(profile.profileName)}-learning-report.json`;
+  link.download = `${slug(profile.profileName)}-review-report.json`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast("Learning report exported");
+  showToast("Review report exported");
 }
 
 async function exportCodexPackage() {
@@ -3906,6 +4002,12 @@ function setSection(section) {
   renderSection(nextSection);
 }
 
+function sectionFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const candidate = params.get("section") || window.location.hash.replace("#", "");
+  return sectionMeta[candidate] ? candidate : null;
+}
+
 function renderSection(section) {
   const nextSection = sectionMeta[section] ? section : "device";
   const [eyebrow, title] = sectionMeta[nextSection];
@@ -3923,9 +4025,9 @@ function renderSection(section) {
 function filterHomeTiles() {
   if (!els.settingsSearch) return;
   const query = els.settingsSearch.value.trim().toLowerCase();
-  document.querySelectorAll(".home-tile").forEach((tile) => {
-    const text = `${tile.textContent} ${tile.dataset.search || ""}`.toLowerCase();
-    tile.hidden = query !== "" && !text.includes(query);
+  document.querySelectorAll(".drive-action-button, .home-tile").forEach((item) => {
+    const text = `${item.textContent} ${item.dataset.search || ""}`.toLowerCase();
+    item.hidden = query !== "" && !text.includes(query);
   });
 }
 
@@ -3941,13 +4043,13 @@ function pruneAppSections() {
   });
 
   document.querySelectorAll('[data-section-target="maps"] span').forEach((label) => {
-    label.textContent = "Navigate";
+    label.textContent = "Route";
   });
   document.querySelectorAll('[data-section-target="device"] span').forEach((label) => {
-    label.textContent = "Operate";
+    label.textContent = "Status";
   });
   document.querySelectorAll('[data-section-target="developer"] span').forEach((label) => {
-    label.textContent = "Learn";
+    label.textContent = "Logs";
   });
   document.querySelectorAll('[data-section-target="safetyLab"] span').forEach((label) => {
     label.textContent = "Test";
@@ -4196,8 +4298,8 @@ function wireActions() {
   els.settingsSearch?.addEventListener("input", filterHomeTiles);
   els.settingsSearch?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
-    const firstVisibleTile = [...document.querySelectorAll(".home-tile")].find((tile) => !tile.hidden);
-    if (firstVisibleTile) setSection(firstVisibleTile.dataset.sectionTarget);
+    const firstVisibleItem = [...document.querySelectorAll(".drive-action-button, .home-tile")].find((item) => !item.hidden);
+    if (firstVisibleItem?.dataset.sectionTarget) setSection(firstVisibleItem.dataset.sectionTarget);
   });
 
   els.homeRefreshSync?.addEventListener("click", () => refreshConnection(true));
