@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from cereal import log
 from openpilot.common.params import Params, UnknownKeyName
 from openpilot.system.ui.widgets import Widget
@@ -16,22 +14,6 @@ if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp as multiple_button_item
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
-XRM10_PARAM_DIR = Path("/data/params/d")
-
-
-def read_xrm10_bool(key: str, default: bool = False) -> bool:
-  try:
-    value = (XRM10_PARAM_DIR / key).read_text().strip().lower()
-    return value in ("1", "true")
-  except OSError:
-    return default
-
-
-def write_xrm10_bool(key: str, value: bool) -> None:
-  try:
-    (XRM10_PARAM_DIR / key).write_text("1" if value else "0")
-  except OSError:
-    pass
 
 # Description constants
 DESCRIPTIONS = {
@@ -52,10 +34,6 @@ DESCRIPTIONS = {
   "AlwaysOnDM": tr_noop("Enable driver monitoring even when sunnypilot is not engaged."),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
-  "Xrm10NavAutoStart": tr_noop(
-    "Automatically marks XRM10 navigation intent active when a connected car-screen route adapter reports a destination. "
-    "This does not steer, brake, accelerate, or change lanes by itself."
-  ),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
 }
 
@@ -161,15 +139,6 @@ class TogglesLayout(Widget):
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
 
-    self._nav_auto_start_toggle = toggle_item(
-      lambda: tr("Car-Screen Navigation Auto-Start"),
-      DESCRIPTIONS["Xrm10NavAutoStart"],
-      read_xrm10_bool("Xrm10NavAutoStart", True),
-      callback=lambda state: write_xrm10_bool("Xrm10NavAutoStart", state),
-      icon="settings.png",
-    )
-    self._toggles["Xrm10NavAutoStart"] = self._nav_auto_start_toggle
-
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
 
@@ -234,7 +203,6 @@ class TogglesLayout(Widget):
     # refresh toggles from params to mirror external changes
     for param in self._toggle_defs:
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
-    self._nav_auto_start_toggle.action_item.set_state(read_xrm10_bool("Xrm10NavAutoStart", True))
 
     # these toggles need restart, block while engaged
     for toggle_def in self._toggle_defs:
