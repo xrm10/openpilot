@@ -408,6 +408,7 @@ const defaultSyncState = {
     },
     recommendations: []
   },
+  codexPackage: null,
   capabilities: null
 };
 
@@ -774,10 +775,13 @@ const els = {
   intelligenceUpdated: document.querySelector("#intelligenceUpdated"),
   intelligenceDeployMode: document.querySelector("#intelligenceDeployMode"),
   intelligenceNextStep: document.querySelector("#intelligenceNextStep"),
+  codexPackageStatus: document.querySelector("#codexPackageStatus"),
   intelligenceRecommendationList: document.querySelector("#intelligenceRecommendationList"),
   runIntelligenceReview: document.querySelector("#runIntelligenceReview"),
   refreshIntelligence: document.querySelector("#refreshIntelligence"),
   exportIntelligenceReport: document.querySelector("#exportIntelligenceReport"),
+  buildCodexPackage: document.querySelector("#buildCodexPackage"),
+  exportCodexPackage: document.querySelector("#exportCodexPackage"),
   gccMapPackageStatus: document.querySelector("#gccMapPackageStatus"),
   gccMapPackageFiles: document.querySelector("#gccMapPackageFiles"),
   uploadGccMaps: document.querySelector("#uploadGccMaps"),
@@ -1013,6 +1017,7 @@ function normalizeSyncState(input) {
     navDriveEvents: normalizeNavDriveEvents(input.navDriveEvents || next.navDriveEvents),
     mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
     intelligence: normalizeIntelligenceReport(input.intelligence || next.intelligence),
+    codexPackage: input.codexPackage || next.codexPackage,
     capabilities: input.capabilities || next.capabilities
   };
 }
@@ -1807,6 +1812,9 @@ function renderIntelligence() {
   setText(els.intelligenceUpdated, updated);
   setText(els.intelligenceDeployMode, report.deploy.mode);
   setText(els.intelligenceNextStep, report.deploy.nextStep);
+  setText(els.codexPackageStatus, syncState.codexPackage?.generatedAt
+    ? formatRouteUpdated(syncState.codexPackage.generatedAt)
+    : "Not built");
 
   if (els.intelligenceRecommendationList) {
     els.intelligenceRecommendationList.innerHTML = report.recommendations.length
@@ -2063,6 +2071,50 @@ async function runIntelligenceReview() {
   } catch (error) {
     showToast("Learning review failed");
     return false;
+  }
+}
+
+async function buildCodexPackage(showMessage = true) {
+  readForm();
+  if (profile.connection?.mode !== "http") {
+    if (showMessage) showToast("HTTP bridge required");
+    return null;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    if (showMessage) showToast("Bridge URL required");
+    return null;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/codex-package`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "app-build-codex-package",
+        profile: exportProfile(),
+        policy: {
+          decodeOnly: true,
+          reviewOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.package) syncState.codexPackage = response.package;
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    markSectionChanged("developer", "buildCodexPackage");
+    if (showMessage) {
+      const commaMessage = response.commaUi?.working ? " and comma UI updated" : "";
+      showToast(`Codex package built${commaMessage}`);
+    }
+    return syncState.codexPackage;
+  } catch (error) {
+    if (showMessage) showToast("Codex package failed");
+    return null;
   }
 }
 
@@ -3791,6 +3843,23 @@ function exportIntelligenceReport() {
   showToast("Learning report exported");
 }
 
+async function exportCodexPackage() {
+  let payload = syncState.codexPackage;
+  if (!payload) payload = await buildCodexPackage(false);
+  if (!payload) {
+    showToast("No Codex package to export");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-codex-package.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Codex package exported");
+}
+
 function importProfile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -4214,6 +4283,8 @@ function wireActions() {
   els.runIntelligenceReview?.addEventListener("click", runIntelligenceReview);
   els.refreshIntelligence?.addEventListener("click", () => refreshIntelligence(true));
   els.exportIntelligenceReport?.addEventListener("click", exportIntelligenceReport);
+  els.buildCodexPackage?.addEventListener("click", () => buildCodexPackage(true));
+  els.exportCodexPackage?.addEventListener("click", exportCodexPackage);
   els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
   els.gccMapUpload?.addEventListener("change", (event) => {
     handleGccMapUpload(event.target.files);

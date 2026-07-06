@@ -1248,6 +1248,107 @@ function writeIntelligenceReport(report) {
   return normalized;
 }
 
+function compactParamValue(value, maxLength = 240) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
+async function publishIntelligenceReportToComma(profile = {}, report = defaultIntelligenceReport()) {
+  const normalized = normalizeIntelligenceReport(report);
+  const summary = normalized.summary;
+  const writes = [
+    ["Xrm10SmartAppStatus", normalized.status],
+    ["Xrm10SmartScore", Math.round(normalized.score)],
+    ["Xrm10SmartGate", normalized.gate],
+    ["Xrm10SmartNextStep", compactParamValue(normalized.deploy.nextStep, 260)],
+    ["Xrm10SmartRecommendationCount", normalized.recommendations.length],
+    ["Xrm10SmartLastReviewAt", normalized.generatedAt || ""],
+    ["Xrm10SmartSummary", compactParamValue(`${summary.uploadCount} log packages, ${summary.navEventCount} nav events, ${summary.safetyEventCount} safety events`, 180)],
+    ["Xrm10CodexPackageStatus", compactParamValue(`${normalized.status}: ${normalized.gate}`, 120)],
+    ["Xrm10CodexReviewLoop", 1],
+    ["Xrm10CodexAutoDecode", 1],
+    ["Xrm10CodexAutoApplyAllowed", 0]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+
+  try {
+    const output = await runSshCommand(target, keyPath, command, 7500);
+    const results = writes.map(([param, value]) => {
+      const expected = String(value ?? "");
+      return {
+        param,
+        value: expected,
+        ok: output.includes(`${param}=${expected}`)
+      };
+    });
+    const refused = results.filter((result) => !result.ok);
+    return {
+      state: refused.length ? "partial" : "applied",
+      working: refused.length === 0,
+      message: refused.length
+        ? `${results.length - refused.length} smart UI param${results.length - refused.length === 1 ? "" : "s"} applied, ${refused.length} refused.`
+        : `${results.length} smart UI params applied on comma.`,
+      results
+    };
+  } catch (error) {
+    return {
+      state: "partial",
+      working: false,
+      message: `Learning report saved, but comma UI param publish failed: ${error.message || "SSH write failed"}`,
+      results: writes.map(([param, value]) => ({
+        param,
+        value: String(value ?? ""),
+        ok: false,
+        reason: error.message || "SSH write failed"
+      }))
+    };
+  }
+}
+
+function buildCodexReviewPackage(reason = "manual") {
+  const report = writeIntelligenceReport(buildIntelligenceReport(reason));
+  const uploads = readSteeringUploadIndex();
+  const route = readCarRoute();
+  return {
+    type: "xrm10.codex.review_package",
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    reason,
+    device: currentDevice(),
+    latestProfile: latestProfileMeta(),
+    intelligence: report,
+    route,
+    navDrivePlan: readNavDrivePlan(),
+    navDriveEvents: readNavDriveEvents().slice(-80),
+    safetyEvents: readSafetyEvents().slice(-80),
+    mapPackage: readMapPackage(),
+    steeringUploads: {
+      count: uploads.length,
+      totalBytes: uploads.reduce((sum, upload) => sum + (Number(upload.bytes) || 0), 0),
+      latest: uploads.slice(-10).map((upload) => ({
+        receivedAt: upload.receivedAt,
+        fileName: upload.fileName,
+        bytes: upload.bytes,
+        deviceName: upload.deviceName
+      }))
+    },
+    capabilities: buildCapabilityReport(readLatestProfile()?.profile || {}),
+    policy: {
+      decodeOnly: true,
+      reviewOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      manualReviewRequiredBeforeCommaWrite: true
+    }
+  };
+}
+
 function latestUploadAgeMinutes(uploads) {
   if (!uploads.length) return null;
   const latest = uploads
@@ -1950,19 +2051,67 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      const profile = readLatestProfile()?.profile || payload.profile || {};
       const report = writeIntelligenceReport(buildIntelligenceReport(String(payload.reason || "manual-review")));
+      const commaUi = await publishIntelligenceReportToComma(profile, report);
       sendJson(res, 200, {
         ok: true,
         accepted: "intelligence-review-generated",
         liveVehicleApplyAllowed: false,
         automaticCodeChangesAllowed: false,
         device: currentDevice(),
-        intelligence: report
+        intelligence: report,
+        commaUi
       });
     } catch (error) {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid intelligence-review payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/codex-package") {
+    const codexPackage = buildCodexReviewPackage("read-package");
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      package: codexPackage
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/codex-package") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false || payload.policy?.automaticCodeChangesAllowed === true) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Codex packages are decode/review only. Live vehicle apply and automatic code changes must be false."
+        });
+        return;
+      }
+
+      const codexPackage = buildCodexReviewPackage(String(payload.reason || "app-codex-package"));
+      const profile = readLatestProfile()?.profile || payload.profile || {};
+      const commaUi = await publishIntelligenceReportToComma(profile, codexPackage.intelligence);
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "codex-package-built",
+        liveVehicleApplyAllowed: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        package: codexPackage,
+        intelligence: codexPackage.intelligence,
+        commaUi
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid codex-package payload"
       });
     }
     return;
