@@ -1,6 +1,8 @@
 const STORAGE_KEY = "xrm10-control-center-profile-v1";
 const SYNC_STATE_KEY = "xrm10-control-center-sync-v1";
 const SECTION_STATE_KEY = "xrm10-control-center-section-state-v1";
+const XRM10_RELEASE_NAME = "XRM10 v1 starter";
+const XRM10_RELEASE_VERSION = "2026.07.05-xrm10-v1-starter";
 
 const safetyLocks = [
   {
@@ -32,9 +34,9 @@ const safetyLocks = [
 const installTargets = [
   {
     id: "xrm10-dev",
-    label: "XRM10 sunnypilot dev",
+    label: "XRM10 v1 starter",
     url: "https://installer.comma.ai/xrm10/dev",
-    meta: "active development target"
+    meta: "starter development target"
   },
   {
     id: "xrm10-backup",
@@ -51,28 +53,20 @@ const installTargets = [
 ];
 
 const sectionMeta = {
-  home: ["XRM10", "Home"],
-  device: ["Device settings", "Device"],
-  toggles: ["Device settings", "Toggles"],
-  models: ["Device settings", "Models"],
-  steering: ["Device settings", "Steering"],
-  cruise: ["Device settings", "Cruise"],
-  traffic: ["Device settings", "Traffic"],
-  visuals: ["Device settings", "Visuals"],
-  display: ["Device settings", "Display"],
-  maps: ["Device settings", "Maps"],
-  navPilot: ["Device settings", "Nav Pilot"],
-  vehicle: ["Device settings", "Vehicle"],
-  software: ["Device settings", "Software"],
-  safetyLab: ["Device settings", "Safety Lab"],
-  developer: ["Device settings", "Developer"],
-  migration: ["Device settings", "Migration Wizard"]
+  home: ["XRM10", "Command"],
+  device: ["Operate", "Live Device"],
+  maps: ["Navigate", "Route + Maps"],
+  developer: ["Learn", "Learning Engine"],
+  safetyLab: ["Test", "Simulation Lab"],
+  software: ["Deploy", "Software"]
 };
 
+const visibleSections = new Set(Object.keys(sectionMeta));
+
 const defaultProfile = {
-  schemaVersion: 11,
+  schemaVersion: 13,
   activeSection: "home",
-  profileName: "XRM10 Model 3 HW4",
+  profileName: "XRM10 v1 Starter HW4",
   vehicleModel: "Tesla Model 3",
   vehicleYear: "2024",
   deviceTarget: "comma four",
@@ -157,6 +151,8 @@ const defaultProfile = {
     trafficRecordReview: true,
     visualTheme: "sunnypilot-dark",
     alertDensity: "normal",
+    quietMode: false,
+    driverViewPreview: false,
     laneOverlay: "standard",
     eventBannerStyle: "compact",
     roadEdgeOverlay: true,
@@ -171,9 +167,23 @@ const defaultProfile = {
     mapRouteSourceMode: "car-screen",
     carScreenRouteMode: "detect-destination",
     carScreenDestination: "",
+    googleMapsLink: "",
+    routeLatitude: "",
+    routeLongitude: "",
     carScreenRouteSync: true,
+    carScreenRouteAutoStart: true,
     carScreenRouteNavPilot: true,
     carScreenRouteRequireConfirm: true,
+    navPlanPrompts: true,
+    navPlanSound: true,
+    navPlanSigns: true,
+    navPlanTrafficLights: true,
+    navPlanRoundabouts: true,
+    navPlanSpeedBumps: true,
+    navPlanLaneSuggestions: true,
+    navPlanReplayOnly: true,
+    navPlanClosedCourseOnly: true,
+    navPlanLearningReview: true,
     speedLimitSource: "map-vision",
     mapRegion: "gcc-uae-detailed",
     gccMapPackMode: "uae-detailed-priority",
@@ -287,10 +297,10 @@ const defaultProfile = {
     lwcTrafficBuffer: 1.2
   },
   connection: {
-    mode: "demo",
+    mode: "http",
     bridgeUrl: "",
     bridgeToken: "",
-    sshTarget: "",
+    sshTarget: "comma4",
     sshKeyPath: "",
     autoSync: true,
     syncOffroadOnly: true
@@ -317,10 +327,13 @@ const defaultSyncState = {
   device: {
     name: "comma four",
     id: "6dea66ada857421f",
-    version: "2026.07.02-xrm10",
+    version: XRM10_RELEASE_VERSION,
     branch: "dev",
     commit: "344ec6a",
-    offroad: true
+    offroad: true,
+    engaged: false,
+    quietMode: false,
+    driverViewEnabled: false
   },
   route: {
     active: false,
@@ -328,11 +341,35 @@ const defaultSyncState = {
     provider: "car-screen-maps",
     status: "waiting",
     destination: "",
+    latitude: "",
+    longitude: "",
+    googleMapsUrl: "",
     routeId: "",
     nextInstruction: "Waiting for destination",
     confidence: 0,
     updatedAt: null
   },
+  navDrivePlan: {
+    active: false,
+    status: "waiting",
+    mode: "advisory-simulation",
+    routeId: "",
+    destination: "",
+    nextAction: "Waiting for route",
+    confidence: 0,
+    updatedAt: null,
+    simulatedAt: null,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps: []
+  },
+  navDriveEvents: [],
   mapPackage: {
     status: "not loaded",
     name: "UAE detailed + GCC all",
@@ -342,6 +379,36 @@ const defaultSyncState = {
     updatedAt: null,
     files: []
   },
+  intelligence: {
+    generatedAt: null,
+    reason: "not-run",
+    status: "waiting",
+    score: 0,
+    gate: "waiting-for-data",
+    summary: {
+      uploadCount: 0,
+      uploadedBytes: 0,
+      navEventCount: 0,
+      safetyEventCount: 0,
+      routeActive: false,
+      recommendationCount: 0
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: "review-only",
+      nextStep: "Collect logs, run review, then test in replay or closed-course mode.",
+      canApplyToComma: false
+    },
+    recommendations: []
+  },
+  codexPackage: null,
   capabilities: null
 };
 
@@ -350,6 +417,9 @@ const textBindings = [
   ["customInstallUrl", ["customInstallUrl"]],
   ["vinNickname", ["controllers", "vinNickname"]],
   ["carScreenDestination", ["controllers", "carScreenDestination"]],
+  ["googleMapsLink", ["controllers", "googleMapsLink"]],
+  ["routeLatitude", ["controllers", "routeLatitude"]],
+  ["routeLongitude", ["controllers", "routeLongitude"]],
   ["bridgeUrl", ["connection", "bridgeUrl"]],
   ["bridgeToken", ["connection", "bridgeToken"]],
   ["sshTarget", ["connection", "sshTarget"]],
@@ -484,14 +554,27 @@ const checkboxBindings = [
   ["trafficBlindSpotBlock", ["controllers", "trafficBlindSpotBlock"]],
   ["trafficRecordReview", ["controllers", "trafficRecordReview"]],
   ["roadEdgeOverlay", ["controllers", "roadEdgeOverlay"]],
+  ["quietMode", ["controllers", "quietMode"]],
+  ["driverViewPreview", ["controllers", "driverViewPreview"]],
   ["showDebugHud", ["controllers", "showDebugHud"]],
   ["largeText", ["controllers", "largeText"]],
   ["reduceMotion", ["controllers", "reduceMotion"]],
   ["offlineMaps", ["controllers", "offlineMaps"]],
   ["mapLaneGuidance", ["controllers", "mapLaneGuidance"]],
   ["carScreenRouteSync", ["controllers", "carScreenRouteSync"]],
+  ["carScreenRouteAutoStart", ["controllers", "carScreenRouteAutoStart"]],
   ["carScreenRouteNavPilot", ["controllers", "carScreenRouteNavPilot"]],
   ["carScreenRouteRequireConfirm", ["controllers", "carScreenRouteRequireConfirm"]],
+  ["navPlanPrompts", ["controllers", "navPlanPrompts"]],
+  ["navPlanSound", ["controllers", "navPlanSound"]],
+  ["navPlanSigns", ["controllers", "navPlanSigns"]],
+  ["navPlanTrafficLights", ["controllers", "navPlanTrafficLights"]],
+  ["navPlanRoundabouts", ["controllers", "navPlanRoundabouts"]],
+  ["navPlanSpeedBumps", ["controllers", "navPlanSpeedBumps"]],
+  ["navPlanLaneSuggestions", ["controllers", "navPlanLaneSuggestions"]],
+  ["navPlanReplayOnly", ["controllers", "navPlanReplayOnly"]],
+  ["navPlanClosedCourseOnly", ["controllers", "navPlanClosedCourseOnly"]],
+  ["navPlanLearningReview", ["controllers", "navPlanLearningReview"]],
   ["uaeDetailedMap", ["controllers", "uaeDetailedMap"]],
   ["gccAllMaps", ["controllers", "gccAllMaps"]],
   ["gccBahrainMap", ["controllers", "gccBahrainMap"]],
@@ -614,6 +697,10 @@ const els = {
   liveCapabilityBadge: document.querySelector("#liveCapabilityBadge"),
   liveCapabilitySummary: document.querySelector("#liveCapabilitySummary"),
   liveCapabilityList: document.querySelector("#liveCapabilityList"),
+  smartSystemBadge: document.querySelector("#smartSystemBadge"),
+  smartSystemScore: document.querySelector("#smartSystemScore"),
+  smartSystemSummary: document.querySelector("#smartSystemSummary"),
+  smartPipelineList: document.querySelector("#smartPipelineList"),
   toolbarRefreshSync: document.querySelector("#toolbarRefreshSync"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
@@ -627,6 +714,8 @@ const els = {
   liveEndpointState: document.querySelector("#liveEndpointState"),
   liveSshState: document.querySelector("#liveSshState"),
   liveRouteState: document.querySelector("#liveRouteState"),
+  quietModeState: document.querySelector("#quietModeState"),
+  driverViewState: document.querySelector("#driverViewState"),
   liveQueueList: document.querySelector("#liveQueueList"),
   topConnectionState: document.querySelector("#topConnectionState"),
   topRoadState: document.querySelector("#topRoadState"),
@@ -659,9 +748,40 @@ const els = {
   carRouteSource: document.querySelector("#carRouteSource"),
   carRouteUpdated: document.querySelector("#carRouteUpdated"),
   carRouteNext: document.querySelector("#carRouteNext"),
+  startAppRoute: document.querySelector("#startAppRoute"),
+  openGoogleMaps: document.querySelector("#openGoogleMaps"),
+  clearAppRoute: document.querySelector("#clearAppRoute"),
   readCarRoute: document.querySelector("#readCarRoute"),
   setDemoCarRoute: document.querySelector("#setDemoCarRoute"),
   useCarRouteForNav: document.querySelector("#useCarRouteForNav"),
+  navDrivePlanStatus: document.querySelector("#navDrivePlanStatus"),
+  navDriveNext: document.querySelector("#navDriveNext"),
+  navDriveConfidence: document.querySelector("#navDriveConfidence"),
+  navDriveMode: document.querySelector("#navDriveMode"),
+  navDriveLogCount: document.querySelector("#navDriveLogCount"),
+  navDrivePlanList: document.querySelector("#navDrivePlanList"),
+  buildNavDrivePlan: document.querySelector("#buildNavDrivePlan"),
+  runNavSimulation: document.querySelector("#runNavSimulation"),
+  logNavPrompt: document.querySelector("#logNavPrompt"),
+  exportNavDriveLog: document.querySelector("#exportNavDriveLog"),
+  intelligenceStatusBadge: document.querySelector("#intelligenceStatusBadge"),
+  intelligenceScore: document.querySelector("#intelligenceScore"),
+  intelligenceScoreMeter: document.querySelector("#intelligenceScoreMeter"),
+  intelligenceUploadCount: document.querySelector("#intelligenceUploadCount"),
+  intelligenceUploadedBytes: document.querySelector("#intelligenceUploadedBytes"),
+  intelligenceNavEvents: document.querySelector("#intelligenceNavEvents"),
+  intelligenceSafetyEvents: document.querySelector("#intelligenceSafetyEvents"),
+  intelligenceGate: document.querySelector("#intelligenceGate"),
+  intelligenceUpdated: document.querySelector("#intelligenceUpdated"),
+  intelligenceDeployMode: document.querySelector("#intelligenceDeployMode"),
+  intelligenceNextStep: document.querySelector("#intelligenceNextStep"),
+  codexPackageStatus: document.querySelector("#codexPackageStatus"),
+  intelligenceRecommendationList: document.querySelector("#intelligenceRecommendationList"),
+  runIntelligenceReview: document.querySelector("#runIntelligenceReview"),
+  refreshIntelligence: document.querySelector("#refreshIntelligence"),
+  exportIntelligenceReport: document.querySelector("#exportIntelligenceReport"),
+  buildCodexPackage: document.querySelector("#buildCodexPackage"),
+  exportCodexPackage: document.querySelector("#exportCodexPackage"),
   gccMapPackageStatus: document.querySelector("#gccMapPackageStatus"),
   gccMapPackageFiles: document.querySelector("#gccMapPackageFiles"),
   uploadGccMaps: document.querySelector("#uploadGccMaps"),
@@ -738,7 +858,12 @@ function normalizeProfile(input) {
       navStartConfirmPopup: true,
       mapRouteSourceMode: "car-screen",
       carScreenRouteMode: "detect-destination",
+      carScreenDestination: "",
+      googleMapsLink: "",
+      routeLatitude: "",
+      routeLongitude: "",
       carScreenRouteSync: true,
+      carScreenRouteAutoStart: true,
       carScreenRouteNavPilot: true,
       carScreenRouteRequireConfirm: true,
       mapRegion: "gcc-uae-detailed",
@@ -806,6 +931,37 @@ function normalizeProfile(input) {
     });
   }
 
+  if (sourceSchema < 12) {
+    Object.assign(inputControllers, {
+      quietMode: false,
+      driverViewPreview: false
+    });
+  }
+
+  if (sourceSchema < 13) {
+    Object.assign(inputControllers, {
+      navPlanPrompts: true,
+      navPlanSound: true,
+      navPlanSigns: true,
+      navPlanTrafficLights: true,
+      navPlanRoundabouts: true,
+      navPlanSpeedBumps: true,
+      navPlanLaneSuggestions: true,
+      navPlanReplayOnly: true,
+      navPlanClosedCourseOnly: true,
+      navPlanLearningReview: true
+    });
+  }
+
+  const inputConnection = {
+    ...(input.connection || {})
+  };
+
+  if (sourceSchema < 12) {
+    if (!inputConnection.mode || inputConnection.mode === "demo") inputConnection.mode = "http";
+    if (!inputConnection.sshTarget) inputConnection.sshTarget = "comma4";
+  }
+
   return {
     ...next,
     ...input,
@@ -821,10 +977,10 @@ function normalizeProfile(input) {
     },
     connection: {
       ...next.connection,
-      ...(input.connection || {}),
-      mode: ["demo", "http", "offline"].includes(input.connection?.mode) ? input.connection.mode : next.connection.mode,
-      autoSync: input.connection?.autoSync !== false,
-      syncOffroadOnly: input.connection?.syncOffroadOnly !== false
+      ...inputConnection,
+      mode: ["demo", "http", "offline"].includes(inputConnection.mode) ? inputConnection.mode : next.connection.mode,
+      autoSync: inputConnection.autoSync !== false,
+      syncOffroadOnly: inputConnection.syncOffroadOnly !== false
     },
     safetyPolicy: {
       ...next.safetyPolicy,
@@ -857,7 +1013,11 @@ function normalizeSyncState(input) {
       ...(input.device || {})
     },
     route: normalizeRouteState(input.route || next.route),
+    navDrivePlan: normalizeNavDrivePlan(input.navDrivePlan || next.navDrivePlan),
+    navDriveEvents: normalizeNavDriveEvents(input.navDriveEvents || next.navDriveEvents),
     mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
+    intelligence: normalizeIntelligenceReport(input.intelligence || next.intelligence),
+    codexPackage: input.codexPackage || next.codexPackage,
     capabilities: input.capabilities || next.capabilities
   };
 }
@@ -865,6 +1025,8 @@ function normalizeSyncState(input) {
 function normalizeRouteState(input = {}) {
   const next = clone(defaultSyncState.route);
   const destination = String(input.destination || "").trim();
+  const latitude = input.latitude === undefined || input.latitude === null ? "" : String(input.latitude).trim();
+  const longitude = input.longitude === undefined || input.longitude === null ? "" : String(input.longitude).trim();
   return {
     ...next,
     ...input,
@@ -873,11 +1035,83 @@ function normalizeRouteState(input = {}) {
     provider: String(input.provider || next.provider),
     status: String(input.status || (destination ? "active" : next.status)),
     destination,
+    latitude,
+    longitude,
+    googleMapsUrl: String(input.googleMapsUrl || ""),
     routeId: String(input.routeId || ""),
     nextInstruction: String(input.nextInstruction || (destination ? "Route loaded from car screen" : next.nextInstruction)),
     confidence: clamp(input.confidence ?? next.confidence, 0, 100),
     updatedAt: input.updatedAt || null
   };
+}
+
+function normalizeNavDrivePlan(input = {}) {
+  const next = clone(defaultSyncState.navDrivePlan);
+  const steps = Array.isArray(input.steps) ? input.steps.slice(0, 14).map(normalizeNavDriveStep) : [];
+  const confidence = Number(input.confidence ?? next.confidence);
+  return {
+    ...next,
+    ...input,
+    active: Boolean(input.active && steps.length),
+    status: String(input.status || (steps.length ? "ready" : next.status)),
+    mode: String(input.mode || next.mode),
+    routeId: String(input.routeId || ""),
+    destination: String(input.destination || ""),
+    nextAction: String(input.nextAction || steps[0]?.title || next.nextAction),
+    confidence: Number.isFinite(confidence) ? clamp(confidence, 0, 100) : next.confidence,
+    updatedAt: input.updatedAt || null,
+    simulatedAt: input.simulatedAt || null,
+    policy: {
+      ...next.policy,
+      ...(input.policy || {}),
+      routeIntentOnly: true,
+      simulationOnly: input.policy?.simulationOnly !== false,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  };
+}
+
+function normalizeNavDriveStep(step = {}, index = 0) {
+  const title = String(step.title || `Drive plan step ${index + 1}`);
+  const safeIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const order = Number(step.order ?? safeIndex + 1);
+  return {
+    id: String(step.id || slug(title)),
+    order: Number.isFinite(order) ? order : safeIndex + 1,
+    type: String(step.type || "review"),
+    title,
+    detail: String(step.detail || ""),
+    status: String(step.status || "pending"),
+    confidence: clamp(step.confidence ?? 75, 0, 100),
+    requiresConfirmation: step.requiresConfirmation !== false,
+    logKind: String(step.logKind || step.type || "review")
+  };
+}
+
+function normalizeNavDriveEvents(input = []) {
+  return Array.isArray(input)
+    ? input.slice(-300).map((event) => ({
+        receivedAt: event.receivedAt || event.generatedAt || null,
+        generatedAt: event.generatedAt || event.receivedAt || new Date().toISOString(),
+        event: String(event.event || "nav-drive-event"),
+        route: event.route || null,
+        step: event.step || null,
+        gps: event.gps || {},
+        speed: event.speed || {},
+        cameraState: event.cameraState || {},
+        policy: {
+          ...(event.policy || {}),
+          logOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      }))
+    : [];
 }
 
 function normalizeMapPackageState(input = {}) {
@@ -900,6 +1134,108 @@ function normalizeMapPackageState(input = {}) {
     totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
     updatedAt: input.updatedAt || null,
     files
+  };
+}
+
+function normalizeIntelligenceReport(input = {}) {
+  const next = clone(defaultSyncState.intelligence);
+  const summary = input.summary || {};
+  const deploy = input.deploy || {};
+  return {
+    ...next,
+    ...input,
+    generatedAt: input.generatedAt || null,
+    reason: String(input.reason || next.reason),
+    status: String(input.status || next.status),
+    score: clamp(input.score ?? next.score, 0, 100),
+    gate: String(input.gate || next.gate),
+    summary: {
+      ...next.summary,
+      ...summary,
+      uploadCount: Number(summary.uploadCount || 0),
+      uploadedBytes: Number(summary.uploadedBytes || 0),
+      navEventCount: Number(summary.navEventCount || 0),
+      safetyEventCount: Number(summary.safetyEventCount || 0),
+      routeActive: Boolean(summary.routeActive),
+      recommendationCount: Number(summary.recommendationCount || 0)
+    },
+    policy: {
+      ...next.policy,
+      ...(input.policy || {}),
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      ...next.deploy,
+      ...deploy,
+      mode: String(deploy.mode || next.deploy.mode),
+      nextStep: String(deploy.nextStep || next.deploy.nextStep),
+      canApplyToComma: false
+    },
+    recommendations: Array.isArray(input.recommendations)
+      ? input.recommendations.slice(0, 24).map(normalizeIntelligenceRecommendation)
+      : []
+  };
+}
+
+function normalizeIntelligenceRecommendation(item = {}, index = 0) {
+  const severity = ["pass", "info", "warn", "block"].includes(item.severity) ? item.severity : "info";
+  const title = String(item.title || `Review item ${index + 1}`);
+  return {
+    id: String(item.id || slug(title) || `rec-${index + 1}`),
+    severity,
+    title,
+    detail: String(item.detail || ""),
+    nextAction: String(item.nextAction || ""),
+    source: String(item.source || "xrm10-bridge"),
+    category: String(item.category || "review"),
+    canAutoApply: false
+  };
+}
+
+function parseCoordinatePair(value = "") {
+  const text = String(value || "").trim();
+  const match = text.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return {
+    latitude: String(latitude),
+    longitude: String(longitude)
+  };
+}
+
+function parseGoogleMapsCoordinates(url = "") {
+  const text = String(url || "").trim();
+  if (!text) return null;
+  return parseCoordinatePair(text);
+}
+
+function googleMapsUrlForRoute(destination, latitude = "", longitude = "") {
+  const coords = parseCoordinatePair(`${latitude},${longitude}`);
+  const query = coords ? `${coords.latitude},${coords.longitude}` : String(destination || "").trim();
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "https://www.google.com/maps";
+}
+
+function routeInputFromForm() {
+  readForm();
+  const link = profile.controllers.googleMapsLink.trim();
+  const linkCoords = parseGoogleMapsCoordinates(link);
+  const typedCoords = parseCoordinatePair(`${profile.controllers.routeLatitude},${profile.controllers.routeLongitude}`)
+    || parseCoordinatePair(profile.controllers.carScreenDestination);
+  const coords = typedCoords || linkCoords;
+  const destination = profile.controllers.carScreenDestination.trim()
+    || (coords ? `${coords.latitude},${coords.longitude}` : "")
+    || link;
+  return {
+    destination,
+    latitude: coords?.latitude || "",
+    longitude: coords?.longitude || "",
+    googleMapsUrl: link || googleMapsUrlForRoute(destination, coords?.latitude, coords?.longitude)
   };
 }
 
@@ -1058,6 +1394,11 @@ function enforceGuardrails() {
   profile.controllers.confirmationPromptEnabled = true;
   profile.controllers.confirmationSound = true;
   profile.controllers.confirmationRequireTick = true;
+  profile.controllers.navPlanPrompts = true;
+  profile.controllers.navPlanSound = true;
+  profile.controllers.navPlanReplayOnly = true;
+  profile.controllers.navPlanClosedCourseOnly = true;
+  profile.controllers.navPlanLearningReview = true;
   profile.controllers.fasterLaneConfirmPopup = true;
   profile.controllers.navStartConfirmPopup = true;
   profile.controllers.roadEntryStopRequired = true;
@@ -1180,13 +1521,14 @@ function render() {
   setBadge(els.moduleBadge, `${activeControllerCount()} modules`, stateClass);
   setText(els.sidebarStatus, controllerLabel());
   setText(els.activeBranchLabel, branchLabel);
-  setText(els.activeBranchMeta, activeInstallUrl());
+  setText(els.activeBranchMeta, `${XRM10_RELEASE_NAME} - ${activeInstallUrl()}`);
   if (els.branchStatusDot) els.branchStatusDot.style.background = score >= 92 ? "var(--green)" : score >= 75 ? "var(--yellow)" : "var(--red)";
   setText(els.previewTitle, previewTitle());
   setText(els.previewText, previewText());
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
   renderConnection();
   renderMapPackage();
+  renderIntelligence();
   renderSafetyLab();
   renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
@@ -1218,7 +1560,7 @@ function renderConnection() {
   const statusLabel = statusLabelFor(status);
   const lastSeen = formatLastSeen(syncState.lastSeenAt, status);
   const pendingLabel = `${pendingCount} ${pendingCount === 1 ? "change" : "changes"}`;
-  const roadStateLabel = device.offroad === false ? "Inroad" : "Offroad";
+  const roadStateLabel = device.engaged ? "Engaged" : device.offroad === false ? "Inroad" : "Offroad";
   const route = normalizeRouteState(syncState.route);
   const routeLabel = route.active ? route.destination : "No route";
 
@@ -1237,6 +1579,8 @@ function renderConnection() {
   setText(els.liveEndpointState, endpointLabel());
   setText(els.liveSshState, syncState.sshStatus || "not checked");
   setText(els.liveRouteState, routeLabel);
+  setText(els.quietModeState, device.quietMode ? "On" : "Off");
+  setText(els.driverViewState, device.driverViewEnabled ? "On" : "Off");
   setText(els.topConnectionState, statusLabel);
   setText(els.topRoadState, roadStateLabel);
   setText(els.topLastSeen, lastSeen);
@@ -1295,6 +1639,8 @@ function renderConnection() {
 
   renderCapabilitySummary();
   renderCarRoute();
+  renderNavDrivePlan();
+  renderIntelligence();
 }
 
 function renderCapabilitySummary() {
@@ -1354,6 +1700,46 @@ function renderCarRoute() {
   if (els.useCarRouteForNav) {
     els.useCarRouteForNav.disabled = !routeActive && !profile.controllers.carScreenDestination;
   }
+  if (els.openGoogleMaps) {
+    els.openGoogleMaps.disabled = !routeActive && !profile.controllers.carScreenDestination && !profile.controllers.googleMapsLink;
+  }
+}
+
+function renderNavDrivePlan() {
+  const plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  const events = normalizeNavDriveEvents(syncState.navDriveEvents);
+  const active = Boolean(plan.active && plan.steps.length);
+  const statusClassName = active
+    ? plan.status === "simulated" ? "pass" : "warn"
+    : plan.status === "error" ? "stop" : "warn";
+  const statusLabel = active
+    ? plan.status === "simulated" ? "Simulated" : "Ready"
+    : "Waiting";
+
+  setBadge(els.navDrivePlanStatus, statusLabel, statusClassName);
+  setText(els.navDriveNext, active ? plan.nextAction : "Waiting for route");
+  setText(els.navDriveConfidence, `${Math.round(plan.confidence)}%`);
+  setText(els.navDriveMode, plan.policy.closedCourseOnly ? "Replay + closed course" : "Simulation locked");
+  setText(els.navDriveLogCount, `${events.length} event${events.length === 1 ? "" : "s"}`);
+
+  if (!els.navDrivePlanList) return;
+  if (!active) {
+    els.navDrivePlanList.innerHTML = `<div class="queue-empty">Start a destination or build from the current route to create a drive plan.</div>`;
+    return;
+  }
+
+  els.navDrivePlanList.innerHTML = plan.steps
+    .map((step, index) => `
+      <div class="drive-plan-step">
+        <span class="drive-plan-step-icon">${index + 1}</span>
+        <div>
+          <h3>${escapeHtml(step.title)}</h3>
+          <p>${escapeHtml(step.detail)}</p>
+        </div>
+        <small>${escapeHtml(step.status)}</small>
+      </div>
+    `)
+    .join("");
 }
 
 function renderMapPackage() {
@@ -1377,6 +1763,75 @@ function renderMapPackage() {
   setText(els.gccMapPackageFiles, files);
 }
 
+function renderIntelligence() {
+  const report = normalizeIntelligenceReport(syncState.intelligence);
+  const summary = report.summary;
+  const badgeClass = report.status === "ready" ? "pass" : report.status === "blocked" ? "stop" : "warn";
+  const badgeLabel = report.status === "ready"
+    ? "Ready"
+    : report.status === "blocked"
+      ? "Blocked"
+      : report.status === "review" ? "Review" : "Waiting";
+  const updated = report.generatedAt ? formatRouteUpdated(report.generatedAt) : "Not run";
+  const uploadLabel = `${summary.uploadCount} package${summary.uploadCount === 1 ? "" : "s"}`;
+  const recommendationCount = report.recommendations.length || summary.recommendationCount;
+
+  setBadge(els.smartSystemBadge, badgeLabel, badgeClass);
+  setText(els.smartSystemScore, `${Math.round(report.score)}/100`);
+  setText(
+    els.smartSystemSummary,
+    recommendationCount
+      ? `${recommendationCount} review item${recommendationCount === 1 ? "" : "s"} - ${report.deploy.nextStep}`
+      : "Run a learning review after logs, route simulation, and safety events are available."
+  );
+
+  if (els.smartPipelineList) {
+    const pipeline = [
+      ["Data", summary.uploadCount > 0, uploadLabel],
+      ["Route", summary.routeActive, summary.routeActive ? "Destination active" : "No active destination"],
+      ["Replay", summary.navEventCount >= 3, `${summary.navEventCount} nav event${summary.navEventCount === 1 ? "" : "s"}`],
+      ["Review", report.status !== "waiting", badgeLabel],
+      ["Deploy", false, report.deploy.mode]
+    ];
+    els.smartPipelineList.innerHTML = pipeline.map(([label, pass, detail]) => `
+      <div class="pipeline-step ${pass ? "pass" : "wait"}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(detail)}</strong>
+      </div>
+    `).join("");
+  }
+
+  setBadge(els.intelligenceStatusBadge, badgeLabel, badgeClass);
+  setText(els.intelligenceScore, `${Math.round(report.score)}`);
+  if (els.intelligenceScoreMeter) els.intelligenceScoreMeter.style.width = `${Math.round(report.score)}%`;
+  setText(els.intelligenceUploadCount, uploadLabel);
+  setText(els.intelligenceUploadedBytes, formatBytes(summary.uploadedBytes));
+  setText(els.intelligenceNavEvents, `${summary.navEventCount} events`);
+  setText(els.intelligenceSafetyEvents, `${summary.safetyEventCount} events`);
+  setText(els.intelligenceGate, report.gate);
+  setText(els.intelligenceUpdated, updated);
+  setText(els.intelligenceDeployMode, report.deploy.mode);
+  setText(els.intelligenceNextStep, report.deploy.nextStep);
+  setText(els.codexPackageStatus, syncState.codexPackage?.generatedAt
+    ? formatRouteUpdated(syncState.codexPackage.generatedAt)
+    : "Not built");
+
+  if (els.intelligenceRecommendationList) {
+    els.intelligenceRecommendationList.innerHTML = report.recommendations.length
+      ? report.recommendations.map((item) => `
+        <div class="intelligence-rec ${escapeHtml(item.severity)}">
+          <span>${escapeHtml(item.severity)}</span>
+          <div>
+            <strong>${escapeHtml(item.title)}</strong>
+            <p>${escapeHtml(item.detail)}</p>
+            <em>${escapeHtml(item.nextAction)}</em>
+          </div>
+        </div>
+      `).join("")
+      : `<div class="queue-empty">No learning review yet. Run review after the bridge has logs or simulation events.</div>`;
+  }
+}
+
 function formatBytes(bytes) {
   const value = Number(bytes) || 0;
   if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
@@ -1388,7 +1843,7 @@ function formatBytes(bytes) {
 function sourceLabelForRoute(source) {
   return {
     "car-screen": "Car screen maps",
-    "app-route": "Control center",
+    "app-route": "App destination",
     "offline-cache": "Offline cache",
     "manual-demo": "Manual demo"
   }[source] || source || "Car screen maps";
@@ -1458,7 +1913,10 @@ function markOnline(device = {}) {
     version: device.version || syncState.device.version,
     branch: device.branch || syncState.device.branch,
     commit: device.commit || syncState.device.commit,
-    offroad: device.offroad !== undefined ? Boolean(device.offroad) : syncState.device.offroad
+    offroad: device.offroad !== undefined ? Boolean(device.offroad) : syncState.device.offroad,
+    engaged: device.engaged !== undefined ? Boolean(device.engaged) : Boolean(syncState.device.engaged),
+    quietMode: device.quietMode !== undefined ? Boolean(device.quietMode) : Boolean(syncState.device.quietMode),
+    driverViewEnabled: device.driverViewEnabled !== undefined ? Boolean(device.driverViewEnabled) : Boolean(syncState.device.driverViewEnabled)
   };
   saveSyncState();
   renderConnection();
@@ -1505,14 +1963,20 @@ async function refreshConnection(showMessage = true) {
     if (status.online === false) {
       syncState.device = { ...syncState.device, ...(status.device || status) };
       if (status.route) syncState.route = normalizeRouteState(status.route);
+      if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
+      if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+      if (status.intelligence) syncState.intelligence = normalizeIntelligenceReport(status.intelligence);
       syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
       if (status.capabilities) syncState.capabilities = status.capabilities;
       markOffline(status.message || "");
       return false;
     }
     if (status.route) syncState.route = normalizeRouteState(status.route);
+    if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
+    if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+    if (status.intelligence) syncState.intelligence = normalizeIntelligenceReport(status.intelligence);
     syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
     if (status.capabilities) syncState.capabilities = status.capabilities;
     markOnline(status.device || status);
@@ -1543,6 +2007,114 @@ async function refreshCapabilities(showMessage = false) {
   } catch (error) {
     if (showMessage) showToast("Capability check failed");
     return false;
+  }
+}
+
+async function refreshIntelligence(showMessage = false) {
+  if (profile.connection?.mode !== "http") {
+    renderIntelligence();
+    if (showMessage) showToast("HTTP bridge required");
+    return false;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    if (showMessage) showToast("Bridge URL required");
+    return false;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/intelligence-report`, { method: "GET" });
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    if (showMessage) showToast("Learning report refreshed");
+    return true;
+  } catch (error) {
+    if (showMessage) showToast("Learning refresh failed");
+    return false;
+  }
+}
+
+async function runIntelligenceReview() {
+  readForm();
+  if (profile.connection?.mode !== "http") {
+    showToast("HTTP bridge required");
+    return false;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    showToast("Bridge URL required");
+    return false;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/intelligence-review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "app-review",
+        profile: exportProfile(),
+        policy: {
+          reviewOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    markSectionChanged("developer", "runIntelligenceReview");
+    showToast("Learning review updated");
+    return true;
+  } catch (error) {
+    showToast("Learning review failed");
+    return false;
+  }
+}
+
+async function buildCodexPackage(showMessage = true) {
+  readForm();
+  if (profile.connection?.mode !== "http") {
+    if (showMessage) showToast("HTTP bridge required");
+    return null;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    if (showMessage) showToast("Bridge URL required");
+    return null;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/codex-package`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "app-build-codex-package",
+        profile: exportProfile(),
+        policy: {
+          decodeOnly: true,
+          reviewOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.package) syncState.codexPackage = response.package;
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    markSectionChanged("developer", "buildCodexPackage");
+    if (showMessage) {
+      const commaMessage = response.commaUi?.working ? " and comma UI updated" : "";
+      showToast(`Codex package built${commaMessage}`);
+    }
+    return syncState.codexPackage;
+  } catch (error) {
+    if (showMessage) showToast("Codex package failed");
+    return null;
   }
 }
 
@@ -1657,17 +2229,34 @@ async function refreshCarRoute(showMessage = true) {
   }
 
   if (!syncState.route?.active && profile.controllers.carScreenDestination) {
-    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "manual-demo");
+    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "app-route", routeInputFromForm());
     saveSyncState();
   }
   renderConnection();
-  if (showMessage) showToast(syncState.route.active ? "Demo car route loaded" : "No demo route yet");
+  if (showMessage) showToast(syncState.route.active ? "App destination loaded" : "No destination yet");
   return Boolean(syncState.route.active);
 }
 
-async function setDemoCarRoute() {
+async function startAppRoute() {
   readForm();
-  const destination = profile.controllers.carScreenDestination.trim() || "Demo destination from car screen";
+  const routeInput = routeInputFromForm();
+  const destination = routeInput.destination.trim();
+  if (!destination) {
+    showToast("Destination required");
+    return;
+  }
+
+  profile.controllers.carScreenDestination = destination;
+  profile.controllers.routeLatitude = routeInput.latitude;
+  profile.controllers.routeLongitude = routeInput.longitude;
+  profile.controllers.googleMapsLink = routeInput.googleMapsUrl;
+  profile.controllers.mapRouteSourceMode = "app-route";
+  profile.controllers.carScreenRouteMode = "detect-destination";
+  profile.controllers.carScreenRouteSync = true;
+  profile.controllers.carScreenRouteAutoStart = true;
+  profile.controllers.carScreenRouteNavPilot = true;
+  saveProfile();
+  writeForm();
 
   if (profile.connection?.mode === "http") {
     try {
@@ -1678,9 +2267,13 @@ async function setDemoCarRoute() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           active: true,
-          source: "car-screen",
-          provider: "car-screen-maps",
+          source: "app-route",
+          provider: "google-maps-link",
           destination,
+          latitude: routeInput.latitude,
+          longitude: routeInput.longitude,
+          googleMapsUrl: routeInput.googleMapsUrl,
+          nextInstruction: "Destination staged on comma Navigation screen",
           policy: {
             routeIntentOnly: true,
             liveVehicleApplyAllowed: false,
@@ -1692,8 +2285,9 @@ async function setDemoCarRoute() {
       if (response.device) markOnline(response.device);
       saveSyncState();
       renderConnection();
+      await buildNavDrivePlan(false);
       markSectionChanged("maps", "carScreenDestination");
-      showToast("Car route staged");
+      showToast("Destination started");
       return;
     } catch (error) {
       syncState.route = normalizeRouteState({
@@ -1704,43 +2298,101 @@ async function setDemoCarRoute() {
       });
       saveSyncState();
       renderConnection();
-      showToast("Car route failed");
+      showToast("Destination failed");
       return;
     }
   }
 
-  syncState.route = buildLocalCarRoute(destination, "manual-demo");
+  syncState.route = buildLocalCarRoute(destination, "app-route", routeInput);
   saveSyncState();
   renderConnection();
+  await buildNavDrivePlan(false);
   markSectionChanged("maps", "carScreenDestination");
-  showToast("Demo car route staged");
+  showToast("Destination staged locally");
 }
 
-function buildLocalCarRoute(destination, source = "car-screen") {
+function buildLocalCarRoute(destination, source = "car-screen", metadata = {}) {
   return normalizeRouteState({
     active: true,
     source,
-    provider: source === "manual-demo" ? "control-center-demo" : "car-screen-maps",
+    provider: source === "app-route" ? "google-maps-link" : source === "manual-demo" ? "control-center-demo" : "car-screen-maps",
     status: "active",
     destination,
+    latitude: metadata.latitude || "",
+    longitude: metadata.longitude || "",
+    googleMapsUrl: metadata.googleMapsUrl || googleMapsUrlForRoute(destination, metadata.latitude, metadata.longitude),
     routeId: `local-${Date.now()}`,
-    nextInstruction: "Route intent ready for driver-confirmed Nav Pilot",
+    nextInstruction: "Destination staged on comma Navigation screen",
     confidence: 82,
     updatedAt: new Date().toISOString()
   });
+}
+
+async function clearAppRoute() {
+  readForm();
+  profile.controllers.carScreenDestination = "";
+  profile.controllers.routeLatitude = "";
+  profile.controllers.routeLongitude = "";
+  profile.controllers.googleMapsLink = "";
+  saveProfile();
+  writeForm();
+
+  if (profile.connection?.mode === "http") {
+    try {
+      const baseUrl = bridgeBaseUrl();
+      const response = await fetchJson(`${baseUrl}/api/xrm10/car-route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          active: false,
+          source: "app-route",
+          destination: "",
+          policy: {
+            routeIntentOnly: true,
+            liveVehicleApplyAllowed: false,
+            driverConfirmationRequired: true
+          }
+        })
+      });
+      syncState.route = normalizeRouteState(response.route || {});
+      if (response.device) markOnline(response.device);
+    } catch (error) {
+      syncState.route = normalizeRouteState({ active: false, status: "waiting", nextInstruction: "Route cleared locally" });
+      showToast("Bridge clear failed");
+    }
+  } else {
+    syncState.route = normalizeRouteState({ active: false, status: "waiting", nextInstruction: "Route cleared locally" });
+  }
+
+  saveSyncState();
+  syncState.navDrivePlan = normalizeNavDrivePlan({ active: false, status: "waiting", nextAction: "Waiting for destination", steps: [] });
+  syncState.navDriveEvents = [];
+  saveSyncState();
+  await syncNavDrivePlanToBridge(syncState.navDrivePlan);
+  renderConnection();
+  markSectionChanged("maps", "carScreenDestination");
+  showToast("Route cleared");
+}
+
+function openGoogleMapsForRoute() {
+  const routeInput = routeInputFromForm();
+  const route = normalizeRouteState(syncState.route);
+  const url = routeInput.googleMapsUrl || route.googleMapsUrl || googleMapsUrlForRoute(route.destination || routeInput.destination, route.latitude || routeInput.latitude, route.longitude || routeInput.longitude);
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 async function useCarRouteForNav() {
   readForm();
   const hasRoute = syncState.route?.active || await refreshCarRoute(false);
   if (!hasRoute && profile.controllers.carScreenDestination) {
-    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "manual-demo");
+    syncState.route = buildLocalCarRoute(profile.controllers.carScreenDestination, "app-route", routeInputFromForm());
     saveSyncState();
   }
 
   profile.controllers.mapRouteSourceMode = "car-screen";
   profile.controllers.carScreenRouteMode = profile.controllers.carScreenRouteMode === "disabled" ? "detect-destination" : profile.controllers.carScreenRouteMode;
   profile.controllers.carScreenRouteSync = true;
+  profile.controllers.carScreenRouteAutoStart = true;
   profile.controllers.carScreenRouteNavPilot = true;
   profile.controllers.carScreenRouteRequireConfirm = true;
   profile.controllers.navMapSourceMode = "car-screen-map";
@@ -1765,6 +2417,364 @@ async function useCarRouteForNav() {
   markSectionChanged("navPilot", "navMapSourceMode");
   writeForm();
   showToast(syncState.route?.active ? "Car route linked to Nav Pilot" : "Nav Pilot set for car route");
+}
+
+function planningRouteFromState() {
+  const activeRoute = normalizeRouteState(syncState.route);
+  if (activeRoute.active) return activeRoute;
+  const routeInput = routeInputFromForm();
+  return routeInput.destination
+    ? buildLocalCarRoute(routeInput.destination, "app-route", routeInput)
+    : normalizeRouteState({});
+}
+
+function buildNavDrivePlanFromRoute(routeInput = normalizeRouteState({})) {
+  const route = normalizeRouteState(routeInput);
+  const c = profile.controllers;
+  const now = new Date().toISOString();
+  const confidence = route.active ? Math.max(70, Number(route.confidence) || 82) : 0;
+  const steps = [];
+  const addStep = (id, type, title, detail, options = {}) => {
+    steps.push(normalizeNavDriveStep({
+      id,
+      order: steps.length + 1,
+      type,
+      title,
+      detail,
+      status: options.status || "advisory",
+      confidence: options.confidence ?? confidence,
+      requiresConfirmation: options.requiresConfirmation !== false,
+      logKind: options.logKind || type
+    }, steps.length));
+  };
+
+  if (!route.active) {
+    return normalizeNavDrivePlan({
+      active: false,
+      status: "waiting",
+      nextAction: "Waiting for destination",
+      updatedAt: now,
+      steps: []
+    });
+  }
+
+  addStep(
+    "keep-lane-monitor",
+    "lane-keep",
+    "Keep lane and monitor route",
+    `Track route to ${route.destination}. Watch lane lines, drivable path, map intent, and driver takeover state.`,
+    { requiresConfirmation: false }
+  );
+
+  if (profile.controllers.mapLaneGuidance) {
+    addStep(
+      "prepare-exit-turn",
+      "route-maneuver",
+      "Prepare exit or turn",
+      `Use the route preview distance ${Number(profile.tuning.routePreviewDistance).toFixed(1)} mi to warn before exits, highway splits, and turns.`
+    );
+  }
+
+  if (c.navPlanTrafficLights) {
+    addStep(
+      "traffic-light-check",
+      "traffic-light",
+      "Traffic light checkpoint",
+      "Log red/yellow/green state and camera agreement. Stopping or moving remains a reviewed prompt, not a phone command."
+    );
+  }
+
+  if (c.navPlanSigns) {
+    addStep(
+      "road-sign-check",
+      "road-sign",
+      "Stop, yield, and speed sign checkpoint",
+      `Detect critical signs above ${profile.tuning.signConfidenceGate}% confidence and log what the camera saw before the plan continues.`
+    );
+  }
+
+  if (c.navPlanRoundabouts) {
+    addStep(
+      "roundabout-yield",
+      "roundabout",
+      "Roundabout yield plan",
+      `Hold/yield review until circulating traffic has a ${Number(profile.tuning.roundaboutClearGap).toFixed(1)}s clear gap, then require tick confirmation.`
+    );
+  }
+
+  if (c.sidewalkDetectionLogging) {
+    addStep(
+      "sidewalk-curb-stop",
+      "sidewalk",
+      "Sidewalk and curb stop check",
+      `Stop-and-confirm review for sidewalks, curb edges, pedestrian edges, and raised crossings above ${profile.tuning.sidewalkConfidenceGate}% confidence.`
+    );
+  }
+
+  if (c.navPlanSpeedBumps) {
+    addStep(
+      "speed-bump-slowdown",
+      "speed-bump",
+      "Speed bump slowdown",
+      `Slowdown review target is ${profile.tuning.roadBumpSlowSpeed} mph when bumps, humps, or raised crossings are detected.`
+    );
+  }
+
+  if (c.navPlanLaneSuggestions) {
+    addStep(
+      "faster-lane-suggestion",
+      "lane-suggestion",
+      "Faster-lane suggestion",
+      `Suggest only when the adjacent lane is at least ${profile.tuning.fasterLaneSpeedDelta} mph faster and blind-spot, signal, and camera checks agree.`
+    );
+  }
+
+  if (c.navPlanReplayOnly) {
+    addStep(
+      "simulation-replay-gate",
+      "simulation",
+      "Run replay before car testing",
+      "Replay logs must pass without warnings before any closed-course test. Failures create review notes only."
+    );
+  }
+
+  if (c.navPlanLearningReview) {
+    addStep(
+      "learning-review-queue",
+      "learning-review",
+      "Learning review queue",
+      "Collect candidate improvements from logs for manual code review. The app never auto-edits or auto-deploys driving code."
+    );
+  }
+
+  if (c.navPlanClosedCourseOnly) {
+    addStep(
+      "closed-course-gate",
+      "closed-course",
+      "Closed-course physical test gate",
+      "Physical validation is limited to a controlled closed course with driver takeover, manual override, and safety observer ready."
+    );
+  }
+
+  return normalizeNavDrivePlan({
+    active: true,
+    status: "ready",
+    mode: "advisory-simulation",
+    routeId: route.routeId || `drive-plan-${Date.now()}`,
+    destination: route.destination,
+    nextAction: steps[0]?.title || "Keep lane and monitor route",
+    confidence,
+    updatedAt: now,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  });
+}
+
+async function buildNavDrivePlan(showMessage = true) {
+  readForm();
+  const route = planningRouteFromState();
+  const plan = buildNavDrivePlanFromRoute(route);
+  syncState.navDrivePlan = plan;
+  saveSyncState();
+  renderNavDrivePlan();
+  markSectionChanged("maps", "buildNavDrivePlan");
+  await syncNavDrivePlanToBridge(plan);
+  if (showMessage) showToast(plan.active ? "Drive plan built" : "Destination required");
+  return plan;
+}
+
+async function syncNavDrivePlanToBridge(plan = syncState.navDrivePlan) {
+  if (profile.connection?.mode !== "http") return false;
+  try {
+    const baseUrl = bridgeBaseUrl();
+    if (!baseUrl) return false;
+    const response = await fetchJson(`${baseUrl}/api/xrm10/nav-drive-plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan,
+        policy: {
+          routeIntentOnly: true,
+          simulationOnly: true,
+          closedCourseOnly: true,
+          logOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.plan) {
+      syncState.navDrivePlan = normalizeNavDrivePlan(response.plan);
+      if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+      saveSyncState();
+      renderNavDrivePlan();
+      renderIntelligence();
+    }
+    return true;
+  } catch (error) {
+    syncState.navDrivePlan = normalizeNavDrivePlan({
+      ...syncState.navDrivePlan,
+      status: "error",
+      nextAction: error.message || "Drive plan bridge sync failed"
+    });
+    saveSyncState();
+    renderNavDrivePlan();
+    return false;
+  }
+}
+
+async function runNavSimulation() {
+  readForm();
+  let plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  if (!plan.active) plan = await buildNavDrivePlan(false);
+  if (!plan.active) {
+    showToast("Build a destination first");
+    return;
+  }
+
+  const simulatedAt = new Date().toISOString();
+  const simulatedSteps = plan.steps.map((step) => ({
+    ...step,
+    status: step.requiresConfirmation ? "prompt-ready" : "simulated"
+  }));
+  syncState.navDrivePlan = normalizeNavDrivePlan({
+    ...plan,
+    status: "simulated",
+    simulatedAt,
+    updatedAt: simulatedAt,
+    nextAction: simulatedSteps.find((step) => step.requiresConfirmation)?.title || simulatedSteps[0]?.title || plan.nextAction,
+    steps: simulatedSteps
+  });
+
+  saveSyncState();
+  renderNavDrivePlan();
+  await syncNavDrivePlanToBridge(syncState.navDrivePlan);
+
+  for (const step of simulatedSteps) {
+    await logNavDriveEvent("simulation-step", step, { silent: true });
+  }
+
+  const nextPrompt = simulatedSteps.find((step) => step.requiresConfirmation);
+  if (nextPrompt && profile.controllers.navPlanPrompts) {
+    showConfirmationPrompt(
+      "Nav Drive Plan",
+      nextPrompt.title,
+      nextPrompt.detail,
+      {
+        maneuver: nextPrompt.type,
+        routeDestination: syncState.navDrivePlan.destination,
+        simulationOnly: true,
+        closedCourseOnly: true
+      }
+    );
+  }
+  showToast("Simulation logged");
+}
+
+async function logCurrentNavPrompt() {
+  let plan = normalizeNavDrivePlan(syncState.navDrivePlan);
+  if (!plan.active) plan = await buildNavDrivePlan(false);
+  if (!plan.active) {
+    showToast("No drive plan to log");
+    return;
+  }
+
+  const step = plan.steps.find((item) => item.requiresConfirmation) || plan.steps[0];
+  await logNavDriveEvent("manual-prompt", step);
+  if (profile.controllers.navPlanPrompts) {
+    showConfirmationPrompt(
+      "Nav Drive Plan",
+      step.title,
+      step.detail,
+      {
+        maneuver: step.type,
+        routeDestination: plan.destination,
+        simulationOnly: true,
+        closedCourseOnly: true
+      }
+    );
+  }
+}
+
+async function logNavDriveEvent(event, step = {}, options = {}) {
+  const payload = navDriveEventPayload(event, step);
+  syncState.navDriveEvents = normalizeNavDriveEvents([...(syncState.navDriveEvents || []), payload]);
+  saveSyncState();
+  renderNavDrivePlan();
+
+  if (profile.connection?.mode === "http") {
+    try {
+      const baseUrl = bridgeBaseUrl();
+      const response = await fetchJson(`${baseUrl}/api/xrm10/nav-drive-event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (Array.isArray(response.events)) {
+        syncState.navDriveEvents = normalizeNavDriveEvents(response.events);
+      } else if (Number.isFinite(Number(response.eventCount))) {
+        syncState.navDriveEvents = normalizeNavDriveEvents(syncState.navDriveEvents).slice(-Number(response.eventCount));
+      }
+      if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+      saveSyncState();
+      renderNavDrivePlan();
+      renderIntelligence();
+    } catch {
+      // Replay logging remains local if the bridge is unreachable.
+    }
+  }
+
+  if (!options.silent) showToast("Nav prompt logged");
+  return payload;
+}
+
+function navDriveEventPayload(event, step = {}) {
+  const route = normalizeRouteState(syncState.route);
+  const routeInput = route.active ? route : planningRouteFromState();
+  return {
+    type: "xrm10.nav.drive.event",
+    event,
+    generatedAt: new Date().toISOString(),
+    source: "xrm10-control-center",
+    route: routeInput,
+    step: normalizeNavDriveStep(step),
+    gps: {
+      latitude: routeInput.latitude || null,
+      longitude: routeInput.longitude || null,
+      routeId: routeInput.routeId || null
+    },
+    speed: {
+      plannedMph: profile.tuning.navManeuverSpeed,
+      bumpSlowdownMph: profile.tuning.roadBumpSlowSpeed,
+      source: "configured-threshold"
+    },
+    cameraState: {
+      source: "replay-placeholder",
+      mapCameraAgreement: profile.controllers.navMapCameraAgree,
+      fusionMode: profile.controllers.cameraFusionMode,
+      signsEnabled: profile.controllers.navPlanSigns,
+      trafficLightsEnabled: profile.controllers.navPlanTrafficLights,
+      roundaboutsEnabled: profile.controllers.navPlanRoundabouts,
+      speedBumpsEnabled: profile.controllers.navPlanSpeedBumps
+    },
+    policy: {
+      logOnly: true,
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    }
+  };
 }
 
 async function stageUaeMapPack() {
@@ -1960,6 +2970,7 @@ async function logSafetyEvent(event, kind, details = {}) {
       body: JSON.stringify(payload)
     });
     syncState.safetyEventCount = clamp(response.eventCount ?? syncState.safetyEventCount, 0, 9999);
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
     saveSyncState();
     renderConnection();
   } catch {
@@ -1997,11 +3008,11 @@ async function checkSshStatus() {
 
   const target = profile.connection.sshTarget.trim();
   const keyPath = profile.connection.sshKeyPath.trim();
-  if (!target || !keyPath) {
-    syncState.sshStatus = "target/key required";
+  if (!target) {
+    syncState.sshStatus = "target required";
     saveSyncState();
     renderConnection();
-    showToast("SSH target and key path required");
+    showToast("SSH target required");
     return;
   }
 
@@ -2408,6 +3419,7 @@ function activeControllerCount() {
 function controllerSummaryRows() {
   const rows = [
     ["Install", activeInstallUrl()],
+    ["Release", XRM10_RELEASE_NAME],
     ["Vehicle", `${profile.vehicleYear} ${profile.vehicleModel}`],
     ["Steering", `${labelFor("lateralMode", profile.controllers.lateralMode)}, ${labelFor("laneCenterMode", profile.controllers.laneCenterMode)}`],
     ["Cruise", `${labelFor("longitudinalMode", profile.controllers.longitudinalMode)}, ${Number(profile.tuning.followGap).toFixed(1)}s gap`],
@@ -2537,6 +3549,8 @@ function exportProfile() {
     ...exported,
     computed: {
       safetyScore: computeSafetyScore(),
+      releaseName: XRM10_RELEASE_NAME,
+      releaseVersion: XRM10_RELEASE_VERSION,
       installUrl: activeInstallUrl(),
       controllerState: controllerLabel(),
       activeControllerModules: activeControllerCount(),
@@ -2552,6 +3566,9 @@ function exportProfile() {
         active: route.active,
         source: route.source,
         destination: route.destination,
+        latitude: route.latitude,
+        longitude: route.longitude,
+        googleMapsUrl: route.googleMapsUrl,
         routeId: route.routeId,
         updatedAt: route.updatedAt
       },
@@ -2758,6 +3775,91 @@ function downloadNavPlan() {
   showToast("Nav plan downloaded");
 }
 
+function exportNavDriveLog() {
+  const payload = {
+    type: "xrm10.nav.drive.replay",
+    generatedAt: new Date().toISOString(),
+    route: normalizeRouteState(syncState.route),
+    plan: normalizeNavDrivePlan(syncState.navDrivePlan),
+    events: normalizeNavDriveEvents(syncState.navDriveEvents),
+    thresholds: {
+      routePreviewDistance: profile.tuning.routePreviewDistance,
+      navManeuverSpeed: profile.tuning.navManeuverSpeed,
+      signConfidenceGate: profile.tuning.signConfidenceGate,
+      sidewalkConfidenceGate: profile.tuning.sidewalkConfidenceGate,
+      roundaboutClearGap: profile.tuning.roundaboutClearGap,
+      roadBumpConfidenceGate: profile.tuning.roadBumpConfidenceGate,
+      roadBumpSlowSpeed: profile.tuning.roadBumpSlowSpeed,
+      fasterLaneSpeedDelta: profile.tuning.fasterLaneSpeedDelta
+    },
+    policy: {
+      replayFirst: true,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-nav-drive-replay.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Replay log exported");
+}
+
+function exportIntelligenceReport() {
+  const payload = {
+    type: "xrm10.learning.report",
+    generatedAt: new Date().toISOString(),
+    profile: {
+      profileName: profile.profileName,
+      vehicle: `${profile.vehicleYear} ${profile.vehicleModel}`,
+      device: profile.deviceTarget
+    },
+    intelligence: normalizeIntelligenceReport(syncState.intelligence),
+    route: normalizeRouteState(syncState.route),
+    navDrivePlan: normalizeNavDrivePlan(syncState.navDrivePlan),
+    navDriveEvents: normalizeNavDriveEvents(syncState.navDriveEvents),
+    mapPackage: normalizeMapPackageState(syncState.mapPackage),
+    policy: {
+      reviewOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      manualReviewRequiredBeforeCommaWrite: true
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-learning-report.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Learning report exported");
+}
+
+async function exportCodexPackage() {
+  let payload = syncState.codexPackage;
+  if (!payload) payload = await buildCodexPackage(false);
+  if (!payload) {
+    showToast("No Codex package to export");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-codex-package.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Codex package exported");
+}
+
 function importProfile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -2825,6 +3927,40 @@ function filterHomeTiles() {
     const text = `${tile.textContent} ${tile.dataset.search || ""}`.toLowerCase();
     tile.hidden = query !== "" && !text.includes(query);
   });
+}
+
+function pruneAppSections() {
+  document.querySelectorAll("[data-section-target]").forEach((element) => {
+    const target = element.dataset.sectionTarget;
+    if (target && !visibleSections.has(target)) element.remove();
+  });
+
+  document.querySelectorAll("[data-section]").forEach((panel) => {
+    const section = panel.dataset.section;
+    if (section && !visibleSections.has(section)) panel.remove();
+  });
+
+  document.querySelectorAll('[data-section-target="maps"] span').forEach((label) => {
+    label.textContent = "Navigate";
+  });
+  document.querySelectorAll('[data-section-target="device"] span').forEach((label) => {
+    label.textContent = "Operate";
+  });
+  document.querySelectorAll('[data-section-target="developer"] span').forEach((label) => {
+    label.textContent = "Learn";
+  });
+  document.querySelectorAll('[data-section-target="safetyLab"] span').forEach((label) => {
+    label.textContent = "Test";
+  });
+  document.querySelectorAll('[data-section-target="software"] span').forEach((label) => {
+    label.textContent = "Deploy";
+  });
+
+  const routeMode = byId("carScreenRouteMode");
+  routeMode?.querySelector('option[value="manual-demo"]')?.remove();
+  byId("setDemoCarRoute")?.remove();
+  byId("useCarRouteForNav")?.remove();
+
 }
 
 function renderSectionApplyBars() {
@@ -3134,9 +4270,21 @@ function wireActions() {
   });
 
   els.exportNavPlan?.addEventListener("click", downloadNavPlan);
+  els.startAppRoute?.addEventListener("click", startAppRoute);
+  els.clearAppRoute?.addEventListener("click", clearAppRoute);
+  els.openGoogleMaps?.addEventListener("click", openGoogleMapsForRoute);
   els.readCarRoute?.addEventListener("click", () => refreshCarRoute(true));
-  els.setDemoCarRoute?.addEventListener("click", setDemoCarRoute);
+  els.setDemoCarRoute?.addEventListener("click", startAppRoute);
   els.useCarRouteForNav?.addEventListener("click", useCarRouteForNav);
+  els.buildNavDrivePlan?.addEventListener("click", () => buildNavDrivePlan(true));
+  els.runNavSimulation?.addEventListener("click", runNavSimulation);
+  els.logNavPrompt?.addEventListener("click", logCurrentNavPrompt);
+  els.exportNavDriveLog?.addEventListener("click", exportNavDriveLog);
+  els.runIntelligenceReview?.addEventListener("click", runIntelligenceReview);
+  els.refreshIntelligence?.addEventListener("click", () => refreshIntelligence(true));
+  els.exportIntelligenceReport?.addEventListener("click", exportIntelligenceReport);
+  els.buildCodexPackage?.addEventListener("click", () => buildCodexPackage(true));
+  els.exportCodexPackage?.addEventListener("click", exportCodexPackage);
   els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
   els.gccMapUpload?.addEventListener("change", (event) => {
     handleGccMapUpload(event.target.files);
@@ -3322,6 +4470,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+pruneAppSections();
 renderLocks();
 wireFormEvents();
 wireActions();

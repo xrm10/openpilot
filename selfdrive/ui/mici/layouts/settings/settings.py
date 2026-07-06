@@ -6,6 +6,7 @@ from openpilot.selfdrive.ui.mici.layouts.settings.network.network_layout import 
 from openpilot.selfdrive.ui.mici.layouts.settings.device import DeviceLayoutMici, PairBigButton
 from openpilot.selfdrive.ui.mici.layouts.settings.developer import DeveloperLayoutMici
 from openpilot.selfdrive.ui.mici.layouts.settings.firehose import FirehoseLayout
+from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import Xrm10SmartLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 
@@ -36,6 +37,10 @@ class SettingsLayout(NavScroller):
     navigation_btn = SettingsBigButton("navigation", "", gui_app.texture("icons_mici/settings.png", 64, 64))
     navigation_btn.set_click_callback(lambda: gui_app.push_widget(navigation_panel))
 
+    smart_panel = Xrm10SmartLayout()
+    smart_btn = SettingsBigButton("xrm10 smart", "", gui_app.texture("icons_mici/settings/developer_icon.png", 64, 60))
+    smart_btn.set_click_callback(lambda: gui_app.push_widget(smart_panel))
+
     developer_panel = DeveloperLayoutMici()
     developer_btn = SettingsBigButton("developer", "", gui_app.texture("icons_mici/settings/developer_icon.png", 64, 60))
     developer_btn.set_click_callback(lambda: gui_app.push_widget(developer_panel))
@@ -49,6 +54,7 @@ class SettingsLayout(NavScroller):
       network_btn,
       device_btn,
       navigation_btn,
+      smart_btn,
       PairBigButton(),
       #BigDialogButton("manual", "", "icons_mici/settings/manual_icon.png", "Check out the mici user\nmanual at comma.ai/setup"),
       firehose_btn,

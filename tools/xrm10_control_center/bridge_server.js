@@ -14,14 +14,19 @@ const stateDir = path.join(root, ".sync_state");
 const latestProfilePath = path.join(stateDir, "latest_profile.json");
 const sectionStatusPath = path.join(stateDir, "section_status.json");
 const carRoutePath = path.join(stateDir, "car_route.json");
+const navDrivePlanPath = path.join(stateDir, "nav_drive_plan.json");
+const navDriveEventsPath = path.join(stateDir, "nav_drive_events.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
 const safetyEventsPath = path.join(stateDir, "safety_events.json");
 const appliedControlsPath = path.join(stateDir, "applied_controls.json");
+const intelligenceReportPath = path.join(stateDir, "intelligence_report.json");
+const steeringUploadsDir = path.join(stateDir, "steering_uploads");
+const steeringUploadsIndexPath = path.join(steeringUploadsDir, "index.json");
 
 const device = {
   name: "comma four",
   id: "6dea66ada857421f",
-  version: "2026.07.02-xrm10",
+  version: "2026.07.05-xrm10-v1-starter",
   branch: "dev",
   commit: "344ec6a",
   offroad: true
@@ -121,7 +126,7 @@ function sendJson(res, status, payload) {
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-XRM10-Token, X-XRM10-Log-Name, X-XRM10-Device",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   };
 }
@@ -139,6 +144,73 @@ function readBody(req) {
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
+}
+
+function safeUploadName(value = "") {
+  const cleaned = String(value || "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 140);
+  return cleaned || `xrm10-steering-${Date.now()}.tgz`;
+}
+
+function readSteeringUploadIndex() {
+  try {
+    const uploads = JSON.parse(fs.readFileSync(steeringUploadsIndexPath, "utf8"));
+    return Array.isArray(uploads) ? uploads : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSteeringUploadIndex(uploads) {
+  fs.mkdirSync(steeringUploadsDir, { recursive: true });
+  fs.writeFileSync(steeringUploadsIndexPath, JSON.stringify(uploads.slice(-500), null, 2));
+}
+
+function receiveUploadToFile(req, filePath, maxBytes = 512 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let bytes = 0;
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const stream = fs.createWriteStream(filePath, { flags: "wx" });
+
+    stream.on("error", reject);
+    req.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        stream.destroy();
+        req.destroy();
+        reject(new Error("Upload too large"));
+        return;
+      }
+      stream.write(chunk);
+    });
+    req.on("end", () => {
+      stream.end(() => resolve(bytes));
+    });
+    req.on("error", (error) => {
+      stream.destroy();
+      reject(error);
+    });
+  });
+}
+
+function uploadTokenAccepted(req, parsed) {
+  const expected = String(process.env.XRM10_UPLOAD_TOKEN || "").trim();
+  if (!expected) {
+    const forwardedFor = String(req.headers["x-forwarded-for"] || "").trim();
+    const remote = String(req.socket?.remoteAddress || "").replace(/^::ffff:/, "");
+    return !forwardedFor && (
+      remote === "::1" ||
+      remote === "127.0.0.1" ||
+      remote.startsWith("10.") ||
+      remote.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(remote) ||
+      remote.startsWith("169.254.")
+    );
+  }
+  const supplied = String(req.headers["x-xrm10-token"] || parsed.searchParams.get("token") || "").trim();
+  return supplied === expected;
 }
 
 function latestProfileMeta() {
@@ -178,90 +250,60 @@ const sectionCapabilities = {
     ["autoSync", "Auto sync queue", "live-safe"],
     ["sshTarget", "SSH status check target", "live-safe"]
   ],
-  toggles: [
-    ["handsOnReminder", "Hands-on reminder preference", "live-safe"],
-    ["metricUnits", "Metric units preference", "live-safe"],
-    ["modelUncertaintyAlert", "Model uncertainty alert preference", "review-only"],
-    ["experimentalControls", "Experimental driving controls", "blocked-live-drive"]
-  ],
-  models: [
-    ["modelStackMode", "Model stack selection", "needs-ondevice-integration"],
-    ["visionPolicyMode", "Vision policy", "review-only"],
-    ["modelFallbackMode", "Model fallback policy", "review-only"],
-    ["modelCacheMode", "Model cache policy", "needs-ondevice-integration"]
-  ],
-  steering: [
-    ["laneChangeMode", "Lane-change behavior", "blocked-live-drive"],
-    ["lateralMode", "Lateral controller", "blocked-live-drive"],
-    ["torqueLimitMode", "Torque limit profile", "blocked-live-drive"],
-    ["laneBias", "Lane position bias", "blocked-live-drive"]
-  ],
-  cruise: [
-    ["longitudinalMode", "Longitudinal controller", "blocked-live-drive"],
-    ["followGap", "Follow gap", "blocked-live-drive"],
-    ["speedOffset", "Speed offset", "blocked-live-drive"],
-    ["stopResumeDelay", "Stop-resume delay", "blocked-live-drive"]
-  ],
-  traffic: [
-    ["fasterLaneMode", "Faster-lane suggestions", "review-only"],
-    ["trafficRequireConfirmation", "Traffic confirmation gate", "live-safe"],
-    ["lwcMode", "Lane width control profile", "review-only"],
-    ["trafficAutoManeuverBlock", "Automatic traffic maneuver block", "live-safe"]
-  ],
   visuals: [
     ["visualTheme", "Visual theme", "live-safe"],
     ["alertDensity", "Alert density", "live-safe"],
+    ["quietMode", "Quiet mode for non-critical sounds", "live-safe"],
+    ["driverViewPreview", "Driver-view diagnostics", "live-safe"],
     ["laneOverlay", "Lane overlay", "live-safe"],
     ["roadEdgeOverlay", "Road-edge overlay", "live-safe"]
   ],
-  display: [
-    ["displayTheme", "Display theme", "live-safe"],
-    ["keepAwakeMode", "Keep-awake mode", "live-safe"],
-    ["unitsMode", "Units mode", "live-safe"],
-    ["screenBrightness", "Screen brightness profile", "live-safe"],
-    ["mapBrightness", "Map brightness profile", "live-safe"]
-  ],
   maps: [
     ["mapRouteSourceMode", "Route source", "route-intent-only"],
-    ["carScreenRouteSync", "Car-screen route sync", "route-intent-only"],
-    ["mapRegion", "Map region metadata", "map-metadata-only"],
-    ["gccMapPackMode", "GCC map package metadata", "map-metadata-only"]
+    ["carScreenRouteMode", "Car-screen route mode", "route-intent-only"],
+    ["carScreenRouteSync", "Stage car-screen route intent", "route-intent-only"],
+    ["carScreenRouteAutoStart", "Auto-start when car route is detected", "route-intent-only"],
+    ["carScreenRouteNavPilot", "Show route intent on comma", "route-intent-only"],
+    ["carScreenRouteRequireConfirm", "Advisory-only route intent", "route-intent-only"],
+    ["navPlanPrompts", "Nav Drive Plan prompts", "review-only"],
+    ["navPlanSigns", "Sign checkpoints", "review-only"],
+    ["navPlanTrafficLights", "Traffic light checkpoints", "review-only"],
+    ["navPlanRoundabouts", "Roundabout yield plan", "review-only"],
+    ["navPlanSpeedBumps", "Speed bump slowdown plan", "review-only"],
+    ["navPlanLaneSuggestions", "Faster-lane suggestion prompts", "review-only"],
+    ["navPlanReplayOnly", "Replay before road testing", "review-only"],
+    ["navPlanClosedCourseOnly", "Closed-course physical testing", "review-only"],
+    ["navPlanLearningReview", "Learning review logs", "review-only"],
+    ["mapRegion", "Map region", "map-metadata-only"],
+    ["gccMapPackMode", "GCC map pack mode", "map-metadata-only"],
+    ["offlineMaps", "Offline maps flag", "map-metadata-only"],
+    ["uaeDetailedMap", "UAE detailed map priority", "map-metadata-only"],
+    ["gccAllMaps", "GCC all-country flag", "map-metadata-only"]
   ],
-  navPilot: [
-    ["navMode", "Navigation mode", "review-only"],
-    ["navSteeringMode", "Navigation steering", "blocked-live-drive"],
-    ["roundaboutPolicy", "Roundabout policy", "review-only"],
-    ["sidewalkStopPolicy", "Sidewalk/curb stop review", "review-only"],
-    ["roadBumpPolicy", "Road-bump slowdown review", "review-only"],
-    ["signReviewMode", "Traffic sign review", "review-only"],
-    ["driverConfirmMode", "Driver confirmation mode", "live-safe"]
+  developer: [
+    ["logMode", "Review logging", "live-safe"],
+    ["parameterPreviewMode", "Parameter preview", "review-only"],
+    ["developerMode", "Developer mode review", "review-only"],
+    ["experimentalControls", "Experimental controls", "review-only"],
+    ["replayReview", "Replay review mode", "review-only"],
+    ["eventSnapshot", "Event snapshot capture", "review-only"],
+    ["cabanaExport", "Cabana export hints", "review-only"]
   ],
-  vehicle: [
-    ["vehicleModel", "Vehicle model metadata", "live-safe"],
-    ["vehicleYear", "Vehicle year metadata", "live-safe"],
-    ["regionProfile", "Region profile metadata", "live-safe"],
-    ["vehicleHarnessMode", "Harness mode", "needs-ondevice-integration"]
+  safetyLab: [
+    ["labMode", "Lab mode", "review-only"],
+    ["testStage", "Test stage", "review-only"],
+    ["safetyEnvelope", "Safety envelope", "review-only"],
+    ["driverMonitoringMode", "Driver monitoring lab setting", "blocked-live-drive"],
+    ["manualOverrideMode", "Manual override lab setting", "blocked-live-drive"],
+    ["actuationSafetyMode", "Actuation caps", "blocked-live-drive"],
+    ["pandaSafetyReviewMode", "Panda safety review", "review-only"],
+    ["faultInjectionMode", "Fault injection", "review-only"],
+    ["scenarioSet", "Scenario set", "review-only"],
+    ["labResultGate", "Result gate", "review-only"]
   ],
   software: [
     ["installTarget", "Install target URL", "live-safe"],
-    ["customInstallUrl", "Custom installer URL", "live-safe"],
-    ["parameterPreviewMode", "Parameter preview mode", "live-safe"]
-  ],
-  safetyLab: [
-    ["labMode", "Safety lab mode", "review-only"],
-    ["testStage", "Test stage", "review-only"],
-    ["scenarioSet", "Scenario set", "review-only"],
-    ["labResultGate", "Lab result gate", "review-only"]
-  ],
-  developer: [
-    ["reviewLogCapture", "Review log capture", "live-safe"],
-    ["eventSnapshot", "Event snapshots", "live-safe"],
-    ["cabanaExport", "Cabana export preference", "live-safe"],
-    ["developerMode", "Developer review mode", "review-only"]
-  ],
-  migration: [
-    ["migrationSource", "Migration source", "live-safe"],
-    ["backupSlot", "Backup slot", "live-safe"]
+    ["customInstallUrl", "Custom installer URL", "live-safe"]
   ]
 };
 
@@ -373,6 +415,9 @@ function defaultCarRoute() {
     provider: "car-screen-maps",
     status: "waiting",
     destination: "",
+    latitude: "",
+    longitude: "",
+    googleMapsUrl: "",
     routeId: "",
     nextInstruction: "Waiting for destination",
     confidence: 0,
@@ -388,6 +433,81 @@ function readCarRoute() {
   }
 }
 
+function carRouteFromRuntime(runtime = {}) {
+  const navSource = String(runtime.navSource || "").trim();
+  const destination = String(runtime.carScreenDestination || "").trim();
+  const latitude = String(runtime.routeLatitude || "").trim();
+  const longitude = String(runtime.routeLongitude || "").trim();
+  const googleMapsUrl = String(runtime.routeGoogleMapsUrl || "").trim();
+  const status = String(runtime.carScreenRouteStatus || "").trim();
+  const updatedAt = String(runtime.carScreenRouteUpdatedAt || "").trim();
+  const hasLiveRouteState = navSource || runtime.carScreenRouteIntent !== undefined || destination || status || updatedAt;
+  if (!hasLiveRouteState) return null;
+
+  const rawRouteSource = String(runtime.routeSource || "").trim();
+  const source = rawRouteSource || (navSource === "2" ? "osm-mapd" : navSource === "1" ? "car-screen" : "off");
+  const provider = source === "app-route" ? "google-maps-link" : source === "car-screen" ? "car-screen-maps" : source === "osm-mapd" ? "osm-mapd" : "none";
+  const autoStart = runtime.navAutoStart !== false;
+  const active = source !== "off" && runtime.carScreenRouteIntent === true && autoStart && Boolean(destination);
+
+  return normalizeCarRoute({
+    active,
+    source,
+    provider,
+    status: status || (source === "off" ? "off" : destination ? "active" : "waiting"),
+    destination,
+    latitude,
+    longitude,
+    googleMapsUrl,
+    routeId: destination ? `comma-param-${updatedAt || "live"}` : "",
+    nextInstruction: destination
+      ? "Route intent staged on comma"
+      : (status || "Waiting for car-screen adapter"),
+    confidence: destination ? 82 : 0,
+    updatedAt: updatedAt || null
+  });
+}
+
+async function readLiveCarRoute(profile = {}) {
+  try {
+    const runtime = await readDeviceRuntime(profile);
+    await ensureAutoStartedRoute(profile, runtime);
+    return carRouteFromRuntime(runtime) || defaultCarRoute();
+  } catch {
+    return defaultCarRoute();
+  }
+}
+
+async function ensureAutoStartedRoute(profile = {}, runtime = {}) {
+  const destination = String(runtime.carScreenDestination || "").trim();
+  const autoStart = runtime.navAutoStart !== false;
+  const expectedActive = runtime.navSource === "1" && runtime.carScreenRouteIntent === true && autoStart && Boolean(destination);
+  const expectedStatus = expectedActive
+    ? "Route active from car-screen destination"
+    : runtime.navSource === "1" && runtime.carScreenRouteIntent === true && autoStart && !destination
+      ? "Auto-start armed - waiting for car-screen route"
+      : "";
+  const writes = [];
+
+  if (runtime.navActive !== expectedActive) writes.push(["Xrm10NavActive", expectedActive ? 1 : 0]);
+  if (expectedStatus && runtime.carScreenRouteStatus !== expectedStatus) writes.push(["Xrm10CarScreenRouteStatus", expectedStatus]);
+  if (!writes.length) return;
+
+  const updatedAt = new Date().toISOString();
+  writes.push(["Xrm10CarScreenRouteUpdatedAt", updatedAt]);
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}`
+  )).join("; ");
+  await runSshCommand(target, keyPath, command, 6500);
+
+  runtime.navActive = expectedActive;
+  if (expectedStatus) runtime.carScreenRouteStatus = expectedStatus;
+  runtime.carScreenRouteUpdatedAt = updatedAt;
+}
+
 function writeCarRoute(route) {
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(carRoutePath, JSON.stringify(normalizeCarRoute(route), null, 2));
@@ -396,6 +516,8 @@ function writeCarRoute(route) {
 function normalizeCarRoute(route = {}) {
   const next = defaultCarRoute();
   const destination = String(route.destination || "").trim();
+  const latitude = route.latitude === undefined || route.latitude === null ? "" : String(route.latitude).trim();
+  const longitude = route.longitude === undefined || route.longitude === null ? "" : String(route.longitude).trim();
   const confidence = Number(route.confidence ?? next.confidence);
   return {
     ...next,
@@ -405,11 +527,157 @@ function normalizeCarRoute(route = {}) {
     provider: String(route.provider || next.provider),
     status: String(route.status || (destination ? "active" : next.status)),
     destination,
+    latitude,
+    longitude,
+    googleMapsUrl: String(route.googleMapsUrl || ""),
     routeId: String(route.routeId || ""),
     nextInstruction: String(route.nextInstruction || (destination ? "Route intent ready for driver-confirmed Nav Pilot" : next.nextInstruction)),
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : next.confidence,
     updatedAt: route.updatedAt || null
   };
+}
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function defaultNavDrivePlan() {
+  return {
+    active: false,
+    status: "waiting",
+    mode: "advisory-simulation",
+    routeId: "",
+    destination: "",
+    nextAction: "Waiting for route",
+    confidence: 0,
+    updatedAt: null,
+    simulatedAt: null,
+    policy: {
+      routeIntentOnly: true,
+      simulationOnly: true,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps: []
+  };
+}
+
+function readNavDrivePlan() {
+  try {
+    return normalizeNavDrivePlan(JSON.parse(fs.readFileSync(navDrivePlanPath, "utf8")));
+  } catch {
+    return defaultNavDrivePlan();
+  }
+}
+
+function writeNavDrivePlan(plan) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(navDrivePlanPath, JSON.stringify(normalizeNavDrivePlan(plan), null, 2));
+}
+
+function normalizeNavDriveStep(step = {}, index = 0) {
+  const safeIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const title = String(step.title || `Drive plan step ${safeIndex + 1}`);
+  const id = String(step.id || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `step-${safeIndex + 1}`);
+  const order = Number(step.order ?? safeIndex + 1);
+  return {
+    id,
+    order: Number.isFinite(order) ? order : safeIndex + 1,
+    type: String(step.type || "review"),
+    title,
+    detail: String(step.detail || ""),
+    status: String(step.status || "pending"),
+    confidence: clampNumber(step.confidence ?? 75, 0, 100),
+    requiresConfirmation: step.requiresConfirmation !== false,
+    logKind: String(step.logKind || step.type || "review")
+  };
+}
+
+function normalizeNavDrivePlan(plan = {}) {
+  const next = defaultNavDrivePlan();
+  const steps = Array.isArray(plan.steps) ? plan.steps.slice(0, 14).map(normalizeNavDriveStep) : [];
+  return {
+    ...next,
+    ...plan,
+    active: Boolean(plan.active && steps.length),
+    status: String(plan.status || (steps.length ? "ready" : next.status)),
+    mode: String(plan.mode || next.mode),
+    routeId: String(plan.routeId || ""),
+    destination: String(plan.destination || ""),
+    nextAction: String(plan.nextAction || steps[0]?.title || next.nextAction),
+    confidence: clampNumber(plan.confidence ?? next.confidence, 0, 100),
+    updatedAt: plan.updatedAt || null,
+    simulatedAt: plan.simulatedAt || null,
+    policy: {
+      ...next.policy,
+      ...(plan.policy || {}),
+      routeIntentOnly: true,
+      simulationOnly: plan.policy?.simulationOnly !== false,
+      closedCourseOnly: true,
+      logOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false
+    },
+    steps
+  };
+}
+
+function readNavDriveEvents() {
+  try {
+    const events = JSON.parse(fs.readFileSync(navDriveEventsPath, "utf8"));
+    return normalizeNavDriveEvents(events);
+  } catch {
+    return [];
+  }
+}
+
+function writeNavDriveEvents(events) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(navDriveEventsPath, JSON.stringify(normalizeNavDriveEvents(events).slice(-300), null, 2));
+}
+
+function normalizeNavDriveEvents(events = []) {
+  return Array.isArray(events)
+    ? events.slice(-300).map((event) => ({
+        receivedAt: event.receivedAt || new Date().toISOString(),
+        generatedAt: event.generatedAt || null,
+        type: String(event.type || "xrm10.nav.drive.event"),
+        event: String(event.event || "nav-drive-event"),
+        source: String(event.source || "xrm10-control-center"),
+        route: event.route || null,
+        step: event.step ? normalizeNavDriveStep(event.step) : null,
+        gps: event.gps || {},
+        speed: event.speed || {},
+        cameraState: event.cameraState || {},
+        policy: {
+          ...(event.policy || {}),
+          logOnly: true,
+          routeIntentOnly: true,
+          simulationOnly: true,
+          closedCourseOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      }))
+    : [];
+}
+
+function assertNavDrivePolicy(policy = {}) {
+  if (
+    policy.liveVehicleApplyAllowed !== false ||
+    policy.publicRoadAutonomyEnabled === true ||
+    policy.automaticCodeChangesAllowed === true ||
+    policy.closedCourseOnly !== true
+  ) {
+    throw new Error("Nav Drive Plan accepts advisory/replay/closed-course logs only. Live vehicle control and automatic code changes are blocked.");
+  }
 }
 
 function defaultMapPackage() {
@@ -474,25 +742,808 @@ function normalizeMapPackage(mapPackage = {}) {
   };
 }
 
-function runSshStatus(target, keyPath) {
+function boolFromParam(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return undefined;
+  return normalized === "1" || normalized === "true";
+}
+
+function deviceSshTarget(profile = {}) {
+  return String(profile.connection?.sshTarget || process.env.XRM10_SSH_TARGET || "comma4").trim();
+}
+
+function deviceSshKeyPath(profile = {}) {
+  const keyPath = String(profile.connection?.sshKeyPath || process.env.XRM10_SSH_KEY || "").trim();
+  return keyPath && keyPath !== "[stored locally]" ? keyPath : "";
+}
+
+function buildSshArgs(target, keyPath, command) {
+  const args = [];
+  if (keyPath) args.push("-i", keyPath);
+  args.push(
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=5",
+    "-o",
+    "ConnectionAttempts=1",
+    target,
+    command
+  );
+  return args;
+}
+
+function runSshCommand(target, keyPath, command, timeout = 8000) {
   return new Promise((resolve, reject) => {
-    const command = "echo xrm10-ssh-ok; uname -a";
-    execFile("ssh", [
-      "-i",
-      keyPath,
-      "-o",
-      "BatchMode=yes",
-      "-o",
-      "ConnectTimeout=5",
-      target,
-      command
-    ], { timeout: 8000 }, (error, stdout, stderr) => {
+    execFile("ssh", buildSshArgs(target, keyPath, command), { timeout }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr.trim() || error.message));
         return;
       }
       resolve(stdout.trim());
     });
+  });
+}
+
+async function runSshStatus(target, keyPath) {
+  return runSshCommand(target, keyPath, "echo xrm10-ssh-ok; uname -a");
+}
+
+function parseKeyValueOutput(output) {
+  const parsed = {};
+  String(output || "").split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match) parsed[match[1].trim()] = match[2].trim();
+  });
+  return parsed;
+}
+
+function valueOrUndefined(values, key) {
+  return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : undefined;
+}
+
+async function readDeviceRuntime(profile = {}) {
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  if (!target) return { sshStatus: "not configured" };
+
+  const output = await runSshCommand(target, keyPath, [
+    "printf branch=; cd /data/openpilot && git branch --show-current 2>/dev/null || true",
+    "printf commit=; cd /data/openpilot && git rev-parse --short HEAD 2>/dev/null || true",
+    "printf offroad=; cat /data/params/d/IsOffroad 2>/dev/null || true; echo",
+    "printf engaged=; cat /data/params/d/IsEngaged 2>/dev/null || true; echo",
+    "printf quietMode=; cat /data/params/d/QuietMode 2>/dev/null || true; echo",
+    "printf driverViewEnabled=; cat /data/params/d/IsDriverViewEnabled 2>/dev/null || true; echo",
+    "printf navSource=; cat /data/params/d/Xrm10NavSource 2>/dev/null || true; echo",
+    "printf navAutoStart=; cat /data/params/d/Xrm10NavAutoStart 2>/dev/null || true; echo",
+    "printf navActive=; cat /data/params/d/Xrm10NavActive 2>/dev/null || true; echo",
+    "printf carScreenRouteIntent=; cat /data/params/d/Xrm10CarScreenRouteIntent 2>/dev/null || true; echo",
+    "printf carScreenRouteStatus=; cat /data/params/d/Xrm10CarScreenRouteStatus 2>/dev/null || true; echo",
+    "printf carScreenDestination=; cat /data/params/d/Xrm10CarScreenDestination 2>/dev/null || true; echo",
+    "printf carScreenRouteUpdatedAt=; cat /data/params/d/Xrm10CarScreenRouteUpdatedAt 2>/dev/null || true; echo",
+    "printf routeLatitude=; cat /data/params/d/Xrm10RouteLatitude 2>/dev/null || true; echo",
+    "printf routeLongitude=; cat /data/params/d/Xrm10RouteLongitude 2>/dev/null || true; echo",
+    "printf routeGoogleMapsUrl=; cat /data/params/d/Xrm10RouteGoogleMapsUrl 2>/dev/null || true; echo",
+    "printf routeSource=; cat /data/params/d/Xrm10RouteSource 2>/dev/null || true; echo"
+  ].join("; "), 6500);
+  const values = parseKeyValueOutput(output);
+  return {
+    sshStatus: "connected",
+    branch: values.branch || undefined,
+    commit: values.commit || undefined,
+    offroad: boolFromParam(values.offroad),
+    engaged: boolFromParam(values.engaged),
+    quietMode: boolFromParam(values.quietMode),
+    driverViewEnabled: boolFromParam(values.driverViewEnabled),
+    navSource: values.navSource || undefined,
+    navAutoStart: boolFromParam(values.navAutoStart),
+    navActive: boolFromParam(values.navActive),
+    carScreenRouteIntent: boolFromParam(values.carScreenRouteIntent),
+    carScreenRouteStatus: valueOrUndefined(values, "carScreenRouteStatus"),
+    carScreenDestination: valueOrUndefined(values, "carScreenDestination"),
+    carScreenRouteUpdatedAt: valueOrUndefined(values, "carScreenRouteUpdatedAt"),
+    routeLatitude: valueOrUndefined(values, "routeLatitude"),
+    routeLongitude: valueOrUndefined(values, "routeLongitude"),
+    routeGoogleMapsUrl: valueOrUndefined(values, "routeGoogleMapsUrl"),
+    routeSource: valueOrUndefined(values, "routeSource")
+  };
+}
+
+async function currentDeviceAsync(profile = {}) {
+  const next = currentDevice();
+  try {
+    const runtime = await readDeviceRuntime(profile);
+    const verifiedRuntime = Object.fromEntries(Object.entries(runtime).filter(([, value]) => value !== undefined));
+    Object.assign(device, verifiedRuntime);
+    return {
+      ...next,
+      ...verifiedRuntime
+    };
+  } catch (error) {
+    return {
+      ...currentDevice(),
+      sshStatus: "unavailable",
+      sshError: error.message || "SSH unavailable"
+    };
+  }
+}
+
+async function writeCommaBoolParam(profile, param, value, options = {}) {
+  const allowedParams = new Set(["QuietMode", "IsDriverViewEnabled"]);
+  if (!allowedParams.has(param)) {
+    return { param, ok: false, state: "blocked", reason: "Param is not whitelisted." };
+  }
+
+  const runtime = await readDeviceRuntime(profile);
+  if (runtime.engaged) {
+    return {
+      param,
+      ok: false,
+      state: "refused",
+      reason: "Device is engaged. Park or disengage before changing alert diagnostics."
+    };
+  }
+
+  if (options.requireOffroad && runtime.offroad !== true) {
+    return {
+      param,
+      ok: false,
+      state: "refused",
+      reason: "Device must be offroad for driver-view diagnostics."
+    };
+  }
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const nextValue = value ? "1" : "0";
+  let output = "";
+  try {
+    output = await runSshCommand(
+      target,
+      keyPath,
+      `printf ${nextValue} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`,
+      6500
+    );
+  } catch (error) {
+    const verify = await readDeviceRuntime(profile);
+    const actual = param === "QuietMode" ? verify.quietMode : verify.driverViewEnabled;
+    if (actual === value) {
+      return {
+        param,
+        ok: true,
+        state: "applied",
+        value,
+        output: `${param}=${nextValue}`,
+        warning: error.message || "SSH returned nonzero after applying."
+      };
+    }
+    throw error;
+  }
+  return {
+    param,
+    ok: output.includes(`${param}=${nextValue}`),
+    state: output.includes(`${param}=${nextValue}`) ? "applied" : "unknown",
+    value,
+    output
+  };
+}
+
+function shellQuote(value) {
+  return `'${String(value ?? "").replace(/'/g, "'\\''")}'`;
+}
+
+async function writeCommaParam(profile, param, value) {
+  const allowedParams = new Set([
+    "Xrm10NavSource",
+    "Xrm10NavAutoStart",
+    "Xrm10NavActive",
+    "Xrm10CarScreenRouteIntent",
+    "Xrm10CarScreenRouteStatus",
+    "Xrm10CarScreenDestination",
+    "Xrm10CarScreenRouteUpdatedAt"
+  ]);
+  if (!allowedParams.has(param)) {
+    return { param, ok: false, state: "blocked", reason: "Param is not whitelisted." };
+  }
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const nextValue = String(value ?? "");
+  const output = await runSshCommand(
+    target,
+    keyPath,
+    `printf %s ${shellQuote(nextValue)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`,
+    6500
+  );
+  return {
+    param,
+    ok: output.includes(`${param}=${nextValue}`),
+    state: output.includes(`${param}=${nextValue}`) ? "applied" : "unknown",
+    value: nextValue,
+    output
+  };
+}
+
+async function syncNavigationIntentParams(profile = {}) {
+  const controllers = profile.controllers || {};
+  const activeRoute = profile.computed?.activeCarRoute || {};
+  const sourceMode = String(controllers.mapRouteSourceMode || "car-screen");
+  const routeSync = controllers.carScreenRouteSync !== false;
+  const autoStart = controllers.carScreenRouteAutoStart !== false;
+  const routeMode = String(controllers.carScreenRouteMode || "detect-destination");
+  const destination = String(activeRoute.destination || controllers.carScreenDestination || "").trim();
+  const latitude = String(activeRoute.latitude || controllers.routeLatitude || "").trim();
+  const longitude = String(activeRoute.longitude || controllers.routeLongitude || "").trim();
+  const googleMapsUrl = String(activeRoute.googleMapsUrl || controllers.googleMapsLink || "").trim();
+  const sourceIndex = !routeSync || sourceMode === "disabled" || routeMode === "disabled"
+    ? 0
+    : sourceMode === "offline-cache" ? 2 : 1;
+  const intentEnabled = sourceIndex === 1 && routeSync;
+  const navAutoStart = intentEnabled && autoStart;
+  const navActive = navAutoStart && Boolean(destination);
+  const status = !intentEnabled
+    ? "Navigation intent off"
+    : destination
+      ? navAutoStart ? "Route active from car-screen destination" : "Route detected; auto-start off"
+      : navAutoStart ? "Auto-start armed - waiting for car-screen route" : "Waiting for car-screen adapter";
+  const updatedAt = new Date().toISOString();
+
+  const writes = [
+    ["Xrm10NavSource", sourceIndex],
+    ["Xrm10NavAutoStart", navAutoStart ? 1 : 0],
+    ["Xrm10NavActive", navActive ? 1 : 0],
+    ["Xrm10CarScreenRouteIntent", intentEnabled ? 1 : 0],
+    ["Xrm10CarScreenRouteStatus", status],
+    ["Xrm10CarScreenDestination", destination],
+    ["Xrm10CarScreenRouteUpdatedAt", updatedAt],
+    ["Xrm10RouteLatitude", intentEnabled ? latitude : ""],
+    ["Xrm10RouteLongitude", intentEnabled ? longitude : ""],
+    ["Xrm10RouteGoogleMapsUrl", intentEnabled ? googleMapsUrl : ""],
+    ["Xrm10RouteSource", destination ? String(activeRoute.source || sourceMode || "app-route") : ""]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+
+  let output = "";
+  try {
+    output = await runSshCommand(target, keyPath, command, 6500);
+  } catch (error) {
+    return {
+      state: "partial",
+      working: false,
+      message: `Navigation intent saved in the app, but comma SSH is unavailable: ${error.message || "SSH write failed"}`,
+      results: writes.map(([param, value]) => ({
+        param,
+        ok: false,
+        state: "failed",
+        value: String(value ?? ""),
+        reason: error.message || "SSH write failed"
+      }))
+    };
+  }
+
+  const results = writes.map(([param, value]) => {
+    const nextValue = String(value ?? "");
+    const ok = output.includes(`${param}=${nextValue}`);
+    return {
+      param,
+      ok,
+      state: ok ? "applied" : "unknown",
+      value: nextValue,
+      output
+    };
+  });
+
+  const refused = results.filter((result) => !result.ok);
+  return {
+    state: refused.length ? "partial" : "applied",
+    working: refused.length === 0,
+    message: refused.length
+      ? `${results.length - refused.length} nav param${results.length - refused.length === 1 ? "" : "s"} applied, ${refused.length} refused.`
+      : `${results.length} nav intent params applied on comma.`,
+    results
+  };
+}
+
+async function applyRouteIntentToComma(profile = {}, route = defaultCarRoute()) {
+  const normalized = normalizeCarRoute(route);
+  const active = Boolean(normalized.active && normalized.destination);
+  const status = active
+    ? "Route active from app destination"
+    : "Auto-start armed - waiting for car-screen route";
+  const updatedAt = new Date().toISOString();
+  const writes = [
+    ["Xrm10NavSource", 1],
+    ["Xrm10NavAutoStart", 1],
+    ["Xrm10NavActive", active ? 1 : 0],
+    ["Xrm10CarScreenRouteIntent", 1],
+    ["Xrm10CarScreenRouteStatus", status],
+    ["Xrm10CarScreenDestination", active ? normalized.destination : ""],
+    ["Xrm10CarScreenRouteUpdatedAt", updatedAt],
+    ["Xrm10RouteLatitude", active ? normalized.latitude : ""],
+    ["Xrm10RouteLongitude", active ? normalized.longitude : ""],
+    ["Xrm10RouteGoogleMapsUrl", active ? normalized.googleMapsUrl : ""],
+    ["Xrm10RouteSource", active ? normalized.source : ""]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+  const output = await runSshCommand(target, keyPath, command, 6500);
+
+  return {
+    output,
+    updatedAt,
+    status,
+    results: writes.map(([param, value]) => {
+      const expected = String(value ?? "");
+      return {
+        param,
+        value: expected,
+        ok: output.includes(`${param}=${expected}`)
+      };
+    })
+  };
+}
+
+async function applyWhitelistedDeviceParams(section, profile = {}) {
+  if (section === "maps") return syncNavigationIntentParams(profile);
+  if (section !== "visuals") return { state: "none", working: true, message: "" };
+
+  const controllers = profile.controllers || {};
+  const requested = [
+    {
+      key: "quietMode",
+      param: "QuietMode",
+      label: "Quiet mode",
+      value: Boolean(controllers.quietMode),
+      requireOffroad: false
+    },
+    {
+      key: "driverViewPreview",
+      param: "IsDriverViewEnabled",
+      label: "Driver-view diagnostics",
+      value: Boolean(controllers.driverViewPreview),
+      requireOffroad: Boolean(controllers.driverViewPreview)
+    }
+  ];
+
+  const results = [];
+  for (const item of requested) {
+    try {
+      const result = await writeCommaBoolParam(profile, item.param, item.value, { requireOffroad: item.requireOffroad });
+      results.push({ ...item, ...result });
+    } catch (error) {
+      results.push({
+        ...item,
+        ok: false,
+        state: "failed",
+        reason: error.message || "SSH write failed"
+      });
+    }
+  }
+
+  const refused = results.filter((result) => !result.ok);
+  const applied = results.filter((result) => result.ok);
+  const message = refused.length
+    ? `${applied.length} comfort param${applied.length === 1 ? "" : "s"} applied, ${refused.length} refused: ${refused.map((item) => `${item.label} - ${item.reason || item.state}`).join("; ")}`
+    : `${applied.length} comfort param${applied.length === 1 ? "" : "s"} applied on comma.`;
+
+  return {
+    state: refused.length ? "partial" : "applied",
+    working: refused.length === 0,
+    message,
+    results
+  };
+}
+
+function defaultIntelligenceReport() {
+  return {
+    generatedAt: null,
+    reason: "not-run",
+    status: "waiting",
+    score: 0,
+    gate: "waiting-for-data",
+    summary: {
+      uploadCount: 0,
+      uploadedBytes: 0,
+      navEventCount: 0,
+      safetyEventCount: 0,
+      routeActive: false,
+      recommendationCount: 0
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: "review-only",
+      nextStep: "Collect logs, run review, then test in replay or closed-course mode.",
+      canApplyToComma: false
+    },
+    recommendations: []
+  };
+}
+
+function normalizeIntelligenceReport(report = {}) {
+  const next = defaultIntelligenceReport();
+  const summary = report.summary || {};
+  const deploy = report.deploy || {};
+  return {
+    ...next,
+    ...report,
+    generatedAt: report.generatedAt || next.generatedAt,
+    reason: String(report.reason || next.reason),
+    status: String(report.status || next.status),
+    score: clampNumber(report.score ?? next.score, 0, 100),
+    gate: String(report.gate || next.gate),
+    summary: {
+      ...next.summary,
+      ...summary,
+      uploadCount: Number(summary.uploadCount || 0),
+      uploadedBytes: Number(summary.uploadedBytes || 0),
+      navEventCount: Number(summary.navEventCount || 0),
+      safetyEventCount: Number(summary.safetyEventCount || 0),
+      routeActive: Boolean(summary.routeActive),
+      recommendationCount: Number(summary.recommendationCount || 0)
+    },
+    policy: {
+      ...next.policy,
+      ...(report.policy || {}),
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      ...next.deploy,
+      ...deploy,
+      mode: String(deploy.mode || next.deploy.mode),
+      nextStep: String(deploy.nextStep || next.deploy.nextStep),
+      canApplyToComma: false
+    },
+    recommendations: Array.isArray(report.recommendations)
+      ? report.recommendations.slice(0, 24).map(normalizeRecommendation)
+      : []
+  };
+}
+
+function normalizeRecommendation(item = {}, index = 0) {
+  const severity = ["pass", "info", "warn", "block"].includes(item.severity) ? item.severity : "info";
+  const title = String(item.title || `Review item ${index + 1}`);
+  return {
+    id: String(item.id || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `rec-${index + 1}`),
+    severity,
+    title,
+    detail: String(item.detail || ""),
+    nextAction: String(item.nextAction || ""),
+    source: String(item.source || "xrm10-bridge"),
+    category: String(item.category || "review"),
+    canAutoApply: false
+  };
+}
+
+function readIntelligenceReport() {
+  try {
+    return normalizeIntelligenceReport(JSON.parse(fs.readFileSync(intelligenceReportPath, "utf8")));
+  } catch {
+    return buildIntelligenceReport("status");
+  }
+}
+
+function writeIntelligenceReport(report) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  const normalized = normalizeIntelligenceReport(report);
+  fs.writeFileSync(intelligenceReportPath, JSON.stringify(normalized, null, 2));
+  return normalized;
+}
+
+function compactParamValue(value, maxLength = 240) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
+async function publishIntelligenceReportToComma(profile = {}, report = defaultIntelligenceReport()) {
+  const normalized = normalizeIntelligenceReport(report);
+  const summary = normalized.summary;
+  const writes = [
+    ["Xrm10SmartAppStatus", normalized.status],
+    ["Xrm10SmartScore", Math.round(normalized.score)],
+    ["Xrm10SmartGate", normalized.gate],
+    ["Xrm10SmartNextStep", compactParamValue(normalized.deploy.nextStep, 260)],
+    ["Xrm10SmartRecommendationCount", normalized.recommendations.length],
+    ["Xrm10SmartLastReviewAt", normalized.generatedAt || ""],
+    ["Xrm10SmartSummary", compactParamValue(`${summary.uploadCount} log packages, ${summary.navEventCount} nav events, ${summary.safetyEventCount} safety events`, 180)],
+    ["Xrm10CodexPackageStatus", compactParamValue(`${normalized.status}: ${normalized.gate}`, 120)],
+    ["Xrm10CodexReviewLoop", 1],
+    ["Xrm10CodexAutoDecode", 1],
+    ["Xrm10CodexAutoApplyAllowed", 0]
+  ];
+
+  const target = deviceSshTarget(profile);
+  const keyPath = deviceSshKeyPath(profile);
+  const command = writes.map(([param, value]) => (
+    `printf %s ${shellQuote(value)} > /data/params/d/${param}; printf ${param}=; cat /data/params/d/${param} 2>/dev/null; echo`
+  )).join("; ");
+
+  try {
+    const output = await runSshCommand(target, keyPath, command, 7500);
+    const results = writes.map(([param, value]) => {
+      const expected = String(value ?? "");
+      return {
+        param,
+        value: expected,
+        ok: output.includes(`${param}=${expected}`)
+      };
+    });
+    const refused = results.filter((result) => !result.ok);
+    return {
+      state: refused.length ? "partial" : "applied",
+      working: refused.length === 0,
+      message: refused.length
+        ? `${results.length - refused.length} smart UI param${results.length - refused.length === 1 ? "" : "s"} applied, ${refused.length} refused.`
+        : `${results.length} smart UI params applied on comma.`,
+      results
+    };
+  } catch (error) {
+    return {
+      state: "partial",
+      working: false,
+      message: `Learning report saved, but comma UI param publish failed: ${error.message || "SSH write failed"}`,
+      results: writes.map(([param, value]) => ({
+        param,
+        value: String(value ?? ""),
+        ok: false,
+        reason: error.message || "SSH write failed"
+      }))
+    };
+  }
+}
+
+function buildCodexReviewPackage(reason = "manual") {
+  const report = writeIntelligenceReport(buildIntelligenceReport(reason));
+  const uploads = readSteeringUploadIndex();
+  const route = readCarRoute();
+  return {
+    type: "xrm10.codex.review_package",
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    reason,
+    device: currentDevice(),
+    latestProfile: latestProfileMeta(),
+    intelligence: report,
+    route,
+    navDrivePlan: readNavDrivePlan(),
+    navDriveEvents: readNavDriveEvents().slice(-80),
+    safetyEvents: readSafetyEvents().slice(-80),
+    mapPackage: readMapPackage(),
+    steeringUploads: {
+      count: uploads.length,
+      totalBytes: uploads.reduce((sum, upload) => sum + (Number(upload.bytes) || 0), 0),
+      latest: uploads.slice(-10).map((upload) => ({
+        receivedAt: upload.receivedAt,
+        fileName: upload.fileName,
+        bytes: upload.bytes,
+        deviceName: upload.deviceName
+      }))
+    },
+    capabilities: buildCapabilityReport(readLatestProfile()?.profile || {}),
+    policy: {
+      decodeOnly: true,
+      reviewOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      manualReviewRequiredBeforeCommaWrite: true
+    }
+  };
+}
+
+function latestUploadAgeMinutes(uploads) {
+  if (!uploads.length) return null;
+  const latest = uploads
+    .map((upload) => Date.parse(upload.receivedAt || ""))
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+  if (!latest) return null;
+  return Math.max(0, Math.round((Date.now() - latest) / 60000));
+}
+
+function buildIntelligenceReport(reason = "manual-review") {
+  const uploads = readSteeringUploadIndex();
+  const navEvents = readNavDriveEvents();
+  const safetyEvents = readSafetyEvents();
+  const route = readCarRoute();
+  const mapPackage = readMapPackage();
+  const latestProfile = readLatestProfile();
+  const profile = latestProfile?.profile || {};
+  const capabilities = buildCapabilityReport(profile);
+  const totals = capabilities.totals || {};
+  const uploadedBytes = uploads.reduce((sum, upload) => sum + (Number(upload.bytes) || 0), 0);
+  const recommendationItems = [];
+  let score = 100;
+
+  function addRecommendation(severity, title, detail, nextAction, source = "bridge", category = "review") {
+    const penalty = severity === "block" ? 24 : severity === "warn" ? 12 : 0;
+    score -= penalty;
+    recommendationItems.push(normalizeRecommendation({
+      severity,
+      title,
+      detail,
+      nextAction,
+      source,
+      category,
+      canAutoApply: false
+    }, recommendationItems.length));
+  }
+
+  if (!latestProfile) {
+    addRecommendation(
+      "warn",
+      "Sync the app profile",
+      "The bridge has no latest profile record yet, so it cannot compare settings against the current app state.",
+      "Open Operate, confirm the bridge URL, then press Sync now.",
+      "profile",
+      "setup"
+    );
+  }
+
+  if (!uploads.length) {
+    addRecommendation(
+      "block",
+      "Collect engaged steering logs",
+      "No steering packages have reached the bridge. The system cannot learn steering behavior from parked or missing logs.",
+      "Drive only in safe conditions with normal openpilot engagement, let the remote logger upload, then run this review again.",
+      "steering-logs",
+      "data"
+    );
+  } else {
+    const age = latestUploadAgeMinutes(uploads);
+    addRecommendation(
+      "pass",
+      "Remote steering logger is feeding data",
+      `${uploads.length} package${uploads.length === 1 ? "" : "s"} uploaded, ${Math.round(uploadedBytes / (1024 * 1024))} MB total${age === null ? "" : `, newest ${age} min ago`}.`,
+      "Run the steering analyzer on comma after an engaged drive to turn logs into tuning notes.",
+      "steering-logs",
+      "data"
+    );
+  }
+
+  if (uploads.length && navEvents.length < 3) {
+    addRecommendation(
+      "warn",
+      "Run route simulation events",
+      "There are steering logs, but too few navigation simulation events to compare route intent with maneuvers.",
+      "Open Navigate, build a Nav Drive Plan, run simulation, and log at least one confirmation prompt.",
+      "nav-drive-plan",
+      "simulation"
+    );
+  }
+
+  if (!route.active) {
+    addRecommendation(
+      "warn",
+      "Set a real destination",
+      "The bridge has no active destination. Navigation learning needs route intent, GPS fields when available, and maneuver prompts.",
+      "Open Navigate, enter a destination or paste a Google Maps link, then Start destination.",
+      "route",
+      "navigation"
+    );
+  } else {
+    addRecommendation(
+      "info",
+      "Route intent is staged",
+      `Destination: ${route.destination}. This is route intent only and does not command steering, braking, or lane changes.`,
+      "Use the drive plan and replay log to review upcoming actions before any closed-course testing.",
+      "route",
+      "navigation"
+    );
+  }
+
+  if (!mapPackage.fileCount && String(mapPackage.region || "").includes("gcc")) {
+    addRecommendation(
+      "warn",
+      "Map pack is staged as metadata",
+      "UAE/GCC coverage is selected, but no real map files are uploaded to the bridge yet.",
+      "Upload reviewed .pmtiles, .mbtiles, .pbf, .osm, or JSON map files before relying on offline map detail.",
+      "map-package",
+      "maps"
+    );
+  }
+
+  const rejectedConfirmations = safetyEvents.filter((event) => event.event === "confirmation-rejected").length;
+  if (rejectedConfirmations) {
+    addRecommendation(
+      "warn",
+      "Review rejected maneuver prompts",
+      `${rejectedConfirmations} prompt${rejectedConfirmations === 1 ? " was" : "s were"} rejected. Rejected prompts are useful learning signals, not failures to ignore.`,
+      "Inspect safety events and adjust route prompts or thresholds before another test.",
+      "safety-events",
+      "review"
+    );
+  }
+
+  if (Number(totals.blockedLiveDrive || 0) > 0 || Number(totals.needsIntegration || 0) > 0) {
+    addRecommendation(
+      "info",
+      "Driving controls stay review-gated",
+      `${Number(totals.blockedLiveDrive || 0)} live driving item${Number(totals.blockedLiveDrive || 0) === 1 ? "" : "s"} blocked and ${Number(totals.needsIntegration || 0)} item${Number(totals.needsIntegration || 0) === 1 ? "" : "s"} need integration.`,
+      "Keep them in simulation/review until on-device code, replay tests, and closed-course checks pass.",
+      "capabilities",
+      "safety"
+    );
+  }
+
+  if (currentDevice().offroad === false) {
+    addRecommendation(
+      "warn",
+      "Device reports inroad",
+      "Settings that touch route, safety, or diagnostics should not be changed while the device is inroad.",
+      "Switch to offroad before saving safety-critical sections.",
+      "device",
+      "safety"
+    );
+  }
+
+  if (!recommendationItems.some((item) => item.severity === "block" || item.severity === "warn")) {
+    addRecommendation(
+      "pass",
+      "Ready for replay review",
+      "The current evidence set has enough app-side data to run replay review and prepare a manual patch plan.",
+      "Export the replay log and test plan, review analyzer output, then stage code changes manually.",
+      "review",
+      "simulation"
+    );
+  }
+
+  score = clampNumber(score, 0, 100);
+  const blocked = recommendationItems.some((item) => item.severity === "block");
+  const warned = recommendationItems.some((item) => item.severity === "warn");
+  const gate = blocked ? "needs-engaged-logs" : warned ? "review-needed" : "ready-for-replay";
+  const status = blocked ? "blocked" : warned ? "review" : "ready";
+
+  return normalizeIntelligenceReport({
+    generatedAt: new Date().toISOString(),
+    reason,
+    status,
+    score,
+    gate,
+    summary: {
+      uploadCount: uploads.length,
+      uploadedBytes,
+      navEventCount: navEvents.length,
+      safetyEventCount: safetyEvents.length,
+      routeActive: Boolean(route.active),
+      recommendationCount: recommendationItems.length
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: status === "ready" ? "manual-patch-review" : "review-only",
+      nextStep: blocked
+        ? "Collect real engaged logs before changing driving behavior."
+        : warned
+          ? "Resolve warnings, run simulation, then export a patch plan."
+          : "Run replay review and manually inspect any proposed code changes before comma deployment.",
+      canApplyToComma: false
+    },
+    recommendations: recommendationItems
   });
 }
 
@@ -534,14 +1585,19 @@ const server = http.createServer(async (req, res) => {
   const parsed = new URL(req.url, "http://localhost");
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/status") {
+    const latestProfile = readLatestProfile()?.profile || {};
+    const route = await readLiveCarRoute(latestProfile);
     sendJson(res, 200, {
       online: true,
-      device: currentDevice(),
+      device: await currentDeviceAsync(latestProfile),
       latestProfile: latestProfileMeta(),
-      route: readCarRoute(),
+      route,
+      navDrivePlan: readNavDrivePlan(),
+      navDriveEvents: readNavDriveEvents(),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
-      capabilities: buildCapabilityReport()
+      capabilities: buildCapabilityReport(latestProfile),
+      intelligence: writeIntelligenceReport(buildIntelligenceReport("status"))
     });
     return;
   }
@@ -635,10 +1691,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/car-route") {
+    const route = await readLiveCarRoute(readLatestProfile()?.profile || {});
     sendJson(res, 200, {
       ok: true,
-      device: currentDevice(),
-      route: readCarRoute()
+      device: await currentDeviceAsync(readLatestProfile()?.profile || {}),
+      route
     });
     return;
   }
@@ -660,10 +1717,13 @@ const server = http.createServer(async (req, res) => {
       const active = payload.active !== false && Boolean(destination);
       const route = normalizeCarRoute({
         active,
-        source: String(payload.source || "car-screen"),
+        source: String(payload.source || "app-route"),
         provider: String(payload.provider || "car-screen-maps"),
         status: active ? "active" : "waiting",
         destination,
+        latitude: payload.latitude ?? "",
+        longitude: payload.longitude ?? "",
+        googleMapsUrl: String(payload.googleMapsUrl || ""),
         routeId: String(payload.routeId || `car-route-${Date.now()}`),
         nextInstruction: String(payload.nextInstruction || (active
           ? "Route intent ready for driver-confirmed Nav Pilot"
@@ -673,17 +1733,179 @@ const server = http.createServer(async (req, res) => {
       });
       writeCarRoute(route);
 
+      let deviceParamApply = null;
+      try {
+        deviceParamApply = await applyRouteIntentToComma(readLatestProfile()?.profile || {}, route);
+        route.status = deviceParamApply.status;
+        route.updatedAt = deviceParamApply.updatedAt;
+        route.nextInstruction = active
+          ? "Destination staged on comma Navigation screen"
+          : "Route cleared on comma";
+        writeCarRoute(route);
+      } catch (error) {
+        deviceParamApply = {
+          state: "partial",
+          working: false,
+          error: error.message || "SSH route apply failed"
+        };
+      }
+
       sendJson(res, 200, {
         ok: true,
         accepted: "car-route-intent-staged",
         liveVehicleApplyAllowed: false,
-        device: currentDevice(),
-        route
+        device: await currentDeviceAsync(readLatestProfile()?.profile || {}),
+        route,
+        deviceParams: deviceParamApply
       });
     } catch (error) {
       sendJson(res, 400, {
         ok: false,
         error: error.message || "Invalid car-route payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/nav-drive-plan") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      plan: readNavDrivePlan(),
+      events: readNavDriveEvents()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/nav-drive-plan") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      assertNavDrivePolicy(payload.policy || payload.plan?.policy || {});
+
+      const plan = normalizeNavDrivePlan({
+        ...(payload.plan || {}),
+        updatedAt: new Date().toISOString()
+      });
+      writeNavDrivePlan(plan);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("nav-drive-plan"));
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "nav-drive-plan-staged",
+        liveVehicleApplyAllowed: false,
+        publicRoadAutonomyEnabled: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        plan,
+        eventCount: readNavDriveEvents().length,
+        intelligence
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid nav-drive-plan payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/nav-drive-events") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      events: readNavDriveEvents()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/nav-drive-event") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+      assertNavDrivePolicy(payload.policy || {});
+
+      const events = readNavDriveEvents();
+      const event = normalizeNavDriveEvents([{
+        ...payload,
+        receivedAt: new Date().toISOString()
+      }])[0];
+      events.push(event);
+      writeNavDriveEvents(events);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("nav-drive-event"));
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "nav-drive-event-logged",
+        liveVehicleApplyAllowed: false,
+        publicRoadAutonomyEnabled: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        eventCount: readNavDriveEvents().length,
+        events: readNavDriveEvents(),
+        intelligence
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid nav-drive-event payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/steering-log-uploads") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      uploads: readSteeringUploadIndex()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/steering-log-upload") {
+    let filePath = "";
+    try {
+      if (!uploadTokenAccepted(req, parsed)) {
+        sendJson(res, 401, {
+          ok: false,
+          error: "Invalid steering log upload token."
+        });
+        return;
+      }
+
+      const requestedName = req.headers["x-xrm10-log-name"] || parsed.searchParams.get("name") || "";
+      const fileName = `${new Date().toISOString().replace(/[:.]/g, "-")}-${safeUploadName(requestedName)}`;
+      filePath = path.join(steeringUploadsDir, fileName);
+      const bytes = await receiveUploadToFile(req, filePath);
+      const uploads = readSteeringUploadIndex();
+      const entry = {
+        receivedAt: new Date().toISOString(),
+        fileName,
+        bytes,
+        deviceName: String(req.headers["x-xrm10-device"] || ""),
+        sourceAddress: req.socket?.remoteAddress || "",
+        contentType: String(req.headers["content-type"] || "application/octet-stream"),
+        path: filePath
+      };
+      uploads.push(entry);
+      writeSteeringUploadIndex(uploads);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("steering-log-upload"));
+
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "steering-log-uploaded",
+        upload: entry,
+        uploadCount: uploads.length,
+        intelligence
+      });
+    } catch (error) {
+      if (filePath) {
+        try { fs.unlinkSync(filePath); } catch {}
+      }
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid steering log upload"
       });
     }
     return;
@@ -779,13 +2001,15 @@ const server = http.createServer(async (req, res) => {
       };
       events.push(event);
       writeSafetyEvents(events);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("safety-event"));
 
       sendJson(res, 200, {
         ok: true,
         accepted: "safety-event-logged",
         eventCount: readSafetyEvents().length,
         liveVehicleApplyAllowed: false,
-        device: currentDevice()
+        device: currentDevice(),
+        intelligence
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -802,6 +2026,94 @@ const server = http.createServer(async (req, res) => {
       device: currentDevice(),
       capabilities: buildCapabilityReport()
     });
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/intelligence-report") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      intelligence: readIntelligenceReport()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/intelligence-review") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false || payload.policy?.automaticCodeChangesAllowed === true) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Intelligence review is review-gated only. Live vehicle apply and automatic code changes must be false."
+        });
+        return;
+      }
+
+      const profile = readLatestProfile()?.profile || payload.profile || {};
+      const report = writeIntelligenceReport(buildIntelligenceReport(String(payload.reason || "manual-review")));
+      const commaUi = await publishIntelligenceReportToComma(profile, report);
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "intelligence-review-generated",
+        liveVehicleApplyAllowed: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        intelligence: report,
+        commaUi
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid intelligence-review payload"
+      });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/codex-package") {
+    const codexPackage = buildCodexReviewPackage("read-package");
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      package: codexPackage
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/codex-package") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false || payload.policy?.automaticCodeChangesAllowed === true) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Codex packages are decode/review only. Live vehicle apply and automatic code changes must be false."
+        });
+        return;
+      }
+
+      const codexPackage = buildCodexReviewPackage(String(payload.reason || "app-codex-package"));
+      const profile = readLatestProfile()?.profile || payload.profile || {};
+      const commaUi = await publishIntelligenceReportToComma(profile, codexPackage.intelligence);
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "codex-package-built",
+        liveVehicleApplyAllowed: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        package: codexPackage,
+        intelligence: codexPackage.intelligence,
+        commaUi
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid codex-package payload"
+      });
+    }
     return;
   }
 
@@ -824,25 +2136,30 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const capability = buildSectionCapability(section, payload.profile || {});
+      const profile = payload.profile || {};
+      const capability = buildSectionCapability(section, profile);
+      const deviceParamApply = await applyWhitelistedDeviceParams(section, profile);
+      const sectionState = deviceParamApply.state === "partial" ? "partial" : capability.state;
+      const sectionMessage = [capability.message, deviceParamApply.message].filter(Boolean).join(" ");
+      capability.deviceParams = deviceParamApply;
       const appliedControls = readAppliedControls();
       appliedControls[section] = {
         section,
         appliedAt: new Date().toISOString(),
         capability,
-        profile: payload.profile || {}
+        profile
       };
       writeAppliedControls(appliedControls);
 
       const statuses = readSectionStatuses();
       statuses[section] = {
         section,
-        state: capability.state,
-        working: capability.working,
+        state: sectionState,
+        working: sectionState === "applied" && capability.working && deviceParamApply.working,
         appliedAt: new Date().toISOString(),
-        message: capability.message,
+        message: sectionMessage,
         capability,
-        device: currentDevice()
+        device: await currentDeviceAsync(profile)
       };
       writeSectionStatuses(statuses);
 
@@ -882,8 +2199,8 @@ const server = http.createServer(async (req, res) => {
       const target = String(payload.target || "").trim();
       const keyPath = String(payload.keyPath || "").trim();
 
-      if (!target || !keyPath) {
-        sendJson(res, 400, { ok: false, error: "target and keyPath are required." });
+      if (!target) {
+        sendJson(res, 400, { ok: false, error: "target is required." });
         return;
       }
 

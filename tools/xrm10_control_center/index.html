@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>XRM10 Control Center</title>
+    <title>XRM10 v1 Starter Control Center</title>
     <link rel="stylesheet" href="styles-v6.css">
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   </head>
@@ -11,8 +11,8 @@
     <main class="settings-app">
       <aside class="settings-sidebar" aria-label="Settings sections">
         <div class="brand-lockup">
-          <strong>SUNNYPILOT</strong>
-          <span>XRM10 dev controls</span>
+          <strong>XRM10 CONTROL</strong>
+          <span>v1 starter studio</span>
         </div>
 
         <nav class="primary-nav">
@@ -24,10 +24,10 @@
           </button>
         </nav>
 
-        <p class="nav-heading">Device settings</p>
+        <p class="nav-heading">Control center</p>
         <nav class="section-nav">
           <button class="nav-item active" type="button" data-section-target="device">
-            <i data-lucide="hard-drive"></i><span>Device</span>
+            <i data-lucide="activity"></i><span>Operate</span>
           </button>
           <button class="nav-item" type="button" data-section-target="toggles">
             <i data-lucide="toggle-left"></i><span>Toggles</span>
@@ -51,7 +51,7 @@
             <i data-lucide="monitor"></i><span>Display</span>
           </button>
           <button class="nav-item" type="button" data-section-target="maps">
-            <i data-lucide="map"></i><span>Maps</span>
+            <i data-lucide="map"></i><span>Navigate</span>
           </button>
           <button class="nav-item" type="button" data-section-target="navPilot">
             <i data-lucide="route"></i><span>Nav Pilot</span>
@@ -60,13 +60,13 @@
             <i data-lucide="car"></i><span>Vehicle</span>
           </button>
           <button class="nav-item" type="button" data-section-target="software">
-            <i data-lucide="download"></i><span>Software</span>
+            <i data-lucide="download"></i><span>Deploy</span>
           </button>
           <button class="nav-item" type="button" data-section-target="safetyLab">
-            <i data-lucide="shield-check"></i><span>Safety Lab</span>
+            <i data-lucide="shield-check"></i><span>Test</span>
           </button>
           <button class="nav-item" type="button" data-section-target="developer">
-            <i data-lucide="wrench"></i><span>Developer</span>
+            <i data-lucide="brain-circuit"></i><span>Learn</span>
           </button>
         </nav>
 
@@ -96,7 +96,7 @@
             <span id="branchStatusDot"></span>
             <div>
               <strong id="activeBranchLabel">xrm10/dev</strong>
-              <small id="activeBranchMeta">installer ready</small>
+              <small id="activeBranchMeta">v1 starter ready</small>
             </div>
           </div>
         </header>
@@ -170,7 +170,7 @@
               <div class="device-meta-grid">
                 <div>
                   <span>Version</span>
-                  <strong id="homeVersion">2026.07.02-xrm10</strong>
+                  <strong id="homeVersion">2026.07.05-xrm10-v1-starter</strong>
                 </div>
                 <div>
                   <span>Branch</span>
@@ -192,6 +192,21 @@
               <button class="ghost-button" id="homeRefreshSync" type="button">Refresh</button>
             </article>
 
+            <article class="settings-card smart-system-card">
+              <div class="card-heading">
+                <div>
+                  <p class="eyebrow">Intelligence</p>
+                  <h2>Learning pipeline</h2>
+                </div>
+                <span class="status-badge warn" id="smartSystemBadge">Waiting</span>
+              </div>
+              <div class="smart-score-row">
+                <strong id="smartSystemScore">0/100</strong>
+                <p id="smartSystemSummary">Run a learning review after logs, route simulation, and safety events are available.</p>
+              </div>
+              <div class="pipeline-list" id="smartPipelineList"></div>
+            </article>
+
             <article class="settings-card" id="liveCapabilityCard">
               <div class="card-heading">
                 <div>
@@ -207,44 +222,20 @@
             </article>
 
             <div class="home-tile-grid" id="homeTileGrid">
-              <button class="home-tile" type="button" data-section-target="device" data-search="device comma four hardware status">
-                <i data-lucide="hard-drive"></i><span>Device</span>
+              <button class="home-tile command-tile" type="button" data-section-target="device" data-search="operate live device bridge ssh sync status road state">
+                <i data-lucide="activity"></i><span>Operate</span><small>Live status and sync</small>
               </button>
-              <button class="home-tile" type="button" data-section-target="toggles" data-search="toggles switches assist">
-                <i data-lucide="toggle-left"></i><span>Toggles</span>
+              <button class="home-tile command-tile" type="button" data-section-target="maps" data-search="navigate destination route maps google car screen nav drive plan">
+                <i data-lucide="map"></i><span>Navigate</span><small>Destination and drive plan</small>
               </button>
-              <button class="home-tile" type="button" data-section-target="models" data-search="models vision planner camera">
-                <i data-lucide="box"></i><span>Models</span>
+              <button class="home-tile command-tile" type="button" data-section-target="developer" data-search="learn logs steering analyzer recommendations intelligence report">
+                <i data-lucide="brain-circuit"></i><span>Learn</span><small>Logs and recommendations</small>
               </button>
-              <button class="home-tile" type="button" data-section-target="steering" data-search="steering lateral torque lane">
-                <i data-lucide="gauge"></i><span>Steering</span>
+              <button class="home-tile command-tile" type="button" data-section-target="safetyLab" data-search="test simulation replay safety lab closed course">
+                <i data-lucide="shield-check"></i><span>Test</span><small>Simulation gates</small>
               </button>
-              <button class="home-tile" type="button" data-section-target="cruise" data-search="cruise longitudinal speed follow">
-                <i data-lucide="wind"></i><span>Cruise</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="traffic" data-search="traffic lane faster lane lwc lane width control">
-                <i data-lucide="waypoints"></i><span>Traffic</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="visuals" data-search="visuals alerts overlay theme">
-                <i data-lucide="palette"></i><span>Visuals</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="maps" data-search="maps route speed limit guidance">
-                <i data-lucide="map"></i><span>Maps</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="navPilot" data-search="nav pilot exits highways roundabouts u-turns cameras">
-                <i data-lucide="route"></i><span>Nav Pilot</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="vehicle" data-search="vehicle tesla model year hw4">
-                <i data-lucide="car"></i><span>Vehicle</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="software" data-search="software install update branch rollback">
-                <i data-lucide="download"></i><span>Software</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="safetyLab" data-search="safety lab test plan simulation">
-                <i data-lucide="shield-check"></i><span>Safety Lab</span>
-              </button>
-              <button class="home-tile" type="button" data-section-target="developer" data-search="developer logs diagnostics export">
-                <i data-lucide="wrench"></i><span>Developer</span>
+              <button class="home-tile command-tile" type="button" data-section-target="software" data-search="deploy installer upgrade rollback branch">
+                <i data-lucide="download"></i><span>Deploy</span><small>Install and rollback</small>
               </button>
             </div>
           </div>
@@ -263,7 +254,7 @@
 
               <label class="field">
                 <span>Profile name</span>
-                <input id="profileName" maxlength="40" value="XRM10 Model 3 HW4">
+                <input id="profileName" maxlength="40" value="XRM10 v1 Starter HW4">
               </label>
 
               <div class="split">
@@ -833,6 +824,14 @@
                   <option value="quiet">Quiet</option>
                 </select>
               </label>
+              <div class="summary-row">
+                <span>Quiet mode</span>
+                <strong id="quietModeState">Off</strong>
+              </div>
+              <div class="summary-row">
+                <span>Driver view</span>
+                <strong id="driverViewState">Off</strong>
+              </div>
               <label class="field">
                 <span>Lane overlay</span>
                 <select id="laneOverlay">
@@ -851,8 +850,13 @@
               </label>
             </div>
             <div class="toggle-stack switch-grid">
+              <label><input id="quietMode" type="checkbox"> Quiet non-critical alert sounds on comma</label>
+              <label><input id="driverViewPreview" type="checkbox"> Driver-view diagnostics when parked/disengaged</label>
               <label><input id="roadEdgeOverlay" type="checkbox" checked> Road-edge overlay</label>
               <label><input id="showDebugHud" type="checkbox"> Debug HUD review</label>
+            </div>
+            <div class="warning-copy">
+              Driver monitoring itself stays locked. Quiet mode reduces non-critical sounds only; distracted/immediate warnings still stay active. Driver-view diagnostics are refused while engaged.
             </div>
             <label class="range-field">
               <span>Prompt lead time <strong id="promptLeadTimeValue">1.2s</strong></span>
@@ -915,8 +919,8 @@
           <article class="settings-card route-live-card">
             <div class="card-heading">
               <div>
-                <p class="eyebrow">Car screen route</p>
-                <h2>Live destination source</h2>
+                <p class="eyebrow">Navigation</p>
+                <h2>Car-screen route intent</h2>
               </div>
               <span class="status-badge warn" id="carRouteStatus">Waiting</span>
             </div>
@@ -942,8 +946,8 @@
               <label class="field">
                 <span>Route source</span>
                 <select id="mapRouteSourceMode">
-                  <option value="car-screen">Car screen maps</option>
-                  <option value="app-route">Control center route</option>
+                  <option value="car-screen">Car-screen adapter</option>
+                  <option value="app-route">App destination</option>
                   <option value="offline-cache">Offline map cache</option>
                   <option value="disabled">Disabled</option>
                 </select>
@@ -957,20 +961,87 @@
                 </select>
               </label>
               <label class="field">
-                <span>Demo destination</span>
-                <input id="carScreenDestination" placeholder="Destination from car screen">
+                <span>Destination</span>
+                <input id="carScreenDestination" placeholder="Search place, address, or paste coordinates">
+              </label>
+              <label class="field">
+                <span>Google Maps link</span>
+                <input id="googleMapsLink" placeholder="Paste shared Google Maps URL">
+              </label>
+              <label class="field">
+                <span>Latitude</span>
+                <input id="routeLatitude" inputmode="decimal" placeholder="Optional">
+              </label>
+              <label class="field">
+                <span>Longitude</span>
+                <input id="routeLongitude" inputmode="decimal" placeholder="Optional">
               </label>
             </div>
             <div class="toggle-stack switch-grid">
-              <label><input id="carScreenRouteSync" type="checkbox" checked> Sync destination changes from car screen</label>
-              <label><input id="carScreenRouteNavPilot" type="checkbox" checked> Share car route with Nav Pilot</label>
-              <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Require driver confirmation for route maneuvers</label>
+              <label><input id="carScreenRouteSync" type="checkbox" checked> Stage car-screen route intent on comma</label>
+              <label><input id="carScreenRouteAutoStart" type="checkbox" checked> Start navigation intent when car-screen route appears</label>
+              <label><input id="carScreenRouteNavPilot" type="checkbox" checked> Show destination intent on comma Navigation screen</label>
+              <label><input id="carScreenRouteRequireConfirm" type="checkbox" checked> Keep route intent advisory only</label>
+            </div>
+            <div class="warning-copy">
+              Start writes the destination to the comma Navigation screen as route intent. Google Maps opens as the picker on your phone. It does not steer, brake, accelerate, or change lanes.
             </div>
             <div class="button-row">
-              <button class="primary-button" id="readCarRoute" type="button">Read car route</button>
-              <button class="ghost-button" id="setDemoCarRoute" type="button">Set demo route</button>
-              <button class="ghost-button" id="useCarRouteForNav" type="button">Use in Nav Pilot</button>
+              <button class="primary-button" id="startAppRoute" type="button">Start destination</button>
+              <button class="primary-button" id="readCarRoute" type="button">Read nav status</button>
+              <button class="ghost-button" id="openGoogleMaps" type="button">Open Google Maps</button>
+              <button class="ghost-button" id="clearAppRoute" type="button">Clear route</button>
             </div>
+          </article>
+
+          <article class="settings-card nav-drive-plan-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Nav Drive Plan</p>
+                <h2>Route actions and replay</h2>
+              </div>
+              <span class="status-badge warn" id="navDrivePlanStatus">Waiting</span>
+            </div>
+            <div class="warning-copy">
+              Advisory and simulation only. This logs route maneuvers, prompts, sign/light/bump checks, and replay data without sending live steering, braking, throttle, or lane-change commands.
+            </div>
+            <div class="route-status-grid">
+              <div class="summary-row">
+                <span>Next action</span>
+                <strong id="navDriveNext">Waiting for route</strong>
+              </div>
+              <div class="summary-row">
+                <span>Confidence</span>
+                <strong id="navDriveConfidence">0%</strong>
+              </div>
+              <div class="summary-row">
+                <span>Mode</span>
+                <strong id="navDriveMode">Simulation locked</strong>
+              </div>
+              <div class="summary-row">
+                <span>Replay log</span>
+                <strong id="navDriveLogCount">0 events</strong>
+              </div>
+            </div>
+            <div class="toggle-stack switch-grid">
+              <label><input id="navPlanPrompts" type="checkbox" checked> Confirmation prompts for maneuvers</label>
+              <label><input id="navPlanSound" type="checkbox" checked> Sound before confirmation</label>
+              <label><input id="navPlanSigns" type="checkbox" checked> Sign detection checkpoints</label>
+              <label><input id="navPlanTrafficLights" type="checkbox" checked> Traffic light checkpoints</label>
+              <label><input id="navPlanRoundabouts" type="checkbox" checked> Roundabout yield plan</label>
+              <label><input id="navPlanSpeedBumps" type="checkbox" checked> Speed bump slowdown plan</label>
+              <label><input id="navPlanLaneSuggestions" type="checkbox" checked> Faster-lane suggestions only</label>
+              <label><input id="navPlanReplayOnly" type="checkbox" checked> Replay/simulation before road test</label>
+              <label><input id="navPlanClosedCourseOnly" type="checkbox" checked> Closed-course physical testing only</label>
+              <label><input id="navPlanLearningReview" type="checkbox" checked> Learning review log, no auto-code changes</label>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="buildNavDrivePlan" type="button">Build drive plan</button>
+              <button class="primary-button" id="runNavSimulation" type="button">Run simulation</button>
+              <button class="ghost-button" id="logNavPrompt" type="button">Log prompt</button>
+              <button class="ghost-button" id="exportNavDriveLog" type="button">Export replay log</button>
+            </div>
+            <div class="drive-plan-list" id="navDrivePlanList" aria-live="polite"></div>
           </article>
 
           <article class="settings-card">
@@ -1681,12 +1752,78 @@
           </article>
         </section>
 
-        <section class="section-panel" data-section="developer" aria-label="Developer settings">
+        <section class="section-panel" data-section="developer" aria-label="Learning engine">
+          <article class="settings-card intelligence-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Learning Engine</p>
+                <h2>Evidence and recommendations</h2>
+              </div>
+              <span class="status-badge warn" id="intelligenceStatusBadge">Waiting</span>
+            </div>
+            <div class="warning-copy">
+              The app can learn from uploaded steering logs, navigation simulations, and safety prompts. It produces review-gated recommendations only; it does not rewrite or deploy driving code by itself.
+            </div>
+            <div class="intelligence-score">
+              <strong id="intelligenceScore">0</strong>
+              <div>
+                <span>Learning readiness</span>
+                <div class="meter"><i id="intelligenceScoreMeter"></i></div>
+              </div>
+            </div>
+            <div class="route-status-grid">
+              <div class="summary-row">
+                <span>Steering uploads</span>
+                <strong id="intelligenceUploadCount">0 packages</strong>
+              </div>
+              <div class="summary-row">
+                <span>Uploaded data</span>
+                <strong id="intelligenceUploadedBytes">0 B</strong>
+              </div>
+              <div class="summary-row">
+                <span>Nav events</span>
+                <strong id="intelligenceNavEvents">0 events</strong>
+              </div>
+              <div class="summary-row">
+                <span>Safety events</span>
+                <strong id="intelligenceSafetyEvents">0 events</strong>
+              </div>
+              <div class="summary-row">
+                <span>Gate</span>
+                <strong id="intelligenceGate">waiting-for-data</strong>
+              </div>
+              <div class="summary-row">
+                <span>Last review</span>
+                <strong id="intelligenceUpdated">Not run</strong>
+              </div>
+              <div class="summary-row">
+                <span>Deploy mode</span>
+                <strong id="intelligenceDeployMode">review-only</strong>
+              </div>
+              <div class="summary-row">
+                <span>Codex package</span>
+                <strong id="codexPackageStatus">Not built</strong>
+              </div>
+              <div class="summary-row">
+                <span>Next step</span>
+                <strong id="intelligenceNextStep">Collect logs first</strong>
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="primary-button" id="runIntelligenceReview" type="button">Run learning review</button>
+              <button class="primary-button" id="buildCodexPackage" type="button">Build Codex package</button>
+              <button class="ghost-button" id="refreshIntelligence" type="button">Refresh report</button>
+              <button class="ghost-button" id="exportIntelligenceReport" type="button">Export report</button>
+              <button class="ghost-button" id="exportCodexPackage" type="button">Export package</button>
+            </div>
+            <div class="intelligence-list" id="intelligenceRecommendationList"></div>
+          </article>
+
           <article class="settings-card">
             <div class="card-heading">
               <div>
                 <p class="eyebrow">Developer</p>
-                <h2>Review and diagnostics</h2>
+                <h2>Diagnostics and artifacts</h2>
               </div>
             </div>
             <div class="control-grid">

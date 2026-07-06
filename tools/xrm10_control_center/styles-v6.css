@@ -131,6 +131,26 @@ input[type="range"] {
   box-shadow: inset 4px 0 0 var(--purple);
 }
 
+.section-nav [data-section-target="device"] {
+  order: 1;
+}
+
+.section-nav [data-section-target="maps"] {
+  order: 2;
+}
+
+.section-nav [data-section-target="developer"] {
+  order: 3;
+}
+
+.section-nav [data-section-target="safetyLab"] {
+  order: 4;
+}
+
+.section-nav [data-section-target="software"] {
+  order: 5;
+}
+
 .migration-link {
   margin-top: 20px;
   border-top: 1px solid var(--line);
@@ -626,6 +646,91 @@ h2 {
   stroke-width: 1.9;
 }
 
+.command-tile {
+  min-height: 154px;
+  gap: 10px;
+  padding: 18px 12px;
+}
+
+.command-tile small {
+  max-width: 140px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.smart-system-card {
+  margin-bottom: 16px;
+  border-color: rgba(82, 214, 200, 0.24);
+}
+
+.smart-score-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.smart-score-row strong {
+  display: grid;
+  min-width: 82px;
+  min-height: 54px;
+  place-items: center;
+  border: 1px solid rgba(82, 214, 200, 0.28);
+  border-radius: var(--radius);
+  color: var(--cyan);
+  background: rgba(82, 214, 200, 0.08);
+  font-size: 20px;
+}
+
+.smart-score-row p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.pipeline-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pipeline-step {
+  min-width: 0;
+  min-height: 66px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #0c0e0f;
+  padding: 10px;
+}
+
+.pipeline-step.pass {
+  border-color: rgba(117, 213, 107, 0.3);
+}
+
+.pipeline-step span,
+.pipeline-step strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-step span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pipeline-step strong {
+  margin-top: 7px;
+  font-size: 13px;
+}
+
 .home-tile[hidden] {
   display: none;
 }
@@ -1024,6 +1129,10 @@ button:focus-visible {
   border-color: rgba(82, 214, 200, 0.24);
 }
 
+.nav-drive-plan-card {
+  border-color: rgba(127, 99, 255, 0.28);
+}
+
 .route-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1041,6 +1150,58 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+#intelligenceNextStep {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.drive-plan-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.drive-plan-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.drive-plan-step-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--cyan);
+  font-weight: 900;
+}
+
+.drive-plan-step h3 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+
+.drive-plan-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.drive-plan-step small {
+  color: var(--muted);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .map-package-panel {
   display: grid;
   gap: 10px;
@@ -1049,6 +1210,103 @@ button:focus-visible {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-2);
+}
+
+.intelligence-card {
+  border-color: rgba(82, 214, 200, 0.24);
+}
+
+.intelligence-score {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.intelligence-score > strong {
+  display: grid;
+  min-height: 74px;
+  place-items: center;
+  border: 1px solid rgba(82, 214, 200, 0.32);
+  border-radius: var(--radius);
+  color: var(--cyan);
+  background: rgba(82, 214, 200, 0.08);
+  font-size: 30px;
+}
+
+.intelligence-score span {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.intelligence-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.intelligence-rec {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.intelligence-rec > span {
+  display: grid;
+  min-height: 30px;
+  place-items: center;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.intelligence-rec.pass > span {
+  color: var(--ink);
+  background: var(--green);
+}
+
+.intelligence-rec.warn > span {
+  color: var(--ink);
+  background: var(--yellow);
+}
+
+.intelligence-rec.block > span {
+  color: white;
+  background: var(--red);
+}
+
+.intelligence-rec strong,
+.intelligence-rec p,
+.intelligence-rec em {
+  display: block;
+}
+
+.intelligence-rec p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.intelligence-rec em {
+  margin-top: 8px;
+  color: var(--cyan);
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.35;
 }
 
 .lock-list {
@@ -1465,6 +1723,14 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .drive-plan-step {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .drive-plan-step small {
+    grid-column: 2;
+  }
+
   .content-topbar,
   .card-heading {
     align-items: stretch;
@@ -1551,7 +1817,7 @@ button:focus-visible {
   }
 
   .home-tile-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     min-width: 0;
     gap: 10px;
@@ -1568,9 +1834,24 @@ button:focus-visible {
     line-height: 1.2;
   }
 
+  .command-tile small {
+    max-width: 110px;
+    font-size: 11px;
+  }
+
   .home-tile svg {
     width: 30px;
     height: 30px;
+  }
+
+  .smart-score-row,
+  .intelligence-score,
+  .intelligence-rec {
+    grid-template-columns: 1fr;
+  }
+
+  .pipeline-list {
+    grid-template-columns: 1fr 1fr;
   }
 
   .split,
