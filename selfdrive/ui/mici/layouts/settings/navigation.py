@@ -1,11 +1,20 @@
 from time import monotonic
 
+import pyray as rl
+
 from openpilot.system.ui.widgets.scroller import NavScroller
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigMultiToggle, BigToggle
-from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import Xrm10ColorCard, now_iso, read_bool_param, read_param, write_param
+from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import card_color, now_iso, read_bool_param, read_param, write_param
 
 
 NAV_SOURCE_OPTIONS = ["off", "car screen", "osm"]
+NAV_SOURCE_LABELS = ["off", "car", "osm"]
+NAV_CARD_WIDTH = 338
+NAV_CARD_HEIGHT = 150
+NAV_TITLE_SIZE = 30
+NAV_VALUE_SIZE = 25
+NAV_PAD = 18
 
 
 def read_int_param(key: str, default: int = 0) -> int:
@@ -19,40 +28,161 @@ def clamped_nav_source() -> int:
   return max(0, min(read_int_param("Xrm10NavSource"), len(NAV_SOURCE_OPTIONS) - 1))
 
 
-class Xrm10NavSourceToggle(BigMultiToggle):
+def nav_text_color(alpha: float = 0.92) -> rl.Color:
+  return rl.Color(255, 255, 255, int(255 * alpha))
+
+
+def compact_label(text: str, max_chars: int = 48) -> str:
+  return text if len(text) <= max_chars else text[:max_chars - 1].rstrip() + "."
+
+
+def draw_wrapped_text(font, text: str, x: float, y: float, width: float, size: int, color: rl.Color, max_lines: int):
+  lines: list[str] = []
+  for paragraph in text.splitlines() or [""]:
+    words = paragraph.split()
+    if not words:
+      lines.append("")
+      continue
+    line = ""
+    for word in words:
+      candidate = word if not line else f"{line} {word}"
+      if rl.measure_text_ex(font, candidate, size, 0).x <= width:
+        line = candidate
+      else:
+        lines.append(line)
+        line = word
+        if len(lines) >= max_lines:
+          break
+    if len(lines) >= max_lines:
+      break
+    lines.append(line)
+
+  if len(lines) > max_lines:
+    lines = lines[:max_lines]
+  for idx, line in enumerate(lines[:max_lines]):
+    if idx == max_lines - 1 and rl.measure_text_ex(font, line, size, 0).x > width:
+      while len(line) > 1 and rl.measure_text_ex(font, line + ".", size, 0).x > width:
+        line = line[:-1]
+      line += "."
+    rl.draw_text_ex(font, line, rl.Vector2(x, y + idx * (size + 3)), size, 0, color)
+
+
+class Xrm10NavInfoCard(Widget):
+  def __init__(self, text: str, value: str, color: str = "grey"):
+    super().__init__()
+    self.set_rect(rl.Rectangle(0, 0, NAV_CARD_WIDTH, NAV_CARD_HEIGHT))
+    self.text = text
+    self.value = value
+    self._color = color
+    self._font_bold = gui_app.font(FontWeight.BOLD)
+    self._font_regular = gui_app.font(FontWeight.DISPLAY_REGULAR)
+
+  def set_value(self, value: str):
+    self.value = value
+
+  def set_color(self, color: str):
+    self._color = color
+
+  def _render(self, _):
+    rl.draw_rectangle_rounded(self._rect, 0.18, 8, card_color(self._color))
+    rl.begin_scissor_mode(int(self._rect.x), int(self._rect.y), int(self._rect.width), int(self._rect.height))
+    draw_wrapped_text(self._font_bold, compact_label(self.text, 34), self._rect.x + NAV_PAD, self._rect.y + 16,
+                      self._rect.width - NAV_PAD * 2, NAV_TITLE_SIZE, nav_text_color(), 1)
+    draw_wrapped_text(self._font_regular, compact_label(self.value, 74), self._rect.x + NAV_PAD, self._rect.y + 61,
+                      self._rect.width - NAV_PAD * 2, NAV_VALUE_SIZE, nav_text_color(0.86), 2)
+    rl.end_scissor_mode()
+
+
+class Xrm10NavSourceToggle(Widget):
   def __init__(self):
-    super().__init__("route source", NAV_SOURCE_OPTIONS)
+    super().__init__()
+    self.set_rect(rl.Rectangle(0, 0, NAV_CARD_WIDTH, NAV_CARD_HEIGHT))
+    self._font_bold = gui_app.font(FontWeight.BOLD)
+    self._font_regular = gui_app.font(FontWeight.DISPLAY_REGULAR)
+    self._button_rects: list[rl.Rectangle] = []
     self.refresh()
 
   def _handle_mouse_release(self, mouse_pos):
-    super()._handle_mouse_release(mouse_pos)
-    write_param("Xrm10NavSource", str(self._options.index(self.value)))
-    write_param("Xrm10NavSourceUpdatedAt", now_iso())
+    for idx, rect in enumerate(self._button_rects):
+      if rl.check_collision_point_rec(mouse_pos, rect):
+        write_param("Xrm10NavSource", str(idx))
+        write_param("Xrm10NavSourceUpdatedAt", now_iso())
+        self.refresh()
+        return
 
   def refresh(self):
-    self.set_value(self._options[clamped_nav_source()])
+    self.value = clamped_nav_source()
+
+  def _render(self, _):
+    selected = clamped_nav_source()
+    self.value = selected
+    rl.draw_rectangle_rounded(self._rect, 0.18, 8, card_color("blue"))
+    rl.begin_scissor_mode(int(self._rect.x), int(self._rect.y), int(self._rect.width), int(self._rect.height))
+    rl.draw_text_ex(self._font_bold, "source", rl.Vector2(self._rect.x + NAV_PAD, self._rect.y + 15),
+                    NAV_TITLE_SIZE, 0, nav_text_color())
+    rl.draw_text_ex(self._font_regular, NAV_SOURCE_OPTIONS[selected],
+                    rl.Vector2(self._rect.x + NAV_PAD, self._rect.y + 52),
+                    NAV_VALUE_SIZE, 0, nav_text_color(0.84))
+
+    button_y = self._rect.y + 96
+    button_w = (self._rect.width - NAV_PAD * 2 - 12) / 3
+    self._button_rects = []
+    for idx, label in enumerate(NAV_SOURCE_LABELS):
+      button = rl.Rectangle(self._rect.x + NAV_PAD + idx * (button_w + 6), button_y, button_w, 36)
+      self._button_rects.append(button)
+      color = rl.Color(255, 255, 255, 70) if idx == selected else rl.Color(0, 0, 0, 90)
+      rl.draw_rectangle_rounded(button, 0.35, 8, color)
+      text_size = rl.measure_text_ex(self._font_bold, label, 22, 0)
+      rl.draw_text_ex(self._font_bold, label,
+                      rl.Vector2(button.x + (button.width - text_size.x) / 2, button.y + 7),
+                      22, 0, nav_text_color(0.95))
+    rl.end_scissor_mode()
 
 
-class Xrm10NavToggle(BigToggle):
+class Xrm10NavToggle(Widget):
   def __init__(self, text: str, param: str, value: str, default: bool = False):
-    super().__init__(text, value)
+    super().__init__()
+    self.set_rect(rl.Rectangle(0, 0, NAV_CARD_WIDTH, NAV_CARD_HEIGHT))
+    self.text = text
+    self.value = value
     self.param = param
     self.default = default
+    self._checked = default
+    self._font_bold = gui_app.font(FontWeight.BOLD)
+    self._font_regular = gui_app.font(FontWeight.DISPLAY_REGULAR)
     self.refresh()
 
   def _handle_mouse_release(self, mouse_pos):
-    super()._handle_mouse_release(mouse_pos)
+    self._checked = not self._checked
     write_param(self.param, "1" if self._checked else "0")
     write_param(f"{self.param}UpdatedAt", now_iso())
 
   def refresh(self):
-    self.set_checked(read_bool_param(self.param, self.default))
+    self._checked = read_bool_param(self.param, self.default)
+
+  def _render(self, _):
+    self.refresh()
+    rl.draw_rectangle_rounded(self._rect, 0.18, 8, card_color("green" if self._checked else "grey"))
+    rl.begin_scissor_mode(int(self._rect.x), int(self._rect.y), int(self._rect.width), int(self._rect.height))
+    draw_wrapped_text(self._font_bold, compact_label(self.text, 32), self._rect.x + NAV_PAD, self._rect.y + 16,
+                      self._rect.width - 112, NAV_TITLE_SIZE, nav_text_color(), 2)
+    draw_wrapped_text(self._font_regular, compact_label(self.value, 52), self._rect.x + NAV_PAD, self._rect.y + 83,
+                      self._rect.width - NAV_PAD * 2, NAV_VALUE_SIZE, nav_text_color(0.82), 1)
+
+    pill = rl.Rectangle(self._rect.x + self._rect.width - 88, self._rect.y + 18, 68, 38)
+    rl.draw_rectangle_rounded(pill, 0.55, 12, rl.Color(36, 122, 76, 255) if self._checked else rl.Color(50, 50, 50, 255))
+    knob_x = pill.x + pill.width - 33 if self._checked else pill.x + 5
+    rl.draw_circle(int(knob_x + 14), int(pill.y + 19), 14, rl.Color(255, 255, 255, 240))
+    rl.end_scissor_mode()
 
 
-class Xrm10NavActionButton(BigButton):
+class Xrm10NavActionButton(Xrm10NavInfoCard):
   def __init__(self, text: str, value: str, action):
-    super().__init__(text, value, scroll=True)
-    self.set_click_callback(action)
+    super().__init__(text, value, "cyan")
+    self._action = action
+
+  def _handle_mouse_release(self, mouse_pos):
+    self._action()
 
 
 class NavigationLayout(NavScroller):
@@ -78,12 +208,12 @@ class NavigationLayout(NavScroller):
       "display only, no driving command",
       False,
     )
-    self._activity = Xrm10ColorCard("navigation activity", "waiting", "yellow")
-    self._destination = Xrm10ColorCard("destination", "none", "blue")
-    self._route = Xrm10ColorCard("route status", "not connected", "grey")
-    self._coordinates = Xrm10ColorCard("coordinates", "none", "grey")
-    self._maps = Xrm10ColorCard("maps link", "none", "grey")
-    self._updated = Xrm10ColorCard("last update", "never", "grey")
+    self._activity = Xrm10NavInfoCard("activity", "waiting", "yellow")
+    self._destination = Xrm10NavInfoCard("destination", "none", "blue")
+    self._route = Xrm10NavInfoCard("route status", "not connected", "grey")
+    self._coordinates = Xrm10NavInfoCard("coordinates", "none", "grey")
+    self._maps = Xrm10NavInfoCard("maps link", "none", "grey")
+    self._updated = Xrm10NavInfoCard("last update", "never", "grey")
     self._last_refresh = 0.0
 
     self._sync = Xrm10NavActionButton(
@@ -98,7 +228,7 @@ class NavigationLayout(NavScroller):
     )
 
     self._scroller.add_widgets([
-      Xrm10ColorCard("navigation", "same xrm10 card format\nroute intent, map status, and live sync", "blue"),
+      Xrm10NavInfoCard("navigation", "route intent, map status, live sync", "blue"),
       self._source,
       self._intent,
       self._auto_start,
@@ -111,7 +241,7 @@ class NavigationLayout(NavScroller):
       self._updated,
       self._sync,
       self._clear,
-      Xrm10ColorCard("safety gate", "navigation screen does not steer, brake, accelerate, or change lanes\nit stages route intent and review data only", "red"),
+      Xrm10NavInfoCard("safety gate", "display/review only; no steering, braking, throttle, or lane-change command", "red"),
     ])
 
   def _request_sync(self):

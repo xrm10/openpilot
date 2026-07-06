@@ -10,12 +10,12 @@ from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.selfdrive.ui.mici.layouts.settings.navigation import (
   NAV_SOURCE_OPTIONS,
   Xrm10NavActionButton,
+  Xrm10NavInfoCard,
   Xrm10NavSourceToggle,
   Xrm10NavToggle,
   clamped_nav_source,
 )
 from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import (
-  Xrm10ColorCard,
   now_iso,
   read_bool_param,
   read_param,
@@ -46,12 +46,12 @@ class NavigationLayout(Scroller):
       "display only, no driving command",
       False,
     )
-    self._activity = Xrm10ColorCard("navigation activity", "waiting", "yellow")
-    self._destination = Xrm10ColorCard("destination", "none", "blue")
-    self._route = Xrm10ColorCard("route status", "not connected", "grey")
-    self._coordinates = Xrm10ColorCard("coordinates", "none", "grey")
-    self._maps = Xrm10ColorCard("maps link", "none", "grey")
-    self._updated = Xrm10ColorCard("last update", "never", "grey")
+    self._activity = Xrm10NavInfoCard("activity", "waiting", "yellow")
+    self._destination = Xrm10NavInfoCard("destination", "none", "blue")
+    self._route = Xrm10NavInfoCard("route status", "not connected", "grey")
+    self._coordinates = Xrm10NavInfoCard("coordinates", "none", "grey")
+    self._maps = Xrm10NavInfoCard("maps link", "none", "grey")
+    self._updated = Xrm10NavInfoCard("last update", "never", "grey")
     self._last_refresh = 0.0
 
     self._sync = Xrm10NavActionButton(
@@ -66,7 +66,7 @@ class NavigationLayout(Scroller):
     )
 
     self._scroller.add_widgets([
-      Xrm10ColorCard("navigation", "xrm10 card format\nroute intent, map status, and live sync", "blue"),
+      Xrm10NavInfoCard("navigation", "route intent, map status, live sync", "blue"),
       self._source,
       self._intent,
       self._auto_start,
@@ -79,7 +79,7 @@ class NavigationLayout(Scroller):
       self._updated,
       self._sync,
       self._clear,
-      Xrm10ColorCard("safety gate", "navigation screen does not steer, brake, accelerate, or change lanes\nit stages route intent and review data only", "red"),
+      Xrm10NavInfoCard("safety gate", "display/review only; no steering, braking, throttle, or lane-change command", "red"),
     ])
 
   def _request_sync(self):
