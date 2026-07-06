@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic
 
+import pyray as rl
+
 from openpilot.system.ui.widgets.scroller import NavScroller
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigToggle, GreyBigButton
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog
@@ -33,6 +35,31 @@ def read_bool_param(key: str, default: bool = False) -> bool:
 
 def now_iso() -> str:
   return datetime.now(timezone.utc).isoformat()
+
+
+def card_color(kind: str) -> rl.Color:
+  return {
+    "cyan": rl.Color(41, 111, 110, 210),
+    "green": rl.Color(36, 104, 54, 215),
+    "yellow": rl.Color(122, 87, 26, 220),
+    "red": rl.Color(128, 45, 45, 220),
+    "purple": rl.Color(72, 55, 122, 220),
+    "blue": rl.Color(38, 75, 130, 220),
+    "grey": rl.Color(255, 255, 255, int(255 * 0.15)),
+  }.get(kind, rl.Color(255, 255, 255, int(255 * 0.15)))
+
+
+class Xrm10ColorCard(GreyBigButton):
+  def __init__(self, text: str, value: str, color: str = "grey", scroll: bool = True):
+    super().__init__(text, value, scroll=scroll)
+    self._color = color
+
+  def set_color(self, color: str):
+    self._color = color
+
+  def _render(self, _):
+    rl.draw_rectangle_rounded(self._rect, 0.4, 10, card_color(self._color))
+    self._draw_content(self._rect.y)
 
 
 class Xrm10ParamToggle(BigToggle):
@@ -67,11 +94,11 @@ class Xrm10SmartLayout(NavScroller):
   def __init__(self):
     super().__init__()
 
-    self._status = GreyBigButton("learning status", "waiting", scroll=True)
-    self._score = GreyBigButton("readiness score", "0/100")
-    self._route = GreyBigButton("route intent", "waiting", scroll=True)
-    self._codex = GreyBigButton("codex package", "not built", scroll=True)
-    self._next_step = GreyBigButton("next step", "collect logs first", scroll=True)
+    self._status = Xrm10ColorCard("learning status", "waiting", "yellow")
+    self._score = Xrm10ColorCard("readiness score", "0/100", "purple")
+    self._route = Xrm10ColorCard("route intent", "waiting", "blue")
+    self._codex = Xrm10ColorCard("codex package", "not built", "cyan")
+    self._next_step = Xrm10ColorCard("next step", "collect logs first", "grey")
 
     self._review_loop = Xrm10ParamToggle("codex review loop", "Xrm10CodexReviewLoop", True)
     self._auto_decode = Xrm10ParamToggle("auto decode evidence", "Xrm10CodexAutoDecode", True)
@@ -90,14 +117,15 @@ class Xrm10SmartLayout(NavScroller):
       "review requested from comma UI",
     )
 
-    self._auto_apply_locked = GreyBigButton(
+    self._auto_apply_locked = Xrm10ColorCard(
       "auto apply driving code",
       "locked off\nmanual review required",
+      "red",
       scroll=True,
     )
 
     self._scroller.add_widgets([
-      GreyBigButton("xrm10 smart app", "phone app -> bridge -> comma UI\nreview-gated intelligence", scroll=True),
+      Xrm10ColorCard("xrm10 smart app", "phone app -> bridge -> comma UI\nreview-gated intelligence", "cyan"),
       self._status,
       self._score,
       self._route,
@@ -138,6 +166,15 @@ class Xrm10SmartLayout(NavScroller):
     self._route.set_value(destination or route_status)
     self._codex.set_value(codex_status if not updated_at else f"{codex_status} / {updated_at[:16]}")
     self._next_step.set_value(next_step if not summary else f"{next_step}\n{summary}")
+    self._status.set_color("green" if status == "ready" else "red" if status == "blocked" else "yellow")
+    try:
+      score_int = int(score)
+    except ValueError:
+      score_int = 0
+    self._score.set_color("green" if score_int >= 90 else "yellow" if score_int >= 70 else "red")
+    self._route.set_color("green" if destination else "blue")
+    self._codex.set_color("green" if "built" in codex_status or "review" in codex_status else "cyan")
+    self._next_step.set_color("yellow" if "warning" in next_step.lower() or "resolve" in next_step.lower() else "grey")
     self._review_loop.refresh()
     self._auto_decode.refresh()
     write_param("Xrm10CodexAutoApplyAllowed", "0")

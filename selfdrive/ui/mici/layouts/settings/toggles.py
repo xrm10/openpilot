@@ -7,6 +7,7 @@ from openpilot.selfdrive.ui.mici.widgets.button import BigParamControl, BigMulti
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import Xrm10ColorCard
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 XRM10_PARAM_DIR = Path("/data/params/d")
@@ -28,8 +29,8 @@ def write_xrm10_bool(key: str, value: bool) -> None:
 
 
 class RawBigParamControl(BigToggle):
-  def __init__(self, text: str, param: str, default: bool = False):
-    super().__init__(text, "")
+  def __init__(self, text: str, param: str, value: str = "", default: bool = False):
+    super().__init__(text, value)
     self.param = param
     self.default = default
     self.refresh()
@@ -54,19 +55,36 @@ class TogglesLayoutMici(NavScroller):
     record_front = BigParamControl("record & upload driver camera", "RecordFront", toggle_callback=restart_needed_callback)
     record_mic = BigParamControl("record & upload mic audio", "RecordAudio", toggle_callback=restart_needed_callback)
     enable_openpilot = BigParamControl("enable sunnypilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
-    nav_auto_start = RawBigParamControl("car-screen nav auto-start", "Xrm10NavAutoStart", True)
+    smart_review_loop = RawBigParamControl("codex review loop", "Xrm10CodexReviewLoop", "package logs for review", True)
+    auto_decode = RawBigParamControl("auto decode evidence", "Xrm10CodexAutoDecode", "read logs without applying code", True)
+    nav_auto_start = RawBigParamControl("nav auto-start from app", "Xrm10NavAutoStart", "show destination when app route starts", True)
+    route_intent = RawBigParamControl("route intent on comma UI", "Xrm10CarScreenRouteIntent", "mirror route status from bridge", True)
+    nav_active = RawBigParamControl("active route display", "Xrm10NavActive", "display only, no car control", False)
     self._nav_auto_start = nav_auto_start
+    self._route_intent = route_intent
+    self._nav_active = nav_active
+    self._smart_review_loop = smart_review_loop
+    self._auto_decode = auto_decode
 
     self._scroller.add_widgets([
+      Xrm10ColorCard("xrm10 smart", "review and decode only\nauto apply locked off", "cyan"),
+      smart_review_loop,
+      auto_decode,
+      Xrm10ColorCard("safety gate", "no phone/live UI command can steer, brake, or change lanes\nmanual code review required", "red"),
+      Xrm10ColorCard("navigation intent", "destination, route status, and app sync\nno steering/brake command", "blue"),
+      nav_auto_start,
+      route_intent,
+      nav_active,
+      Xrm10ColorCard("drive profile", "standard openpilot toggles", "purple"),
       self._personality_toggle,
       self._experimental_btn,
-      nav_auto_start,
+      enable_openpilot,
+      Xrm10ColorCard("comfort and recording", "display units and optional uploads", "grey"),
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
       record_front,
       record_mic,
-      enable_openpilot,
     ])
 
     # Toggle lists
@@ -122,3 +140,7 @@ class TogglesLayoutMici(NavScroller):
     for key, item in self._refresh_toggles:
       item.set_checked(ui_state.params.get_bool(key))
     self._nav_auto_start.refresh()
+    self._route_intent.refresh()
+    self._nav_active.refresh()
+    self._smart_review_loop.refresh()
+    self._auto_decode.refresh()
