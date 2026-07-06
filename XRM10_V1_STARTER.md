@@ -20,12 +20,15 @@ node bridge_server.js --host=0.0.0.0 --port=8787
 
 ## Included In v1 Starter
 
+- Pro command layout: Operate, Navigate, Learn, Test, Deploy.
 - Live bridge status and SSH checks.
 - Section save/check workflow.
 - Route destination entry and car-screen route intent.
 - Nav Drive Plan advisory simulation and replay logs.
 - Remote steering log upload endpoint.
 - Steering log upload index.
+- Learning Engine report from steering uploads, nav events, safety events, route state, map metadata, and capability gates.
+- Review-gated recommendations with exportable learning report.
 - Safety-locked advisory controls.
 
 ## Safety Boundary
@@ -33,3 +36,5 @@ node bridge_server.js --host=0.0.0.0 --port=8787
 The phone app and bridge do not command live steering, braking, throttle, or lane changes.
 
 Navigation and traffic features in this branch are route-intent, simulation, replay, confirmation, or logging features only.
+
+The Learning Engine does not automatically rewrite or deploy comma driving code. It produces evidence, scores, warnings, and manual-review recommendations.

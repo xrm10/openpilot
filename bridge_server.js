@@ -19,6 +19,7 @@ const navDriveEventsPath = path.join(stateDir, "nav_drive_events.json");
 const mapPackagePath = path.join(stateDir, "map_package.json");
 const safetyEventsPath = path.join(stateDir, "safety_events.json");
 const appliedControlsPath = path.join(stateDir, "applied_controls.json");
+const intelligenceReportPath = path.join(stateDir, "intelligence_report.json");
 const steeringUploadsDir = path.join(stateDir, "steering_uploads");
 const steeringUploadsIndexPath = path.join(steeringUploadsDir, "index.json");
 
@@ -272,7 +273,33 @@ const sectionCapabilities = {
     ["navPlanLaneSuggestions", "Faster-lane suggestion prompts", "review-only"],
     ["navPlanReplayOnly", "Replay before road testing", "review-only"],
     ["navPlanClosedCourseOnly", "Closed-course physical testing", "review-only"],
-    ["navPlanLearningReview", "Learning review logs", "review-only"]
+    ["navPlanLearningReview", "Learning review logs", "review-only"],
+    ["mapRegion", "Map region", "map-metadata-only"],
+    ["gccMapPackMode", "GCC map pack mode", "map-metadata-only"],
+    ["offlineMaps", "Offline maps flag", "map-metadata-only"],
+    ["uaeDetailedMap", "UAE detailed map priority", "map-metadata-only"],
+    ["gccAllMaps", "GCC all-country flag", "map-metadata-only"]
+  ],
+  developer: [
+    ["logMode", "Review logging", "live-safe"],
+    ["parameterPreviewMode", "Parameter preview", "review-only"],
+    ["developerMode", "Developer mode review", "review-only"],
+    ["experimentalControls", "Experimental controls", "review-only"],
+    ["replayReview", "Replay review mode", "review-only"],
+    ["eventSnapshot", "Event snapshot capture", "review-only"],
+    ["cabanaExport", "Cabana export hints", "review-only"]
+  ],
+  safetyLab: [
+    ["labMode", "Lab mode", "review-only"],
+    ["testStage", "Test stage", "review-only"],
+    ["safetyEnvelope", "Safety envelope", "review-only"],
+    ["driverMonitoringMode", "Driver monitoring lab setting", "blocked-live-drive"],
+    ["manualOverrideMode", "Manual override lab setting", "blocked-live-drive"],
+    ["actuationSafetyMode", "Actuation caps", "blocked-live-drive"],
+    ["pandaSafetyReviewMode", "Panda safety review", "review-only"],
+    ["faultInjectionMode", "Fault injection", "review-only"],
+    ["scenarioSet", "Scenario set", "review-only"],
+    ["labResultGate", "Result gate", "review-only"]
   ],
   software: [
     ["installTarget", "Install target URL", "live-safe"],
@@ -1116,6 +1143,309 @@ async function applyWhitelistedDeviceParams(section, profile = {}) {
   };
 }
 
+function defaultIntelligenceReport() {
+  return {
+    generatedAt: null,
+    reason: "not-run",
+    status: "waiting",
+    score: 0,
+    gate: "waiting-for-data",
+    summary: {
+      uploadCount: 0,
+      uploadedBytes: 0,
+      navEventCount: 0,
+      safetyEventCount: 0,
+      routeActive: false,
+      recommendationCount: 0
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: "review-only",
+      nextStep: "Collect logs, run review, then test in replay or closed-course mode.",
+      canApplyToComma: false
+    },
+    recommendations: []
+  };
+}
+
+function normalizeIntelligenceReport(report = {}) {
+  const next = defaultIntelligenceReport();
+  const summary = report.summary || {};
+  const deploy = report.deploy || {};
+  return {
+    ...next,
+    ...report,
+    generatedAt: report.generatedAt || next.generatedAt,
+    reason: String(report.reason || next.reason),
+    status: String(report.status || next.status),
+    score: clampNumber(report.score ?? next.score, 0, 100),
+    gate: String(report.gate || next.gate),
+    summary: {
+      ...next.summary,
+      ...summary,
+      uploadCount: Number(summary.uploadCount || 0),
+      uploadedBytes: Number(summary.uploadedBytes || 0),
+      navEventCount: Number(summary.navEventCount || 0),
+      safetyEventCount: Number(summary.safetyEventCount || 0),
+      routeActive: Boolean(summary.routeActive),
+      recommendationCount: Number(summary.recommendationCount || 0)
+    },
+    policy: {
+      ...next.policy,
+      ...(report.policy || {}),
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      ...next.deploy,
+      ...deploy,
+      mode: String(deploy.mode || next.deploy.mode),
+      nextStep: String(deploy.nextStep || next.deploy.nextStep),
+      canApplyToComma: false
+    },
+    recommendations: Array.isArray(report.recommendations)
+      ? report.recommendations.slice(0, 24).map(normalizeRecommendation)
+      : []
+  };
+}
+
+function normalizeRecommendation(item = {}, index = 0) {
+  const severity = ["pass", "info", "warn", "block"].includes(item.severity) ? item.severity : "info";
+  const title = String(item.title || `Review item ${index + 1}`);
+  return {
+    id: String(item.id || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `rec-${index + 1}`),
+    severity,
+    title,
+    detail: String(item.detail || ""),
+    nextAction: String(item.nextAction || ""),
+    source: String(item.source || "xrm10-bridge"),
+    category: String(item.category || "review"),
+    canAutoApply: false
+  };
+}
+
+function readIntelligenceReport() {
+  try {
+    return normalizeIntelligenceReport(JSON.parse(fs.readFileSync(intelligenceReportPath, "utf8")));
+  } catch {
+    return buildIntelligenceReport("status");
+  }
+}
+
+function writeIntelligenceReport(report) {
+  fs.mkdirSync(stateDir, { recursive: true });
+  const normalized = normalizeIntelligenceReport(report);
+  fs.writeFileSync(intelligenceReportPath, JSON.stringify(normalized, null, 2));
+  return normalized;
+}
+
+function latestUploadAgeMinutes(uploads) {
+  if (!uploads.length) return null;
+  const latest = uploads
+    .map((upload) => Date.parse(upload.receivedAt || ""))
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+  if (!latest) return null;
+  return Math.max(0, Math.round((Date.now() - latest) / 60000));
+}
+
+function buildIntelligenceReport(reason = "manual-review") {
+  const uploads = readSteeringUploadIndex();
+  const navEvents = readNavDriveEvents();
+  const safetyEvents = readSafetyEvents();
+  const route = readCarRoute();
+  const mapPackage = readMapPackage();
+  const latestProfile = readLatestProfile();
+  const profile = latestProfile?.profile || {};
+  const capabilities = buildCapabilityReport(profile);
+  const totals = capabilities.totals || {};
+  const uploadedBytes = uploads.reduce((sum, upload) => sum + (Number(upload.bytes) || 0), 0);
+  const recommendationItems = [];
+  let score = 100;
+
+  function addRecommendation(severity, title, detail, nextAction, source = "bridge", category = "review") {
+    const penalty = severity === "block" ? 24 : severity === "warn" ? 12 : 0;
+    score -= penalty;
+    recommendationItems.push(normalizeRecommendation({
+      severity,
+      title,
+      detail,
+      nextAction,
+      source,
+      category,
+      canAutoApply: false
+    }, recommendationItems.length));
+  }
+
+  if (!latestProfile) {
+    addRecommendation(
+      "warn",
+      "Sync the app profile",
+      "The bridge has no latest profile record yet, so it cannot compare settings against the current app state.",
+      "Open Operate, confirm the bridge URL, then press Sync now.",
+      "profile",
+      "setup"
+    );
+  }
+
+  if (!uploads.length) {
+    addRecommendation(
+      "block",
+      "Collect engaged steering logs",
+      "No steering packages have reached the bridge. The system cannot learn steering behavior from parked or missing logs.",
+      "Drive only in safe conditions with normal openpilot engagement, let the remote logger upload, then run this review again.",
+      "steering-logs",
+      "data"
+    );
+  } else {
+    const age = latestUploadAgeMinutes(uploads);
+    addRecommendation(
+      "pass",
+      "Remote steering logger is feeding data",
+      `${uploads.length} package${uploads.length === 1 ? "" : "s"} uploaded, ${Math.round(uploadedBytes / (1024 * 1024))} MB total${age === null ? "" : `, newest ${age} min ago`}.`,
+      "Run the steering analyzer on comma after an engaged drive to turn logs into tuning notes.",
+      "steering-logs",
+      "data"
+    );
+  }
+
+  if (uploads.length && navEvents.length < 3) {
+    addRecommendation(
+      "warn",
+      "Run route simulation events",
+      "There are steering logs, but too few navigation simulation events to compare route intent with maneuvers.",
+      "Open Navigate, build a Nav Drive Plan, run simulation, and log at least one confirmation prompt.",
+      "nav-drive-plan",
+      "simulation"
+    );
+  }
+
+  if (!route.active) {
+    addRecommendation(
+      "warn",
+      "Set a real destination",
+      "The bridge has no active destination. Navigation learning needs route intent, GPS fields when available, and maneuver prompts.",
+      "Open Navigate, enter a destination or paste a Google Maps link, then Start destination.",
+      "route",
+      "navigation"
+    );
+  } else {
+    addRecommendation(
+      "info",
+      "Route intent is staged",
+      `Destination: ${route.destination}. This is route intent only and does not command steering, braking, or lane changes.`,
+      "Use the drive plan and replay log to review upcoming actions before any closed-course testing.",
+      "route",
+      "navigation"
+    );
+  }
+
+  if (!mapPackage.fileCount && String(mapPackage.region || "").includes("gcc")) {
+    addRecommendation(
+      "warn",
+      "Map pack is staged as metadata",
+      "UAE/GCC coverage is selected, but no real map files are uploaded to the bridge yet.",
+      "Upload reviewed .pmtiles, .mbtiles, .pbf, .osm, or JSON map files before relying on offline map detail.",
+      "map-package",
+      "maps"
+    );
+  }
+
+  const rejectedConfirmations = safetyEvents.filter((event) => event.event === "confirmation-rejected").length;
+  if (rejectedConfirmations) {
+    addRecommendation(
+      "warn",
+      "Review rejected maneuver prompts",
+      `${rejectedConfirmations} prompt${rejectedConfirmations === 1 ? " was" : "s were"} rejected. Rejected prompts are useful learning signals, not failures to ignore.`,
+      "Inspect safety events and adjust route prompts or thresholds before another test.",
+      "safety-events",
+      "review"
+    );
+  }
+
+  if (Number(totals.blockedLiveDrive || 0) > 0 || Number(totals.needsIntegration || 0) > 0) {
+    addRecommendation(
+      "info",
+      "Driving controls stay review-gated",
+      `${Number(totals.blockedLiveDrive || 0)} live driving item${Number(totals.blockedLiveDrive || 0) === 1 ? "" : "s"} blocked and ${Number(totals.needsIntegration || 0)} item${Number(totals.needsIntegration || 0) === 1 ? "" : "s"} need integration.`,
+      "Keep them in simulation/review until on-device code, replay tests, and closed-course checks pass.",
+      "capabilities",
+      "safety"
+    );
+  }
+
+  if (currentDevice().offroad === false) {
+    addRecommendation(
+      "warn",
+      "Device reports inroad",
+      "Settings that touch route, safety, or diagnostics should not be changed while the device is inroad.",
+      "Switch to offroad before saving safety-critical sections.",
+      "device",
+      "safety"
+    );
+  }
+
+  if (!recommendationItems.some((item) => item.severity === "block" || item.severity === "warn")) {
+    addRecommendation(
+      "pass",
+      "Ready for replay review",
+      "The current evidence set has enough app-side data to run replay review and prepare a manual patch plan.",
+      "Export the replay log and test plan, review analyzer output, then stage code changes manually.",
+      "review",
+      "simulation"
+    );
+  }
+
+  score = clampNumber(score, 0, 100);
+  const blocked = recommendationItems.some((item) => item.severity === "block");
+  const warned = recommendationItems.some((item) => item.severity === "warn");
+  const gate = blocked ? "needs-engaged-logs" : warned ? "review-needed" : "ready-for-replay";
+  const status = blocked ? "blocked" : warned ? "review" : "ready";
+
+  return normalizeIntelligenceReport({
+    generatedAt: new Date().toISOString(),
+    reason,
+    status,
+    score,
+    gate,
+    summary: {
+      uploadCount: uploads.length,
+      uploadedBytes,
+      navEventCount: navEvents.length,
+      safetyEventCount: safetyEvents.length,
+      routeActive: Boolean(route.active),
+      recommendationCount: recommendationItems.length
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: status === "ready" ? "manual-patch-review" : "review-only",
+      nextStep: blocked
+        ? "Collect real engaged logs before changing driving behavior."
+        : warned
+          ? "Resolve warnings, run simulation, then export a patch plan."
+          : "Run replay review and manually inspect any proposed code changes before comma deployment.",
+      canApplyToComma: false
+    },
+    recommendations: recommendationItems
+  });
+}
+
 function serveFile(req, res) {
   const parsed = new URL(req.url, "http://localhost");
   let pathname = decodeURIComponent(parsed.pathname);
@@ -1165,7 +1495,8 @@ const server = http.createServer(async (req, res) => {
       navDriveEvents: readNavDriveEvents(),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
-      capabilities: buildCapabilityReport(latestProfile)
+      capabilities: buildCapabilityReport(latestProfile),
+      intelligence: writeIntelligenceReport(buildIntelligenceReport("status"))
     });
     return;
   }
@@ -1356,6 +1687,7 @@ const server = http.createServer(async (req, res) => {
         updatedAt: new Date().toISOString()
       });
       writeNavDrivePlan(plan);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("nav-drive-plan"));
 
       sendJson(res, 200, {
         ok: true,
@@ -1365,7 +1697,8 @@ const server = http.createServer(async (req, res) => {
         automaticCodeChangesAllowed: false,
         device: currentDevice(),
         plan,
-        eventCount: readNavDriveEvents().length
+        eventCount: readNavDriveEvents().length,
+        intelligence
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -1398,6 +1731,7 @@ const server = http.createServer(async (req, res) => {
       }])[0];
       events.push(event);
       writeNavDriveEvents(events);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("nav-drive-event"));
 
       sendJson(res, 200, {
         ok: true,
@@ -1407,7 +1741,8 @@ const server = http.createServer(async (req, res) => {
         automaticCodeChangesAllowed: false,
         device: currentDevice(),
         eventCount: readNavDriveEvents().length,
-        events: readNavDriveEvents()
+        events: readNavDriveEvents(),
+        intelligence
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -1454,12 +1789,14 @@ const server = http.createServer(async (req, res) => {
       };
       uploads.push(entry);
       writeSteeringUploadIndex(uploads);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("steering-log-upload"));
 
       sendJson(res, 200, {
         ok: true,
         accepted: "steering-log-uploaded",
         upload: entry,
-        uploadCount: uploads.length
+        uploadCount: uploads.length,
+        intelligence
       });
     } catch (error) {
       if (filePath) {
@@ -1563,13 +1900,15 @@ const server = http.createServer(async (req, res) => {
       };
       events.push(event);
       writeSafetyEvents(events);
+      const intelligence = writeIntelligenceReport(buildIntelligenceReport("safety-event"));
 
       sendJson(res, 200, {
         ok: true,
         accepted: "safety-event-logged",
         eventCount: readSafetyEvents().length,
         liveVehicleApplyAllowed: false,
-        device: currentDevice()
+        device: currentDevice(),
+        intelligence
       });
     } catch (error) {
       sendJson(res, 400, {
@@ -1586,6 +1925,46 @@ const server = http.createServer(async (req, res) => {
       device: currentDevice(),
       capabilities: buildCapabilityReport()
     });
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/intelligence-report") {
+    sendJson(res, 200, {
+      ok: true,
+      device: currentDevice(),
+      intelligence: readIntelligenceReport()
+    });
+    return;
+  }
+
+  if (req.method === "POST" && parsed.pathname === "/api/xrm10/intelligence-review") {
+    try {
+      const body = await readBody(req);
+      const payload = JSON.parse(body || "{}");
+
+      if (payload.policy?.liveVehicleApplyAllowed !== false || payload.policy?.automaticCodeChangesAllowed === true) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Intelligence review is review-gated only. Live vehicle apply and automatic code changes must be false."
+        });
+        return;
+      }
+
+      const report = writeIntelligenceReport(buildIntelligenceReport(String(payload.reason || "manual-review")));
+      sendJson(res, 200, {
+        ok: true,
+        accepted: "intelligence-review-generated",
+        liveVehicleApplyAllowed: false,
+        automaticCodeChangesAllowed: false,
+        device: currentDevice(),
+        intelligence: report
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || "Invalid intelligence-review payload"
+      });
+    }
     return;
   }
 

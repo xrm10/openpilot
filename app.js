@@ -53,11 +53,12 @@ const installTargets = [
 ];
 
 const sectionMeta = {
-  home: ["XRM10", "Home"],
-  device: ["Device settings", "Device"],
-  visuals: ["Device settings", "Visuals"],
-  maps: ["Device settings", "Navigation"],
-  software: ["Device settings", "Software"]
+  home: ["XRM10", "Command"],
+  device: ["Operate", "Live Device"],
+  maps: ["Navigate", "Route + Maps"],
+  developer: ["Learn", "Learning Engine"],
+  safetyLab: ["Test", "Simulation Lab"],
+  software: ["Deploy", "Software"]
 };
 
 const visibleSections = new Set(Object.keys(sectionMeta));
@@ -378,6 +379,35 @@ const defaultSyncState = {
     updatedAt: null,
     files: []
   },
+  intelligence: {
+    generatedAt: null,
+    reason: "not-run",
+    status: "waiting",
+    score: 0,
+    gate: "waiting-for-data",
+    summary: {
+      uploadCount: 0,
+      uploadedBytes: 0,
+      navEventCount: 0,
+      safetyEventCount: 0,
+      routeActive: false,
+      recommendationCount: 0
+    },
+    policy: {
+      learningMode: "review-gated",
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresSimulationBeforeDeploy: true,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      mode: "review-only",
+      nextStep: "Collect logs, run review, then test in replay or closed-course mode.",
+      canApplyToComma: false
+    },
+    recommendations: []
+  },
   capabilities: null
 };
 
@@ -666,6 +696,10 @@ const els = {
   liveCapabilityBadge: document.querySelector("#liveCapabilityBadge"),
   liveCapabilitySummary: document.querySelector("#liveCapabilitySummary"),
   liveCapabilityList: document.querySelector("#liveCapabilityList"),
+  smartSystemBadge: document.querySelector("#smartSystemBadge"),
+  smartSystemScore: document.querySelector("#smartSystemScore"),
+  smartSystemSummary: document.querySelector("#smartSystemSummary"),
+  smartPipelineList: document.querySelector("#smartPipelineList"),
   toolbarRefreshSync: document.querySelector("#toolbarRefreshSync"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
@@ -729,6 +763,21 @@ const els = {
   runNavSimulation: document.querySelector("#runNavSimulation"),
   logNavPrompt: document.querySelector("#logNavPrompt"),
   exportNavDriveLog: document.querySelector("#exportNavDriveLog"),
+  intelligenceStatusBadge: document.querySelector("#intelligenceStatusBadge"),
+  intelligenceScore: document.querySelector("#intelligenceScore"),
+  intelligenceScoreMeter: document.querySelector("#intelligenceScoreMeter"),
+  intelligenceUploadCount: document.querySelector("#intelligenceUploadCount"),
+  intelligenceUploadedBytes: document.querySelector("#intelligenceUploadedBytes"),
+  intelligenceNavEvents: document.querySelector("#intelligenceNavEvents"),
+  intelligenceSafetyEvents: document.querySelector("#intelligenceSafetyEvents"),
+  intelligenceGate: document.querySelector("#intelligenceGate"),
+  intelligenceUpdated: document.querySelector("#intelligenceUpdated"),
+  intelligenceDeployMode: document.querySelector("#intelligenceDeployMode"),
+  intelligenceNextStep: document.querySelector("#intelligenceNextStep"),
+  intelligenceRecommendationList: document.querySelector("#intelligenceRecommendationList"),
+  runIntelligenceReview: document.querySelector("#runIntelligenceReview"),
+  refreshIntelligence: document.querySelector("#refreshIntelligence"),
+  exportIntelligenceReport: document.querySelector("#exportIntelligenceReport"),
   gccMapPackageStatus: document.querySelector("#gccMapPackageStatus"),
   gccMapPackageFiles: document.querySelector("#gccMapPackageFiles"),
   uploadGccMaps: document.querySelector("#uploadGccMaps"),
@@ -963,6 +1012,7 @@ function normalizeSyncState(input) {
     navDrivePlan: normalizeNavDrivePlan(input.navDrivePlan || next.navDrivePlan),
     navDriveEvents: normalizeNavDriveEvents(input.navDriveEvents || next.navDriveEvents),
     mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
+    intelligence: normalizeIntelligenceReport(input.intelligence || next.intelligence),
     capabilities: input.capabilities || next.capabilities
   };
 }
@@ -1079,6 +1129,64 @@ function normalizeMapPackageState(input = {}) {
     totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
     updatedAt: input.updatedAt || null,
     files
+  };
+}
+
+function normalizeIntelligenceReport(input = {}) {
+  const next = clone(defaultSyncState.intelligence);
+  const summary = input.summary || {};
+  const deploy = input.deploy || {};
+  return {
+    ...next,
+    ...input,
+    generatedAt: input.generatedAt || null,
+    reason: String(input.reason || next.reason),
+    status: String(input.status || next.status),
+    score: clamp(input.score ?? next.score, 0, 100),
+    gate: String(input.gate || next.gate),
+    summary: {
+      ...next.summary,
+      ...summary,
+      uploadCount: Number(summary.uploadCount || 0),
+      uploadedBytes: Number(summary.uploadedBytes || 0),
+      navEventCount: Number(summary.navEventCount || 0),
+      safetyEventCount: Number(summary.safetyEventCount || 0),
+      routeActive: Boolean(summary.routeActive),
+      recommendationCount: Number(summary.recommendationCount || 0)
+    },
+    policy: {
+      ...next.policy,
+      ...(input.policy || {}),
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      requiresManualReviewBeforeCommaWrite: true
+    },
+    deploy: {
+      ...next.deploy,
+      ...deploy,
+      mode: String(deploy.mode || next.deploy.mode),
+      nextStep: String(deploy.nextStep || next.deploy.nextStep),
+      canApplyToComma: false
+    },
+    recommendations: Array.isArray(input.recommendations)
+      ? input.recommendations.slice(0, 24).map(normalizeIntelligenceRecommendation)
+      : []
+  };
+}
+
+function normalizeIntelligenceRecommendation(item = {}, index = 0) {
+  const severity = ["pass", "info", "warn", "block"].includes(item.severity) ? item.severity : "info";
+  const title = String(item.title || `Review item ${index + 1}`);
+  return {
+    id: String(item.id || slug(title) || `rec-${index + 1}`),
+    severity,
+    title,
+    detail: String(item.detail || ""),
+    nextAction: String(item.nextAction || ""),
+    source: String(item.source || "xrm10-bridge"),
+    category: String(item.category || "review"),
+    canAutoApply: false
   };
 }
 
@@ -1415,6 +1523,7 @@ function render() {
   if (els.controllerSummary) els.controllerSummary.innerHTML = controllerSummaryRows();
   renderConnection();
   renderMapPackage();
+  renderIntelligence();
   renderSafetyLab();
   renderNavPilot();
   if (els.jsonPreview) els.jsonPreview.textContent = JSON.stringify(exportProfile(), null, 2);
@@ -1526,6 +1635,7 @@ function renderConnection() {
   renderCapabilitySummary();
   renderCarRoute();
   renderNavDrivePlan();
+  renderIntelligence();
 }
 
 function renderCapabilitySummary() {
@@ -1646,6 +1756,72 @@ function renderMapPackage() {
 
   setText(els.gccMapPackageStatus, status);
   setText(els.gccMapPackageFiles, files);
+}
+
+function renderIntelligence() {
+  const report = normalizeIntelligenceReport(syncState.intelligence);
+  const summary = report.summary;
+  const badgeClass = report.status === "ready" ? "pass" : report.status === "blocked" ? "stop" : "warn";
+  const badgeLabel = report.status === "ready"
+    ? "Ready"
+    : report.status === "blocked"
+      ? "Blocked"
+      : report.status === "review" ? "Review" : "Waiting";
+  const updated = report.generatedAt ? formatRouteUpdated(report.generatedAt) : "Not run";
+  const uploadLabel = `${summary.uploadCount} package${summary.uploadCount === 1 ? "" : "s"}`;
+  const recommendationCount = report.recommendations.length || summary.recommendationCount;
+
+  setBadge(els.smartSystemBadge, badgeLabel, badgeClass);
+  setText(els.smartSystemScore, `${Math.round(report.score)}/100`);
+  setText(
+    els.smartSystemSummary,
+    recommendationCount
+      ? `${recommendationCount} review item${recommendationCount === 1 ? "" : "s"} - ${report.deploy.nextStep}`
+      : "Run a learning review after logs, route simulation, and safety events are available."
+  );
+
+  if (els.smartPipelineList) {
+    const pipeline = [
+      ["Data", summary.uploadCount > 0, uploadLabel],
+      ["Route", summary.routeActive, summary.routeActive ? "Destination active" : "No active destination"],
+      ["Replay", summary.navEventCount >= 3, `${summary.navEventCount} nav event${summary.navEventCount === 1 ? "" : "s"}`],
+      ["Review", report.status !== "waiting", badgeLabel],
+      ["Deploy", false, report.deploy.mode]
+    ];
+    els.smartPipelineList.innerHTML = pipeline.map(([label, pass, detail]) => `
+      <div class="pipeline-step ${pass ? "pass" : "wait"}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(detail)}</strong>
+      </div>
+    `).join("");
+  }
+
+  setBadge(els.intelligenceStatusBadge, badgeLabel, badgeClass);
+  setText(els.intelligenceScore, `${Math.round(report.score)}`);
+  if (els.intelligenceScoreMeter) els.intelligenceScoreMeter.style.width = `${Math.round(report.score)}%`;
+  setText(els.intelligenceUploadCount, uploadLabel);
+  setText(els.intelligenceUploadedBytes, formatBytes(summary.uploadedBytes));
+  setText(els.intelligenceNavEvents, `${summary.navEventCount} events`);
+  setText(els.intelligenceSafetyEvents, `${summary.safetyEventCount} events`);
+  setText(els.intelligenceGate, report.gate);
+  setText(els.intelligenceUpdated, updated);
+  setText(els.intelligenceDeployMode, report.deploy.mode);
+  setText(els.intelligenceNextStep, report.deploy.nextStep);
+
+  if (els.intelligenceRecommendationList) {
+    els.intelligenceRecommendationList.innerHTML = report.recommendations.length
+      ? report.recommendations.map((item) => `
+        <div class="intelligence-rec ${escapeHtml(item.severity)}">
+          <span>${escapeHtml(item.severity)}</span>
+          <div>
+            <strong>${escapeHtml(item.title)}</strong>
+            <p>${escapeHtml(item.detail)}</p>
+            <em>${escapeHtml(item.nextAction)}</em>
+          </div>
+        </div>
+      `).join("")
+      : `<div class="queue-empty">No learning review yet. Run review after the bridge has logs or simulation events.</div>`;
+  }
 }
 
 function formatBytes(bytes) {
@@ -1782,6 +1958,7 @@ async function refreshConnection(showMessage = true) {
       if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
       if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+      if (status.intelligence) syncState.intelligence = normalizeIntelligenceReport(status.intelligence);
       syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
       if (status.capabilities) syncState.capabilities = status.capabilities;
       markOffline(status.message || "");
@@ -1791,6 +1968,7 @@ async function refreshConnection(showMessage = true) {
     if (status.navDrivePlan) syncState.navDrivePlan = normalizeNavDrivePlan(status.navDrivePlan);
     if (status.navDriveEvents) syncState.navDriveEvents = normalizeNavDriveEvents(status.navDriveEvents);
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
+    if (status.intelligence) syncState.intelligence = normalizeIntelligenceReport(status.intelligence);
     syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
     if (status.capabilities) syncState.capabilities = status.capabilities;
     markOnline(status.device || status);
@@ -1820,6 +1998,70 @@ async function refreshCapabilities(showMessage = false) {
     return true;
   } catch (error) {
     if (showMessage) showToast("Capability check failed");
+    return false;
+  }
+}
+
+async function refreshIntelligence(showMessage = false) {
+  if (profile.connection?.mode !== "http") {
+    renderIntelligence();
+    if (showMessage) showToast("HTTP bridge required");
+    return false;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    if (showMessage) showToast("Bridge URL required");
+    return false;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/intelligence-report`, { method: "GET" });
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    if (showMessage) showToast("Learning report refreshed");
+    return true;
+  } catch (error) {
+    if (showMessage) showToast("Learning refresh failed");
+    return false;
+  }
+}
+
+async function runIntelligenceReview() {
+  readForm();
+  if (profile.connection?.mode !== "http") {
+    showToast("HTTP bridge required");
+    return false;
+  }
+  const baseUrl = bridgeBaseUrl();
+  if (!baseUrl) {
+    showToast("Bridge URL required");
+    return false;
+  }
+  try {
+    const response = await fetchJson(`${baseUrl}/api/xrm10/intelligence-review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "app-review",
+        profile: exportProfile(),
+        policy: {
+          reviewOnly: true,
+          liveVehicleApplyAllowed: false,
+          publicRoadAutonomyEnabled: false,
+          automaticCodeChangesAllowed: false
+        }
+      })
+    });
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
+    if (response.device) markOnline(response.device);
+    saveSyncState();
+    renderIntelligence();
+    markSectionChanged("developer", "runIntelligenceReview");
+    showToast("Learning review updated");
+    return true;
+  } catch (error) {
+    showToast("Learning review failed");
     return false;
   }
 }
@@ -2319,8 +2561,10 @@ async function syncNavDrivePlanToBridge(plan = syncState.navDrivePlan) {
     });
     if (response.plan) {
       syncState.navDrivePlan = normalizeNavDrivePlan(response.plan);
+      if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
       saveSyncState();
       renderNavDrivePlan();
+      renderIntelligence();
     }
     return true;
   } catch (error) {
@@ -2427,8 +2671,10 @@ async function logNavDriveEvent(event, step = {}, options = {}) {
       } else if (Number.isFinite(Number(response.eventCount))) {
         syncState.navDriveEvents = normalizeNavDriveEvents(syncState.navDriveEvents).slice(-Number(response.eventCount));
       }
+      if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
       saveSyncState();
       renderNavDrivePlan();
+      renderIntelligence();
     } catch {
       // Replay logging remains local if the bridge is unreachable.
     }
@@ -2672,6 +2918,7 @@ async function logSafetyEvent(event, kind, details = {}) {
       body: JSON.stringify(payload)
     });
     syncState.safetyEventCount = clamp(response.eventCount ?? syncState.safetyEventCount, 0, 9999);
+    if (response.intelligence) syncState.intelligence = normalizeIntelligenceReport(response.intelligence);
     saveSyncState();
     renderConnection();
   } catch {
@@ -3512,6 +3759,38 @@ function exportNavDriveLog() {
   showToast("Replay log exported");
 }
 
+function exportIntelligenceReport() {
+  const payload = {
+    type: "xrm10.learning.report",
+    generatedAt: new Date().toISOString(),
+    profile: {
+      profileName: profile.profileName,
+      vehicle: `${profile.vehicleYear} ${profile.vehicleModel}`,
+      device: profile.deviceTarget
+    },
+    intelligence: normalizeIntelligenceReport(syncState.intelligence),
+    route: normalizeRouteState(syncState.route),
+    navDrivePlan: normalizeNavDrivePlan(syncState.navDrivePlan),
+    navDriveEvents: normalizeNavDriveEvents(syncState.navDriveEvents),
+    mapPackage: normalizeMapPackageState(syncState.mapPackage),
+    policy: {
+      reviewOnly: true,
+      liveVehicleApplyAllowed: false,
+      publicRoadAutonomyEnabled: false,
+      automaticCodeChangesAllowed: false,
+      manualReviewRequiredBeforeCommaWrite: true
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slug(profile.profileName)}-learning-report.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Learning report exported");
+}
+
 function importProfile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -3592,10 +3871,20 @@ function pruneAppSections() {
     if (section && !visibleSections.has(section)) panel.remove();
   });
 
-  document.querySelector("#liveCapabilityCard")?.remove();
-
   document.querySelectorAll('[data-section-target="maps"] span').forEach((label) => {
-    label.textContent = "Navigation";
+    label.textContent = "Navigate";
+  });
+  document.querySelectorAll('[data-section-target="device"] span').forEach((label) => {
+    label.textContent = "Operate";
+  });
+  document.querySelectorAll('[data-section-target="developer"] span').forEach((label) => {
+    label.textContent = "Learn";
+  });
+  document.querySelectorAll('[data-section-target="safetyLab"] span').forEach((label) => {
+    label.textContent = "Test";
+  });
+  document.querySelectorAll('[data-section-target="software"] span').forEach((label) => {
+    label.textContent = "Deploy";
   });
 
   const routeMode = byId("carScreenRouteMode");
@@ -3603,10 +3892,6 @@ function pruneAppSections() {
   byId("setDemoCarRoute")?.remove();
   byId("useCarRouteForNav")?.remove();
 
-  document.querySelectorAll('[data-section="maps"] .settings-card').forEach((card) => {
-    const heading = card.querySelector("h2")?.textContent?.trim();
-    if (heading === "Route assistance") card.remove();
-  });
 }
 
 function renderSectionApplyBars() {
@@ -3926,6 +4211,9 @@ function wireActions() {
   els.runNavSimulation?.addEventListener("click", runNavSimulation);
   els.logNavPrompt?.addEventListener("click", logCurrentNavPrompt);
   els.exportNavDriveLog?.addEventListener("click", exportNavDriveLog);
+  els.runIntelligenceReview?.addEventListener("click", runIntelligenceReview);
+  els.refreshIntelligence?.addEventListener("click", () => refreshIntelligence(true));
+  els.exportIntelligenceReport?.addEventListener("click", exportIntelligenceReport);
   els.uploadGccMaps?.addEventListener("click", () => els.gccMapUpload?.click());
   els.gccMapUpload?.addEventListener("change", (event) => {
     handleGccMapUpload(event.target.files);
