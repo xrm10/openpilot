@@ -2519,24 +2519,31 @@
       "icon": "device",
       "order": 11,
       "remote_configurable": true,
-      "description": "Chat-style voice assistant controls and bridge status",
+      "description": "Voice assistant controls for comma and bridge status",
       "sections": [
         {
           "id": "assistant_control",
           "title": "Voice Assistant",
-          "description": "Bridge-ready voice assistant controls. The assistant cannot command steering, braking, throttle, lane changes, or code application.",
+          "description": "The assistant is named comma. The bridge listens for \"comma\" and plays spoken responses back. The assistant cannot command steering, braking, throttle, lane changes, or code application.",
           "items": [
+            {
+              "key": "Xrm10VoiceAssistantName",
+              "widget": "info",
+              "blocked": true,
+              "title": "Assistant Name",
+              "description": "The assistant name is comma."
+            },
             {
               "key": "Xrm10VoiceAssistantEnabled",
               "widget": "toggle",
               "title": "Enable Voice Assistant",
-              "description": "Enable push-to-talk and bridge requests for the voice assistant."
+              "description": "Enable wake-word, push-to-talk, and bridge requests for comma."
             },
             {
               "key": "Xrm10VoiceAssistantMode",
               "widget": "multiple_button",
               "title": "Assistant Mode",
-              "description": "Select how requests are made to the bridge.",
+              "description": "Select how requests are made to the bridge. Wake Word listens for \"comma\" through the external bridge.",
               "options": [
                 {
                   "value": 0,
@@ -2549,6 +2556,10 @@
                 {
                   "value": 2,
                   "label": "Text Bridge"
+                },
+                {
+                  "value": 3,
+                  "label": "Wake Word"
                 }
               ]
             },
@@ -2569,10 +2580,16 @@
               ]
             },
             {
+              "key": "Xrm10VoiceAssistantWakeWordEnabled",
+              "widget": "toggle",
+              "title": "Wake Word \"comma\"",
+              "description": "Let the external voice bridge wake when you say \"comma\"."
+            },
+            {
               "key": "Xrm10VoiceAssistantReadAloud",
               "widget": "toggle",
               "title": "Read Responses Aloud",
-              "description": "Allow the bridge to play spoken responses."
+              "description": "Let comma talk back through the external bridge."
             },
             {
               "key": "Xrm10VoiceAssistantWakeSound",
@@ -2604,6 +2621,19 @@
               "widget": "button",
               "title": "Push to Talk Request",
               "description": "Request the external bridge to start listening.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "Xrm10VoiceAssistantEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10VoiceAssistantSpeakRequested",
+              "widget": "button",
+              "title": "Repeat Last Answer",
+              "description": "Request the external bridge to speak the last answer again.",
               "enablement": [
                 {
                   "type": "param",
@@ -2661,6 +2691,18 @@
               "widget": "info",
               "blocked": true,
               "title": "Last Answer"
+            },
+            {
+              "key": "Xrm10VoiceAssistantWakeWordDetectedAt",
+              "widget": "info",
+              "blocked": true,
+              "title": "Wake Word Heard"
+            },
+            {
+              "key": "Xrm10VoiceAssistantLastSpokenAt",
+              "widget": "info",
+              "blocked": true,
+              "title": "Last Spoken"
             },
             {
               "key": "Xrm10VoiceAssistantLastError",
