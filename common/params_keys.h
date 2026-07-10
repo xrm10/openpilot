@@ -37,6 +37,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DoShutdown", {CLEAR_ON_MANAGER_START, BOOL}},
     {"DoUninstall", {CLEAR_ON_MANAGER_START, BOOL}},
     {"DriverTooDistracted", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"DriverMonitoringSensitivity", {PERSISTENT | BACKUP, INT, "1"}},  // 0 relaxed, 1 standard, 2 strict
     {"AlphaLongitudinalEnabled", {PERSISTENT | DEVELOPMENT_ONLY | BACKUP, BOOL}},
     {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL}},
     {"ExperimentalModeConfirmed", {PERSISTENT | BACKUP, BOOL}},
@@ -260,12 +261,35 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // XRM10 navigation intent
     {"Xrm10NavSource", {PERSISTENT | BACKUP, INT, "0"}},  // 0 off, 1 car-screen intent, 2 OSM/mapd
+    {"Xrm10NavSourceUpdatedAt", {PERSISTENT, STRING}},
     {"Xrm10NavAutoStart", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"Xrm10NavActive", {PERSISTENT, BOOL, "0"}},
+    {"Xrm10NavSyncRequested", {PERSISTENT, STRING}},
     {"Xrm10CarScreenRouteIntent", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"Xrm10CarScreenRouteStatus", {PERSISTENT, STRING, "Not connected"}},
     {"Xrm10CarScreenDestination", {PERSISTENT, STRING}},
     {"Xrm10CarScreenRouteUpdatedAt", {PERSISTENT, STRING}},
+    {"Xrm10RouteLatitude", {PERSISTENT, STRING}},
+    {"Xrm10RouteLongitude", {PERSISTENT, STRING}},
+    {"Xrm10RouteGoogleMapsUrl", {PERSISTENT, STRING}},
+    {"Xrm10RouteSource", {PERSISTENT, STRING}},
+    {"Xrm10TrafficLightAdvisory", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10SpeedBumpAdvisory", {PERSISTENT | BACKUP, BOOL, "1"}},
+
+    // XRM10 review/status params. These are evidence/review controls only.
+    {"Xrm10CodexReviewLoop", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10CodexAutoDecode", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10CodexAutoApplyAllowed", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"Xrm10CodexDecodeRequested", {PERSISTENT, STRING}},
+    {"Xrm10CodexReviewRequested", {PERSISTENT, STRING}},
+    {"Xrm10CodexPackageStatus", {PERSISTENT, STRING, "not built"}},
+    {"Xrm10SmartAppStatus", {PERSISTENT, STRING, "waiting"}},
+    {"Xrm10SmartScore", {PERSISTENT, INT, "0"}},
+    {"Xrm10SmartGate", {PERSISTENT, STRING, "waiting-for-data"}},
+    {"Xrm10SmartNextStep", {PERSISTENT, STRING, "collect logs first"}},
+    {"Xrm10SmartRecommendationCount", {PERSISTENT, INT, "0"}},
+    {"Xrm10SmartLastReviewAt", {PERSISTENT, STRING}},
+    {"Xrm10SmartSummary", {PERSISTENT, STRING}},
 
     // Speed Limit
     {"SpeedLimitMode", {PERSISTENT | BACKUP, INT, "1"}},
@@ -284,6 +308,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LiveTorqueParamsToggle", {PERSISTENT | BACKUP , BOOL}},
     {"LiveTorqueParamsRelaxedToggle", {PERSISTENT | BACKUP , BOOL}},
     {"TorqueControlTune", {PERSISTENT | BACKUP, FLOAT, "0.0"}},
+    {"TorqueResponseProfile", {PERSISTENT | BACKUP, INT, "1"}},
     {"TorqueParamsOverrideEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TorqueParamsOverrideFriction", {PERSISTENT | BACKUP, FLOAT, "0.1"}},
     {"TorqueParamsOverrideLatAccelFactor", {PERSISTENT | BACKUP, FLOAT, "2.5"}},

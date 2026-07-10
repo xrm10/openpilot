@@ -152,6 +152,9 @@ class Xrm10NavToggle(Widget):
     self._font_regular = gui_app.font(FontWeight.DISPLAY_REGULAR)
     self.refresh()
 
+  def set_value(self, value: str):
+    self.value = value
+
   def _handle_mouse_release(self, mouse_pos):
     self._checked = not self._checked
     write_param(self.param, "1" if self._checked else "0")
@@ -162,7 +165,8 @@ class Xrm10NavToggle(Widget):
 
   def _render(self, _):
     self.refresh()
-    rl.draw_rectangle_rounded(self._rect, 0.18, 8, card_color("green" if self._checked else "grey"))
+    checked = self._checked and self.enabled
+    rl.draw_rectangle_rounded(self._rect, 0.18, 8, card_color("green" if checked else "grey"))
     rl.begin_scissor_mode(int(self._rect.x), int(self._rect.y), int(self._rect.width), int(self._rect.height))
     draw_wrapped_text(self._font_bold, compact_label(self.text, 32), self._rect.x + NAV_PAD, self._rect.y + 16,
                       self._rect.width - 112, NAV_TITLE_SIZE, nav_text_color(), 2)
@@ -170,8 +174,8 @@ class Xrm10NavToggle(Widget):
                       self._rect.width - NAV_PAD * 2, NAV_VALUE_SIZE, nav_text_color(0.82), 1)
 
     pill = rl.Rectangle(self._rect.x + self._rect.width - 88, self._rect.y + 18, 68, 38)
-    rl.draw_rectangle_rounded(pill, 0.55, 12, rl.Color(36, 122, 76, 255) if self._checked else rl.Color(50, 50, 50, 255))
-    knob_x = pill.x + pill.width - 33 if self._checked else pill.x + 5
+    rl.draw_rectangle_rounded(pill, 0.55, 12, rl.Color(36, 122, 76, 255) if checked else rl.Color(50, 50, 50, 255))
+    knob_x = pill.x + pill.width - 33 if checked else pill.x + 5
     rl.draw_circle(int(knob_x + 14), int(pill.y + 19), 14, rl.Color(255, 255, 255, 240))
     rl.end_scissor_mode()
 
@@ -208,6 +212,18 @@ class NavigationLayout(NavScroller):
       "display only, no driving command",
       False,
     )
+    self._traffic_light_advisory = Xrm10NavToggle(
+      "traffic light advisory",
+      "Xrm10TrafficLightAdvisory",
+      "advisory channel only",
+      True,
+    )
+    self._speed_bump_advisory = Xrm10NavToggle(
+      "speed bump advisory",
+      "Xrm10SpeedBumpAdvisory",
+      "slowdown review only",
+      True,
+    )
     self._activity = Xrm10NavInfoCard("activity", "waiting", "yellow")
     self._destination = Xrm10NavInfoCard("destination", "none", "blue")
     self._route = Xrm10NavInfoCard("route status", "not connected", "grey")
@@ -233,6 +249,8 @@ class NavigationLayout(NavScroller):
       self._intent,
       self._auto_start,
       self._active_display,
+      self._traffic_light_advisory,
+      self._speed_bump_advisory,
       self._activity,
       self._destination,
       self._route,
@@ -295,6 +313,13 @@ class NavigationLayout(NavScroller):
     self._intent.refresh()
     self._auto_start.refresh()
     self._active_display.refresh()
+    self._traffic_light_advisory.refresh()
+    self._speed_bump_advisory.refresh()
+    experimental_mode = read_bool_param("ExperimentalMode", False)
+    self._traffic_light_advisory.set_enabled(experimental_mode)
+    self._speed_bump_advisory.set_enabled(experimental_mode)
+    self._traffic_light_advisory.set_value("advisory channel only" if experimental_mode else "requires experimental mode")
+    self._speed_bump_advisory.set_value("slowdown review only" if experimental_mode else "requires experimental mode")
 
     source = clamped_nav_source()
     destination = read_param("Xrm10CarScreenDestination") or "none"

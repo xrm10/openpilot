@@ -46,6 +46,18 @@ class NavigationLayout(Scroller):
       "display only, no driving command",
       False,
     )
+    self._traffic_light_advisory = Xrm10NavToggle(
+      "traffic light advisory",
+      "Xrm10TrafficLightAdvisory",
+      "advisory channel only",
+      True,
+    )
+    self._speed_bump_advisory = Xrm10NavToggle(
+      "speed bump advisory",
+      "Xrm10SpeedBumpAdvisory",
+      "slowdown review only",
+      True,
+    )
     self._activity = Xrm10NavInfoCard("activity", "waiting", "yellow")
     self._destination = Xrm10NavInfoCard("destination", "none", "blue")
     self._route = Xrm10NavInfoCard("route status", "not connected", "grey")
@@ -71,6 +83,8 @@ class NavigationLayout(Scroller):
       self._intent,
       self._auto_start,
       self._active_display,
+      self._traffic_light_advisory,
+      self._speed_bump_advisory,
       self._activity,
       self._destination,
       self._route,
@@ -133,6 +147,13 @@ class NavigationLayout(Scroller):
     self._intent.refresh()
     self._auto_start.refresh()
     self._active_display.refresh()
+    self._traffic_light_advisory.refresh()
+    self._speed_bump_advisory.refresh()
+    experimental_mode = read_bool_param("ExperimentalMode", False)
+    self._traffic_light_advisory.set_enabled(experimental_mode)
+    self._speed_bump_advisory.set_enabled(experimental_mode)
+    self._traffic_light_advisory.set_value("advisory channel only" if experimental_mode else "requires experimental mode")
+    self._speed_bump_advisory.set_value("slowdown review only" if experimental_mode else "requires experimental mode")
 
     source = clamped_nav_source()
     destination = read_param("Xrm10CarScreenDestination") or "none"

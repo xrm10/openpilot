@@ -28,6 +28,18 @@ sections:
     widget: toggle
     title: Always-On Driver Monitoring
     description: Enable driver monitoring even when sunnypilot is not engaged.
+  - key: DriverMonitoringSensitivity
+    widget: multiple_button
+    title: Driver Monitoring Sensitivity
+    description: Adjust driver-monitoring comfort while keeping monitoring active. Relaxed slightly delays alerts; Strict
+      tightens them.
+    options:
+    - value: 0
+      label: Relaxed
+    - value: 1
+      label: Standard
+    - value: 2
+      label: Strict
   - key: IsMetric
     widget: toggle
     title: Use Metric System

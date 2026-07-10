@@ -79,6 +79,58 @@ class DRIVER_MONITOR_SETTINGS:
     self._WHEELPOS_DATA_AVG = 0.03
     self._WHEELPOS_DATA_VAR = 3*5.5e-5
     self._WHEELPOS_MAX_COUNT = -1
+    self._sensitivity_profile = 1
+    self._sensitivity_defaults = {
+      "_VISION_POLICY_ALERT_1_TIMEOUT": self._VISION_POLICY_ALERT_1_TIMEOUT,
+      "_VISION_POLICY_ALERT_2_TIMEOUT": self._VISION_POLICY_ALERT_2_TIMEOUT,
+      "_VISION_POLICY_ALERT_3_TIMEOUT": self._VISION_POLICY_ALERT_3_TIMEOUT,
+      "_BLINK_THRESHOLD": self._BLINK_THRESHOLD,
+      "_PHONE_THRESH": self._PHONE_THRESH,
+      "_POSE_PITCH_THRESHOLD": self._POSE_PITCH_THRESHOLD,
+      "_POSE_PITCH_THRESHOLD_SLACK": self._POSE_PITCH_THRESHOLD_SLACK,
+      "_POSE_PITCH_THRESHOLD_STRICT": self._POSE_PITCH_THRESHOLD_STRICT,
+      "_POSE_YAW_THRESHOLD": self._POSE_YAW_THRESHOLD,
+      "_POSE_YAW_THRESHOLD_SLACK": self._POSE_YAW_THRESHOLD_SLACK,
+      "_POSE_YAW_THRESHOLD_STRICT": self._POSE_YAW_THRESHOLD_STRICT,
+    }
+
+  def apply_sensitivity_profile(self, profile):
+    try:
+      profile = int(profile)
+    except (TypeError, ValueError):
+      profile = 1
+    profile = min(max(profile, 0), 2)
+
+    if profile == self._sensitivity_profile:
+      return False
+
+    for key, value in self._sensitivity_defaults.items():
+      setattr(self, key, value)
+
+    if profile == 0:
+      # Comfort mode stays bounded: it delays warnings slightly, but does not disable monitoring or lockouts.
+      self._VISION_POLICY_ALERT_1_TIMEOUT = min(self._VISION_POLICY_ALERT_1_TIMEOUT * 1.10, 3.5)
+      self._VISION_POLICY_ALERT_2_TIMEOUT = min(self._VISION_POLICY_ALERT_2_TIMEOUT * 1.10, 5.5)
+      self._VISION_POLICY_ALERT_3_TIMEOUT = min(self._VISION_POLICY_ALERT_3_TIMEOUT * 1.09, 12.0)
+      self._BLINK_THRESHOLD = min(self._BLINK_THRESHOLD + 0.015, 0.88)
+      pose_scale = 1.04
+    elif profile == 2:
+      self._VISION_POLICY_ALERT_1_TIMEOUT = max(self._VISION_POLICY_ALERT_1_TIMEOUT * 0.90, 2.7)
+      self._VISION_POLICY_ALERT_2_TIMEOUT = max(self._VISION_POLICY_ALERT_2_TIMEOUT * 0.90, 4.5)
+      self._VISION_POLICY_ALERT_3_TIMEOUT = max(self._VISION_POLICY_ALERT_3_TIMEOUT * 0.91, 10.0)
+      self._BLINK_THRESHOLD = max(self._BLINK_THRESHOLD - 0.015, 0.84)
+      pose_scale = 0.97
+    else:
+      pose_scale = 1.0
+
+    self._POSE_PITCH_THRESHOLD *= pose_scale
+    self._POSE_PITCH_THRESHOLD_SLACK *= pose_scale
+    self._POSE_PITCH_THRESHOLD_STRICT = self._POSE_PITCH_THRESHOLD
+    self._POSE_YAW_THRESHOLD *= pose_scale
+    self._POSE_YAW_THRESHOLD_SLACK *= pose_scale
+    self._POSE_YAW_THRESHOLD_STRICT = self._POSE_YAW_THRESHOLD
+    self._sensitivity_profile = profile
+    return True
 
 class DriverPose:
   def __init__(self, settings):
@@ -163,6 +215,39 @@ class DriverMonitoring:
     self.last_vision_awareness = 1.
     self.last_wheeltouch_awareness = 1.
 
+  def _refresh_policy_thresholds(self):
+    if self.active_policy == MonitoringPolicy.vision:
+      self.threshold_alert_1 = 1. - self.settings._VISION_POLICY_ALERT_1_TIMEOUT / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
+      self.threshold_alert_2 = 1. - self.settings._VISION_POLICY_ALERT_2_TIMEOUT / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
+      self.step_change = DT_DMON / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
+    else:
+      self.threshold_alert_1 = 1. - self.settings._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
+      self.threshold_alert_2 = 1. - self.settings._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
+      self.step_change = DT_DMON / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
+
+  def _current_alert_band(self):
+    if self.awareness <= 0.:
+      return 3
+    if self.awareness <= self.threshold_alert_2:
+      return 2
+    if self.awareness <= self.threshold_alert_1:
+      return 1
+    return 0
+
+  def _preserve_alert_band(self, alert_band):
+    if alert_band >= 3:
+      self.awareness = min(self.awareness, 0.)
+    elif alert_band == 2:
+      self.awareness = min(self.awareness, self.threshold_alert_2)
+    elif alert_band == 1:
+      self.awareness = min(self.awareness, self.threshold_alert_1)
+
+  def set_sensitivity_profile(self, profile):
+    alert_band = self._current_alert_band()
+    if self.settings.apply_sensitivity_profile(profile):
+      self._refresh_policy_thresholds()
+      self._preserve_alert_band(alert_band)
+
   def _set_policy(self, target_policy):
     if self.active_policy == MonitoringPolicy.vision and self.awareness <= self.threshold_alert_2:
       if target_policy == MonitoringPolicy.vision:
@@ -179,19 +264,14 @@ class DriverMonitoring:
         self.last_wheeltouch_awareness = self.awareness
         self.awareness = self.last_vision_awareness
 
-      self.threshold_alert_1 = 1. - self.settings._VISION_POLICY_ALERT_1_TIMEOUT / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
-      self.threshold_alert_2 = 1. - self.settings._VISION_POLICY_ALERT_2_TIMEOUT / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
-      self.step_change = DT_DMON / self.settings._VISION_POLICY_ALERT_3_TIMEOUT
       self.active_policy = MonitoringPolicy.vision
     else:
       if self.active_policy == MonitoringPolicy.vision:
         self.last_vision_awareness = self.awareness
         self.awareness = self.last_wheeltouch_awareness
 
-      self.threshold_alert_1 = 1. - self.settings._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
-      self.threshold_alert_2 = 1. - self.settings._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
-      self.step_change = DT_DMON / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
       self.active_policy = MonitoringPolicy.wheeltouch
+    self._refresh_policy_thresholds()
 
   def _set_pose_strictness(self, brake_disengage_prob, car_speed):
     bp = brake_disengage_prob

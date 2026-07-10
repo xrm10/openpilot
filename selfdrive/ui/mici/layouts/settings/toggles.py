@@ -52,6 +52,8 @@ class TogglesLayoutMici(NavScroller):
     is_metric_toggle = BigParamControl("use metric units", "IsMetric")
     ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled")
     always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM")
+    self._dm_sensitivity_toggle = BigMultiParamToggle("driver monitor sensitivity", "DriverMonitoringSensitivity",
+                                                      ["relaxed", "standard", "strict"])
     record_front = BigParamControl("record & upload driver camera", "RecordFront", toggle_callback=restart_needed_callback)
     record_mic = BigParamControl("record & upload mic audio", "RecordAudio", toggle_callback=restart_needed_callback)
     enable_openpilot = BigParamControl("enable sunnypilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
@@ -83,6 +85,7 @@ class TogglesLayoutMici(NavScroller):
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
+      self._dm_sensitivity_toggle,
       record_front,
       record_mic,
     ])
@@ -144,3 +147,4 @@ class TogglesLayoutMici(NavScroller):
     self._nav_active.refresh()
     self._smart_review_loop.refresh()
     self._auto_decode.refresh()
+    self._dm_sensitivity_toggle._load_value()

@@ -160,6 +160,24 @@ sections:
       - type: param
         key: CustomTorqueParams
         equals: true
+    - key: TorqueResponseProfile
+      widget: multiple_button
+      title: Steering Response
+      description: Stabilize or sharpen the live torque response while keeping existing steering safety limits.
+      options:
+      - value: 0
+        label: Stable
+      - value: 1
+        label: Balanced
+      - value: 2
+        label: Responsive
+      enablement:
+      - type: param
+        key: CustomTorqueParams
+        equals: true
+      - type: param
+        key: TorqueParamsOverrideEnabled
+        equals: true
     - key: TorqueParamsOverrideLatAccelFactor
       widget: option
       title: Lateral Acceleration Factor

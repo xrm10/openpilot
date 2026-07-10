@@ -5,6 +5,13 @@ from openpilot.common.realtime import config_realtime_process
 from openpilot.selfdrive.monitoring.policy import DriverMonitoring
 
 
+def read_monitoring_sensitivity(params: Params) -> int:
+  try:
+    return int(params.get("DriverMonitoringSensitivity", return_default=True))
+  except (TypeError, ValueError):
+    return 1
+
+
 def dmonitoringd_thread():
   config_realtime_process([0, 1, 2, 3], 5)
 
@@ -14,6 +21,7 @@ def dmonitoringd_thread():
                             'carControl'], poll='driverStateV2')
 
   DM = DriverMonitoring(rhd_saved=params.get_bool("IsRhdDetected"), always_on=params.get_bool("AlwaysOnDM"))
+  DM.set_sensitivity_profile(read_monitoring_sensitivity(params))
   demo_mode=False
 
   # 20Hz <- dmonitoringmodeld
@@ -36,6 +44,7 @@ def dmonitoringd_thread():
     # load live always-on toggle
     if sm['driverStateV2'].frameId % 40 == 1:
       DM.always_on = params.get_bool("AlwaysOnDM")
+      DM.set_sensitivity_profile(read_monitoring_sensitivity(params))
       demo_mode = params.get_bool("IsDriverViewEnabled")
 
     # save rhd virtual toggle every 5 mins

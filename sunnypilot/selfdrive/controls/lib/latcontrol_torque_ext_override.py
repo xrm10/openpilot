@@ -8,6 +8,29 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.common.params import Params
 
 
+TORQUE_RESPONSE_PROFILES = {
+  # Higher lat accel factor asks for slightly less torque. Lower friction avoids twitch at center.
+  0: (1.08, 0.90),  # stable
+  1: (1.00, 1.00),  # balanced
+  2: (0.94, 1.10),  # responsive
+}
+MIN_LAT_ACCEL_FACTOR = 0.1
+MAX_LAT_ACCEL_FACTOR = 5.0
+MIN_FRICTION = 0.0
+MAX_FRICTION = 1.0
+
+
+def _clip(value: float, minimum: float, maximum: float) -> float:
+  return max(minimum, min(maximum, value))
+
+
+def _read_int_param(params: Params, key: str, default: int) -> int:
+  try:
+    return int(params.get(key, return_default=True))
+  except (TypeError, ValueError):
+    return default
+
+
 class LatControlTorqueExtOverride:
   def __init__(self, CP):
     self.CP = CP
@@ -29,6 +52,11 @@ class LatControlTorqueExtOverride:
 
       torque_params.latAccelFactor = float(self.params.get("TorqueParamsOverrideLatAccelFactor", return_default=True))
       torque_params.friction = float(self.params.get("TorqueParamsOverrideFriction", return_default=True))
+      profile = _read_int_param(self.params, "TorqueResponseProfile", 1)
+      lat_accel_multiplier, friction_multiplier = TORQUE_RESPONSE_PROFILES.get(profile, TORQUE_RESPONSE_PROFILES[1])
+      torque_params.latAccelFactor = _clip(torque_params.latAccelFactor * lat_accel_multiplier,
+                                           MIN_LAT_ACCEL_FACTOR, MAX_LAT_ACCEL_FACTOR)
+      torque_params.friction = _clip(torque_params.friction * friction_multiplier, MIN_FRICTION, MAX_FRICTION)
       return True
 
     return False

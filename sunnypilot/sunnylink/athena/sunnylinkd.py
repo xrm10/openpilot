@@ -55,6 +55,7 @@ BLOCKED_PARAMS = {
   "HasAcceptedTermsSP",
   "OnroadCycleRequested",      # Prevent remote cycle trigger
   "ParamsVersion",         # Device-managed version counter
+  "Xrm10CodexAutoApplyAllowed",  # Automatic code apply must stay locked off
 }
 
 

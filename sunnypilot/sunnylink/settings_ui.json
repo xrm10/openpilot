@@ -378,6 +378,38 @@
                   ]
                 },
                 {
+                  "key": "TorqueResponseProfile",
+                  "widget": "multiple_button",
+                  "title": "Steering Response",
+                  "description": "Stabilize or sharpen the live torque response while keeping existing steering safety limits.",
+                  "options": [
+                    {
+                      "value": 0,
+                      "label": "Stable"
+                    },
+                    {
+                      "value": 1,
+                      "label": "Balanced"
+                    },
+                    {
+                      "value": 2,
+                      "label": "Responsive"
+                    }
+                  ],
+                  "enablement": [
+                    {
+                      "type": "param",
+                      "key": "CustomTorqueParams",
+                      "equals": true
+                    },
+                    {
+                      "type": "param",
+                      "key": "TorqueParamsOverrideEnabled",
+                      "equals": true
+                    }
+                  ]
+                },
+                {
                   "key": "TorqueParamsOverrideLatAccelFactor",
                   "widget": "option",
                   "title": "Lateral Acceleration Factor",
@@ -1508,6 +1540,26 @@
               "description": "Enable driver monitoring even when sunnypilot is not engaged."
             },
             {
+              "key": "DriverMonitoringSensitivity",
+              "widget": "multiple_button",
+              "title": "Driver Monitoring Sensitivity",
+              "description": "Adjust driver-monitoring comfort while keeping monitoring active. Relaxed slightly delays alerts; Strict tightens them.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Relaxed"
+                },
+                {
+                  "value": 1,
+                  "label": "Standard"
+                },
+                {
+                  "value": 2,
+                  "label": "Strict"
+                }
+              ]
+            },
+            {
               "key": "IsMetric",
               "widget": "toggle",
               "title": "Use Metric System",
@@ -1681,6 +1733,218 @@
                   "equals": true
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "navigation",
+      "label": "Navigation",
+      "icon": "vehicle",
+      "order": 8,
+      "remote_configurable": true,
+      "description": "Route display, car-screen destination sync, and navigation status",
+      "sections": [
+        {
+          "id": "route_control",
+          "title": "Route Control",
+          "description": "Destination and route-display settings used by the comma UI.",
+          "items": [
+            {
+              "key": "Xrm10NavSource",
+              "widget": "multiple_button",
+              "title": "Navigation Source",
+              "description": "Select where the comma route display reads navigation intent from.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Off"
+                },
+                {
+                  "value": 1,
+                  "label": "Car Screen"
+                },
+                {
+                  "value": 2,
+                  "label": "OSM"
+                }
+              ]
+            },
+            {
+              "key": "Xrm10CarScreenRouteIntent",
+              "widget": "toggle",
+              "title": "Use Car-Screen Destination",
+              "description": "Accept route intent from the car screen when a destination is available."
+            },
+            {
+              "key": "Xrm10NavAutoStart",
+              "widget": "toggle",
+              "title": "Auto-Start Route Display",
+              "description": "Turn on route display automatically when a destination appears."
+            },
+            {
+              "key": "Xrm10NavActive",
+              "widget": "toggle",
+              "title": "Active Route Display",
+              "description": "Show the active route status on the comma UI. This does not command steering, braking, throttle, or lane changes."
+            }
+          ]
+        },
+        {
+          "id": "traffic_light_advisory",
+          "title": "Traffic Light Advisory",
+          "description": "Traffic signal detection and route review controls. This is separate from speed bumps.",
+          "items": [
+            {
+              "key": "Xrm10TrafficLightAdvisory",
+              "widget": "toggle",
+              "title": "Traffic Light Advisory",
+              "description": "Experimental Mode only. Enable a traffic-light advisory channel for detector and replay review. This does not directly command stop/go braking.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "speed_bump_advisory",
+          "title": "Speed Bump Advisory",
+          "description": "Speed-bump route review controls. This is separate from traffic lights.",
+          "items": [
+            {
+              "key": "Xrm10SpeedBumpAdvisory",
+              "widget": "toggle",
+              "title": "Speed Bump Advisory",
+              "description": "Experimental Mode only. Enable a speed-bump advisory channel for route and replay review. This does not directly command braking.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "route_status",
+          "title": "Route Status",
+          "description": "Read-only live values written by the device or route bridge.",
+          "items": [
+            {
+              "key": "Xrm10CarScreenRouteStatus",
+              "widget": "info",
+              "blocked": true,
+              "title": "Route Status"
+            },
+            {
+              "key": "Xrm10CarScreenDestination",
+              "widget": "info",
+              "blocked": true,
+              "title": "Destination"
+            },
+            {
+              "key": "Xrm10RouteSource",
+              "widget": "info",
+              "blocked": true,
+              "title": "Active Route Source"
+            },
+            {
+              "key": "Xrm10RouteLatitude",
+              "widget": "info",
+              "blocked": true,
+              "title": "Route Latitude"
+            },
+            {
+              "key": "Xrm10RouteLongitude",
+              "widget": "info",
+              "blocked": true,
+              "title": "Route Longitude"
+            },
+            {
+              "key": "Xrm10RouteGoogleMapsUrl",
+              "widget": "info",
+              "blocked": true,
+              "title": "Maps Link"
+            },
+            {
+              "key": "Xrm10CarScreenRouteUpdatedAt",
+              "widget": "info",
+              "blocked": true,
+              "title": "Last Route Update"
+            }
+          ]
+        },
+        {
+          "id": "review_status",
+          "title": "Review Status",
+          "description": "Evidence and review status used for manual improvement work.",
+          "items": [
+            {
+              "key": "Xrm10CodexReviewLoop",
+              "widget": "toggle",
+              "title": "Keep Review Loop Enabled",
+              "description": "Keep log packaging and review status active for future manual review."
+            },
+            {
+              "key": "Xrm10CodexAutoDecode",
+              "widget": "toggle",
+              "title": "Decode Evidence Automatically",
+              "description": "Decode collected evidence for review without applying code changes automatically."
+            },
+            {
+              "key": "Xrm10CodexAutoApplyAllowed",
+              "widget": "info",
+              "blocked": true,
+              "title": "Automatic Code Apply",
+              "description": "Locked off. Code changes still require manual review and deployment."
+            },
+            {
+              "key": "Xrm10CodexPackageStatus",
+              "widget": "info",
+              "blocked": true,
+              "title": "Review Package Status"
+            },
+            {
+              "key": "Xrm10SmartAppStatus",
+              "widget": "info",
+              "blocked": true,
+              "title": "Review Engine Status"
+            },
+            {
+              "key": "Xrm10SmartScore",
+              "widget": "info",
+              "blocked": true,
+              "title": "Readiness Score"
+            },
+            {
+              "key": "Xrm10SmartGate",
+              "widget": "info",
+              "blocked": true,
+              "title": "Safety Gate"
+            },
+            {
+              "key": "Xrm10SmartSummary",
+              "widget": "info",
+              "blocked": true,
+              "title": "Review Summary"
+            },
+            {
+              "key": "Xrm10SmartNextStep",
+              "widget": "info",
+              "blocked": true,
+              "title": "Next Step"
+            },
+            {
+              "key": "Xrm10SmartLastReviewAt",
+              "widget": "info",
+              "blocked": true,
+              "title": "Last Review"
             }
           ]
         }
