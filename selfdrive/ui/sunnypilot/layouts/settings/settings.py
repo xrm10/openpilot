@@ -25,7 +25,6 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.sunnylink import Sunnyli
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.trips import TripsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle import VehicleLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.visuals import VisualsLayout
-from openpilot.selfdrive.ui.mici.layouts.settings.voice_assistant import Xrm10VoiceAssistantLayout
 from openpilot.system.ui.lib.application import gui_app, MousePos
 from openpilot.system.ui.lib.multilang import tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -49,7 +48,6 @@ OP.PanelType = IntEnum(
     "OSM",
     "TRIPS",
     "VEHICLE",
-    "VOICE",
   ],
   start=0,
 )
@@ -111,7 +109,6 @@ class SettingsLayoutSP(OP.SettingsLayout):
     self._panels = {
       OP.PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayoutSP(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_home.png"),
       OP.PanelType.NAVIGATION: PanelInfo(tr_noop("Navigation"), NavigationLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_map.png"),
-      OP.PanelType.VOICE: PanelInfo(tr_noop("Voice"), Xrm10VoiceAssistantLayout(), icon="../../selfdrive/assets/icons/microphone.png"),
       OP.PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUISP(wifi_manager), icon="icons/network.png"),
       OP.PanelType.SUNNYLINK: PanelInfo(tr_noop("sunnylink"), SunnylinkLayout(), icon="icons/wifi_strength_full.png"),
       OP.PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_toggle.png"),
