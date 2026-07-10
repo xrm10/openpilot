@@ -1793,8 +1793,8 @@
         },
         {
           "id": "traffic_light_advisory",
-          "title": "Traffic Light Advisory",
-          "description": "Traffic signal detection and route review controls. This is separate from speed bumps.",
+          "title": "Road Advisories",
+          "description": "Experimental Mode only. Advisory channels for route, sign, and road-object review.",
           "items": [
             {
               "key": "Xrm10TrafficLightAdvisory",
@@ -1808,14 +1808,7 @@
                   "equals": true
                 }
               ]
-            }
-          ]
-        },
-        {
-          "id": "speed_bump_advisory",
-          "title": "Speed Bump Advisory",
-          "description": "Speed-bump route review controls. This is separate from traffic lights.",
-          "items": [
+            },
             {
               "key": "Xrm10SpeedBumpAdvisory",
               "widget": "toggle",
@@ -1828,6 +1821,194 @@
                   "equals": true
                 }
               ]
+            },
+            {
+              "key": "Xrm10StopYieldAdvisory",
+              "widget": "toggle",
+              "title": "Stop/Yield Advisory",
+              "description": "Experimental Mode only. Log and show stop-sign and yield scenarios for replay review.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10RoundaboutAdvisory",
+              "widget": "toggle",
+              "title": "Roundabout Advisory",
+              "description": "Experimental Mode only. Log roundabout entry, yield, and exit situations for review.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10MergeAdvisory",
+              "widget": "toggle",
+              "title": "Merge/Yield Advisory",
+              "description": "Experimental Mode only. Log ramp, merge, and give-way situations for review.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10CrossTrafficAdvisory",
+              "widget": "toggle",
+              "title": "Cross Traffic Advisory",
+              "description": "Experimental Mode only. Log side-traffic situations around exits, junctions, and roundabouts.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "lane_traffic_advisory",
+          "title": "Lane and Traffic Advisories",
+          "description": "Experimental Mode only. Lane and traffic-flow suggestions remain review/confirmation signals.",
+          "items": [
+            {
+              "key": "Xrm10LaneSuggestionAdvisory",
+              "widget": "toggle",
+              "title": "Lane Suggestions",
+              "description": "Experimental Mode only. Show lane-change suggestions for review without directly commanding a maneuver.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10FasterLaneSuggestion",
+              "widget": "toggle",
+              "title": "Faster Lane Suggestion",
+              "description": "Experimental Mode only. Suggest a faster lane when available; action still requires a validated planner path.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10CurveSlowdownAdvisory",
+              "widget": "toggle",
+              "title": "Curve Slowdown Advisory",
+              "description": "Experimental Mode only. Log curve-speed slowdown opportunities for replay review.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10ZoneCautionAdvisory",
+              "widget": "toggle",
+              "title": "Zone Caution Advisory",
+              "description": "Experimental Mode only. Log school-zone and construction-zone caution situations for review.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10LeadCarMovedAdvisory",
+              "widget": "toggle",
+              "title": "Lead Car Moved Advisory",
+              "description": "Experimental Mode only. Log lead-car movement and traffic-flow restart scenarios.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "experimental_logging",
+          "title": "Experimental Logging",
+          "description": "Experimental Mode only. Capture evidence for replay before road behavior changes are implemented.",
+          "items": [
+            {
+              "key": "Xrm10ExperimentalEventRecorder",
+              "widget": "toggle",
+              "title": "Experimental Event Recorder",
+              "description": "Experimental Mode only. Save route, model, speed, and camera context around assist events.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "Xrm10ReplayLogging",
+              "widget": "toggle",
+              "title": "Replay Logging",
+              "description": "Experimental Mode only. Keep replay-ready evidence for offline validation.",
+              "enablement": [
+                {
+                  "type": "param",
+                  "key": "ExperimentalMode",
+                  "equals": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "planner_preview",
+          "title": "Planner Preview",
+          "description": "Read-only preview values written by an experimental planner or replay tool.",
+          "items": [
+            {
+              "key": "Xrm10PlannerNextAction",
+              "widget": "info",
+              "blocked": true,
+              "title": "Next Action"
+            },
+            {
+              "key": "Xrm10PlannerActionDistance",
+              "widget": "info",
+              "blocked": true,
+              "title": "Action Distance"
+            },
+            {
+              "key": "Xrm10PlannerConfidence",
+              "widget": "info",
+              "blocked": true,
+              "title": "Route Confidence"
+            },
+            {
+              "key": "Xrm10PlannerReason",
+              "widget": "info",
+              "blocked": true,
+              "title": "Reason"
             }
           ]
         },

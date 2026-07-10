@@ -8,12 +8,14 @@ from time import monotonic
 
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.selfdrive.ui.mici.layouts.settings.navigation import (
+  EXPERIMENTAL_NAV_TOGGLE_SPECS,
   NAV_SOURCE_OPTIONS,
   Xrm10NavActionButton,
   Xrm10NavInfoCard,
   Xrm10NavSourceToggle,
   Xrm10NavToggle,
   clamped_nav_source,
+  read_int_param,
 )
 from openpilot.selfdrive.ui.mici.layouts.settings.xrm10_smart import (
   now_iso,
@@ -46,19 +48,12 @@ class NavigationLayout(Scroller):
       "display only, no driving command",
       False,
     )
-    self._traffic_light_advisory = Xrm10NavToggle(
-      "traffic light advisory",
-      "Xrm10TrafficLightAdvisory",
-      "advisory channel only",
-      True,
-    )
-    self._speed_bump_advisory = Xrm10NavToggle(
-      "speed bump advisory",
-      "Xrm10SpeedBumpAdvisory",
-      "slowdown review only",
-      True,
-    )
+    self._experimental_toggles = [Xrm10NavToggle(*spec) for spec in EXPERIMENTAL_NAV_TOGGLE_SPECS]
     self._activity = Xrm10NavInfoCard("activity", "waiting", "yellow")
+    self._planner_next = Xrm10NavInfoCard("next action", "waiting", "yellow")
+    self._planner_distance = Xrm10NavInfoCard("action distance", "none", "grey")
+    self._planner_confidence = Xrm10NavInfoCard("route confidence", "0%", "grey")
+    self._planner_reason = Xrm10NavInfoCard("why", "waiting", "grey")
     self._destination = Xrm10NavInfoCard("destination", "none", "blue")
     self._route = Xrm10NavInfoCard("route status", "not connected", "grey")
     self._coordinates = Xrm10NavInfoCard("coordinates", "none", "grey")
@@ -83,9 +78,14 @@ class NavigationLayout(Scroller):
       self._intent,
       self._auto_start,
       self._active_display,
-      self._traffic_light_advisory,
-      self._speed_bump_advisory,
+      Xrm10NavInfoCard("experimental assist", "enabled only when experimental mode is on", "yellow"),
+      *self._experimental_toggles,
+      Xrm10NavInfoCard("planner preview", "next route action and confidence", "blue"),
       self._activity,
+      self._planner_next,
+      self._planner_distance,
+      self._planner_confidence,
+      self._planner_reason,
       self._destination,
       self._route,
       self._coordinates,
@@ -147,13 +147,11 @@ class NavigationLayout(Scroller):
     self._intent.refresh()
     self._auto_start.refresh()
     self._active_display.refresh()
-    self._traffic_light_advisory.refresh()
-    self._speed_bump_advisory.refresh()
     experimental_mode = read_bool_param("ExperimentalMode", False)
-    self._traffic_light_advisory.set_enabled(experimental_mode)
-    self._speed_bump_advisory.set_enabled(experimental_mode)
-    self._traffic_light_advisory.set_value("advisory channel only" if experimental_mode else "requires experimental mode")
-    self._speed_bump_advisory.set_value("slowdown review only" if experimental_mode else "requires experimental mode")
+    for toggle in self._experimental_toggles:
+      toggle.refresh()
+      toggle.set_enabled(experimental_mode)
+      toggle.set_value(toggle.default_value if experimental_mode else "requires experimental mode")
 
     source = clamped_nav_source()
     destination = read_param("Xrm10CarScreenDestination") or "none"
@@ -164,8 +162,16 @@ class NavigationLayout(Scroller):
     maps_url = read_param("Xrm10RouteGoogleMapsUrl")
     updated_at = read_param("Xrm10CarScreenRouteUpdatedAt") or "never"
     active = read_bool_param("Xrm10NavActive", False)
+    planner_next = read_param("Xrm10PlannerNextAction") or "waiting"
+    planner_distance = read_param("Xrm10PlannerActionDistance") or "none"
+    planner_confidence = max(0, min(read_int_param("Xrm10PlannerConfidence"), 100))
+    planner_reason = read_param("Xrm10PlannerReason") or "waiting for route and model agreement"
 
     self._activity.set_value(self._activity_text())
+    self._planner_next.set_value(planner_next if experimental_mode else "requires experimental mode")
+    self._planner_distance.set_value(planner_distance if experimental_mode else "none")
+    self._planner_confidence.set_value(f"{planner_confidence}%" if experimental_mode else "0%")
+    self._planner_reason.set_value(planner_reason if experimental_mode else "experimental mode is off")
     self._destination.set_value(destination)
     self._route.set_value(f"{route_status}\nsource: {route_source}")
     self._coordinates.set_value(f"{latitude}, {longitude}" if latitude and longitude else "none")
@@ -178,3 +184,7 @@ class NavigationLayout(Scroller):
     self._coordinates.set_color("green" if latitude and longitude else "grey")
     self._maps.set_color("green" if maps_url else "grey")
     self._updated.set_color("green" if updated_at != "never" else "grey")
+    self._planner_next.set_color("green" if experimental_mode and planner_next != "waiting" else "yellow" if experimental_mode else "grey")
+    self._planner_distance.set_color("green" if experimental_mode and planner_distance != "none" else "grey")
+    self._planner_confidence.set_color("green" if experimental_mode and planner_confidence >= 70 else "yellow" if experimental_mode and planner_confidence >= 40 else "grey")
+    self._planner_reason.set_color("yellow" if experimental_mode else "grey")
