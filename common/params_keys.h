@@ -291,6 +291,25 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Xrm10PlannerConfidence", {PERSISTENT, INT, "0"}},
     {"Xrm10PlannerReason", {PERSISTENT, STRING, "waiting for route and model agreement"}},
 
+    // XRM10 voice assistant bridge. No vehicle actuation or automatic code apply.
+    {"Xrm10VoiceAssistantEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"Xrm10VoiceAssistantMode", {PERSISTENT | BACKUP, INT, "1"}},  // 0 off, 1 push-to-talk, 2 bridge text
+    {"Xrm10VoiceAssistantProvider", {PERSISTENT | BACKUP, INT, "0"}},  // 0 phone/server bridge, 1 OpenAI-compatible bridge
+    {"Xrm10VoiceAssistantReadAloud", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10VoiceAssistantWakeSound", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10VoiceAssistantShortReplies", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"Xrm10VoiceAssistantOnroadQna", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"Xrm10VoiceAssistantPTTRequested", {PERSISTENT, STRING}},
+    {"Xrm10VoiceAssistantCancelRequested", {PERSISTENT, STRING}},
+    {"Xrm10VoiceAssistantClearRequested", {PERSISTENT, STRING}},
+    {"Xrm10VoiceAssistantTextPrompt", {PERSISTENT | DONT_LOG, STRING}},
+    {"Xrm10VoiceAssistantStatus", {PERSISTENT, STRING, "not configured"}},
+    {"Xrm10VoiceAssistantBridgeStatus", {PERSISTENT, STRING, "waiting for bridge"}},
+    {"Xrm10VoiceAssistantLastTranscript", {PERSISTENT | DONT_LOG, STRING}},
+    {"Xrm10VoiceAssistantLastResponse", {PERSISTENT | DONT_LOG, STRING}},
+    {"Xrm10VoiceAssistantLastError", {PERSISTENT | DONT_LOG, STRING}},
+    {"Xrm10VoiceAssistantUpdatedAt", {PERSISTENT, STRING}},
+
     // XRM10 review/status params. These are evidence/review controls only.
     {"Xrm10CodexReviewLoop", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"Xrm10CodexAutoDecode", {PERSISTENT | BACKUP, BOOL, "1"}},

@@ -1,0 +1,106 @@
+# Page: voice_assistant
+# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
+id: voice_assistant
+label: Voice
+icon: device
+order: 11
+remote_configurable: true
+description: Chat-style voice assistant controls and bridge status
+sections:
+- id: assistant_control
+  title: Voice Assistant
+  description: Bridge-ready voice assistant controls. The assistant cannot command steering, braking, throttle, lane changes,
+    or code application.
+  items:
+  - key: Xrm10VoiceAssistantEnabled
+    widget: toggle
+    title: Enable Voice Assistant
+    description: Enable push-to-talk and bridge requests for the voice assistant.
+  - key: Xrm10VoiceAssistantMode
+    widget: multiple_button
+    title: Assistant Mode
+    description: Select how requests are made to the bridge.
+    options:
+    - value: 0
+      label: 'Off'
+    - value: 1
+      label: Push-to-Talk
+    - value: 2
+      label: Text Bridge
+  - key: Xrm10VoiceAssistantProvider
+    widget: multiple_button
+    title: Model Bridge
+    description: Select the external bridge type. API keys should stay on the phone/server bridge, not hardcoded on the comma.
+    options:
+    - value: 0
+      label: Phone/Server
+    - value: 1
+      label: OpenAI Compatible
+  - key: Xrm10VoiceAssistantReadAloud
+    widget: toggle
+    title: Read Responses Aloud
+    description: Allow the bridge to play spoken responses.
+  - key: Xrm10VoiceAssistantWakeSound
+    widget: toggle
+    title: Confirmation Sound
+    description: Play a confirmation sound when a request starts or needs attention.
+  - key: Xrm10VoiceAssistantShortReplies
+    widget: toggle
+    title: Short Replies
+    description: Prefer short answers suitable for a driving environment.
+  - key: Xrm10VoiceAssistantOnroadQna
+    widget: toggle
+    title: Onroad Q&A
+    description: Allow short read-only Q&A while onroad. This still cannot control the car or change settings automatically.
+- id: assistant_actions
+  title: Assistant Requests
+  description: Request/status params used by a phone or server bridge.
+  items:
+  - key: Xrm10VoiceAssistantPTTRequested
+    widget: button
+    title: Push to Talk Request
+    description: Request the external bridge to start listening.
+    enablement:
+    - type: param
+      key: Xrm10VoiceAssistantEnabled
+      equals: true
+  - key: Xrm10VoiceAssistantCancelRequested
+    widget: button
+    title: Stop Listening Request
+    description: Request the external bridge to stop listening.
+    enablement:
+    - type: param
+      key: Xrm10VoiceAssistantEnabled
+      equals: true
+  - key: Xrm10VoiceAssistantClearRequested
+    widget: button
+    title: Clear Chat Request
+    description: Request the external bridge to clear the active conversation state.
+- id: assistant_status
+  title: Assistant Status
+  description: Read-only status written by the comma UI or external voice bridge.
+  items:
+  - key: Xrm10VoiceAssistantStatus
+    widget: info
+    blocked: true
+    title: Assistant Status
+  - key: Xrm10VoiceAssistantBridgeStatus
+    widget: info
+    blocked: true
+    title: Bridge Status
+  - key: Xrm10VoiceAssistantLastTranscript
+    widget: info
+    blocked: true
+    title: Last Heard
+  - key: Xrm10VoiceAssistantLastResponse
+    widget: info
+    blocked: true
+    title: Last Answer
+  - key: Xrm10VoiceAssistantLastError
+    widget: info
+    blocked: true
+    title: Last Error
+  - key: Xrm10VoiceAssistantUpdatedAt
+    widget: info
+    blocked: true
+    title: Last Update
