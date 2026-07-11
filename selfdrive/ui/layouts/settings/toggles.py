@@ -32,6 +32,10 @@ DESCRIPTIONS = {
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
   "AlwaysOnDM": tr_noop("Enable driver monitoring even when sunnypilot is not engaged."),
+  "Xrm10DmComfortProfile": tr_noop(
+    "Adjust driver monitoring prompt timing without disabling monitoring. Comfort waits slightly longer before early vision prompts. " +
+    "Red alerts, phone checks, lockouts, and fallback monitoring stay unchanged."
+  ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
@@ -106,6 +110,16 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
+    self._dm_comfort_setting = multiple_button_item(
+      lambda: tr("Driver Monitoring Comfort"),
+      lambda: tr(DESCRIPTIONS["Xrm10DmComfortProfile"]),
+      buttons=[lambda: tr("Standard"), lambda: tr("Comfort"), lambda: tr("Strict")],
+      button_width=260,
+      callback=self._set_xrm10_dm_comfort_profile,
+      selected_index=self._params.get("Xrm10DmComfortProfile", return_default=True),
+      icon="monitoring.png"
+    )
+
     self._toggles = {}
     self._locked_toggles = set()
     for param, (title, desc, icon, needs_restart) in self._toggle_defs.items():
@@ -138,6 +152,8 @@ class TogglesLayout(Widget):
       # insert longitudinal personality after NDOG toggle
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
+      if param == "AlwaysOnDM":
+        self._toggles["Xrm10DmComfortProfile"] = self._dm_comfort_setting
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -203,6 +219,9 @@ class TogglesLayout(Widget):
     # refresh toggles from params to mirror external changes
     for param in self._toggle_defs:
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
+    self._dm_comfort_setting.action_item.set_selected_button(
+      self._params.get("Xrm10DmComfortProfile", return_default=True)
+    )
 
     # these toggles need restart, block while engaged
     for toggle_def in self._toggle_defs:
@@ -247,3 +266,6 @@ class TogglesLayout(Widget):
 
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
+
+  def _set_xrm10_dm_comfort_profile(self, button_index: int):
+    self._params.put("Xrm10DmComfortProfile", button_index, block=True)

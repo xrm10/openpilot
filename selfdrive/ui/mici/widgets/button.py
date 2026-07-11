@@ -382,12 +382,18 @@ class BigMultiParamToggle(BigMultiToggle):
     self._load_value()
 
   def _load_value(self):
-    self.set_value(self._options[self._params.get(self._param) or 0])
+    idx = self._params.get(self._param) or 0
+    if not isinstance(idx, int) or idx < 0 or idx >= len(self._options):
+      idx = 0
+    self.set_value(self._options[idx])
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
     new_idx = self._options.index(self.value)
     self._params.put(self._param, new_idx)
+
+  def refresh(self):
+    self._load_value()
 
 
 class BigParamControl(BigToggle):
