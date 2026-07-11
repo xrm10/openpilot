@@ -391,7 +391,7 @@
                   "min": 0.1,
                   "max": 5.0,
                   "step": 0.1,
-                  "unit": "m/s\u00b2",
+                  "unit": "m/s\u00c2\u00b2",
                   "enablement": [
                     {
                       "type": "param",
@@ -1506,6 +1506,26 @@
               "widget": "toggle",
               "title": "Always-On Driver Monitoring",
               "description": "Enable driver monitoring even when sunnypilot is not engaged."
+            },
+            {
+              "key": "Xrm10DmComfortProfile",
+              "widget": "multiple_button",
+              "title": "Driver Monitoring Comfort",
+              "description": "Adjust driver monitoring prompt timing without disabling monitoring. Comfort waits slightly longer before early vision prompts. Red alerts, phone checks, lockouts, and fallback monitoring stay unchanged.",
+              "options": [
+                {
+                  "label": "Standard",
+                  "value": 0
+                },
+                {
+                  "label": "Comfort",
+                  "value": 1
+                },
+                {
+                  "label": "Strict",
+                  "value": 2
+                }
+              ]
             },
             {
               "key": "IsMetric",

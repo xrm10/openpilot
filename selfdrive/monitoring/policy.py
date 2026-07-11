@@ -13,6 +13,16 @@ from openpilot.common.transformations.camera import DEVICE_CAMERAS
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
 
+XRM10_DM_PROFILE_STANDARD = 0
+XRM10_DM_PROFILE_COMFORT = 1
+XRM10_DM_PROFILE_STRICT = 2
+
+XRM10_DM_COMFORT_PROFILES = {
+  XRM10_DM_PROFILE_STANDARD: (3.0, 5.0, 0.25),
+  XRM10_DM_PROFILE_COMFORT: (4.0, 5.8, 0.30),
+  XRM10_DM_PROFILE_STRICT: (2.5, 4.5, 0.25),
+}
+
 def to_percent(v):
   return int(min(max(v * 100., 0.), 100.))
 
@@ -80,6 +90,21 @@ class DRIVER_MONITOR_SETTINGS:
     self._WHEELPOS_DATA_VAR = 3*5.5e-5
     self._WHEELPOS_MAX_COUNT = -1
 
+  def apply_xrm10_dm_comfort_profile(self, profile):
+    try:
+      profile = int(profile)
+    except (TypeError, ValueError):
+      profile = XRM10_DM_PROFILE_STANDARD
+
+    if profile not in XRM10_DM_COMFORT_PROFILES:
+      profile = XRM10_DM_PROFILE_STANDARD
+
+    alert_1, alert_2, distracted_filter_ts = XRM10_DM_COMFORT_PROFILES[profile]
+    self._VISION_POLICY_ALERT_1_TIMEOUT = alert_1
+    self._VISION_POLICY_ALERT_2_TIMEOUT = alert_2
+    self._DISTRACTED_FILTER_TS = distracted_filter_ts
+    return profile
+
 class DriverPose:
   def __init__(self, settings):
     pitch_filter_raw_priors = (settings._PITCH_NATURAL_OFFSET, settings._PITCH_NATURAL_VAR, 2)
@@ -121,7 +146,7 @@ def face_orientation_from_model(orient_model, pos_model, rpy_calib):
 
 
 class DriverMonitoring:
-  def __init__(self, rhd_saved=False, settings=None, always_on=False):
+  def __init__(self, rhd_saved=False, settings=None, always_on=False, xrm10_dm_comfort_profile=XRM10_DM_PROFILE_STANDARD):
     # init policy settings
     self.settings = settings if settings is not None else DRIVER_MONITOR_SETTINGS()
 
@@ -154,9 +179,20 @@ class DriverMonitoring:
     self.dcam_uncertain_cnt = 0
     self.dcam_reset_cnt = 0
     self.too_distracted = Params().get_bool("DriverTooDistracted")
+    self.xrm10_dm_comfort_profile = None
 
     self._reset_awareness()
     self._set_policy(MonitoringPolicy.vision)
+    self.set_xrm10_dm_comfort_profile(xrm10_dm_comfort_profile)
+
+  def set_xrm10_dm_comfort_profile(self, profile):
+    profile = self.settings.apply_xrm10_dm_comfort_profile(profile)
+    if profile == self.xrm10_dm_comfort_profile:
+      return
+
+    self.xrm10_dm_comfort_profile = profile
+    self.driver_distraction_filter.update_alpha(self.settings._DISTRACTED_FILTER_TS)
+    self._set_policy(self.active_policy)
 
   def _reset_awareness(self):
     self.awareness = 1.

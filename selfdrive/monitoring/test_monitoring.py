@@ -3,7 +3,13 @@ import pytest
 
 from cereal import log, car
 from openpilot.common.realtime import DT_DMON
-from openpilot.selfdrive.monitoring.policy import DriverMonitoring, DRIVER_MONITOR_SETTINGS
+from openpilot.selfdrive.monitoring.policy import (
+  DriverMonitoring,
+  DRIVER_MONITOR_SETTINGS,
+  XRM10_DM_PROFILE_COMFORT,
+  XRM10_DM_PROFILE_STANDARD,
+  XRM10_DM_PROFILE_STRICT,
+)
 
 EventName = log.OnroadEvent.EventName
 dm_settings = DRIVER_MONITOR_SETTINGS()
@@ -28,6 +34,43 @@ def make_msg(face_detected, distracted=False, model_uncertain=False):
   # TODO: test both separately when e2e is used
   ds.leftDriverData.phoneProb = 0.
   return ds
+
+
+def test_xrm10_dm_comfort_profiles_are_bounded():
+  base = DRIVER_MONITOR_SETTINGS()
+  comfort = DRIVER_MONITOR_SETTINGS()
+  strict = DRIVER_MONITOR_SETTINGS()
+
+  assert comfort.apply_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_COMFORT) == XRM10_DM_PROFILE_COMFORT
+  assert strict.apply_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_STRICT) == XRM10_DM_PROFILE_STRICT
+
+  assert comfort._VISION_POLICY_ALERT_1_TIMEOUT > base._VISION_POLICY_ALERT_1_TIMEOUT
+  assert comfort._VISION_POLICY_ALERT_2_TIMEOUT > base._VISION_POLICY_ALERT_2_TIMEOUT
+  assert comfort._VISION_POLICY_ALERT_3_TIMEOUT == base._VISION_POLICY_ALERT_3_TIMEOUT
+  assert comfort._MAX_TERMINAL_ALERTS == base._MAX_TERMINAL_ALERTS
+  assert comfort._MAX_TERMINAL_DURATION == base._MAX_TERMINAL_DURATION
+  assert comfort._PHONE_THRESH == base._PHONE_THRESH
+
+  assert strict._VISION_POLICY_ALERT_1_TIMEOUT < base._VISION_POLICY_ALERT_1_TIMEOUT
+  assert strict._VISION_POLICY_ALERT_2_TIMEOUT < base._VISION_POLICY_ALERT_2_TIMEOUT
+  assert strict._VISION_POLICY_ALERT_3_TIMEOUT == base._VISION_POLICY_ALERT_3_TIMEOUT
+
+
+def test_xrm10_dm_comfort_profile_falls_back_to_standard():
+  settings = DRIVER_MONITOR_SETTINGS()
+  assert settings.apply_xrm10_dm_comfort_profile(99) == XRM10_DM_PROFILE_STANDARD
+  assert settings._VISION_POLICY_ALERT_1_TIMEOUT == dm_settings._VISION_POLICY_ALERT_1_TIMEOUT
+  assert settings._VISION_POLICY_ALERT_2_TIMEOUT == dm_settings._VISION_POLICY_ALERT_2_TIMEOUT
+
+
+def test_xrm10_dm_comfort_profile_recalculates_live_thresholds():
+  dm = DriverMonitoring()
+  dm.set_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_COMFORT)
+  assert dm.xrm10_dm_comfort_profile == XRM10_DM_PROFILE_COMFORT
+  assert dm.threshold_alert_1 == pytest.approx(1. - dm.settings._VISION_POLICY_ALERT_1_TIMEOUT /
+                                               dm.settings._VISION_POLICY_ALERT_3_TIMEOUT)
+  assert dm.threshold_alert_2 == pytest.approx(1. - dm.settings._VISION_POLICY_ALERT_2_TIMEOUT /
+                                               dm.settings._VISION_POLICY_ALERT_3_TIMEOUT)
 
 
 # driver state from neural net, 10Hz
