@@ -38,19 +38,234 @@ const mime = {
 };
 
 function resolveGitDir() {
-  try {
-    const dotGit = path.join(root, ".git");
-    const stat = fs.statSync(dotGit);
-    if (stat.isDirectory()) return dotGit;
-    if (stat.isFile()) {
-      const content = fs.readFileSync(dotGit, "utf8").trim();
-      const match = content.match(/^gitdir:\s*(.+)$/i);
-      if (match) return path.resolve(root, match[1]);
+  let current = root;
+  while (true) {
+    const dotGit = path.join(current, ".git");
+    try {
+      const stat = fs.statSync(dotGit);
+      if (stat.isDirectory()) return dotGit;
+      if (stat.isFile()) {
+        const content = fs.readFileSync(dotGit, "utf8").trim();
+        const match = content.match(/^gitdir:\s*(.+)$/i);
+        if (match) return path.resolve(current, match[1]);
+      }
+    } catch {
+      // Keep walking up until we hit the filesystem root.
     }
-  } catch {
-    return null;
+
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
   }
-  return null;
+}
+
+function resolveRepoRoot() {
+  try {
+    const gitDir = resolveGitDir();
+    if (!gitDir) return path.resolve(root, "../..");
+    const worktreeFile = path.join(gitDir, "gitdir");
+    if (fs.existsSync(worktreeFile)) return path.dirname(gitDir);
+    return path.dirname(gitDir);
+  } catch {
+    return path.resolve(root, "../..");
+  }
+}
+
+function readParam(key) {
+  try {
+    return fs.readFileSync(path.join("/data/params/d", key), "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+function runCommand(command, args = [], options = {}) {
+  return new Promise((resolve) => {
+    execFile(command, args, { timeout: 4500, ...options }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        stdout: String(stdout || "").trim(),
+        stderr: String(stderr || "").trim(),
+        error: error ? String(error.message || error) : ""
+      });
+    });
+  });
+}
+
+function runSshCommand(target, keyPath, command) {
+  const args = [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=7"
+  ];
+  if (keyPath) args.push("-i", keyPath);
+  args.push(target, command);
+  return runCommand("ssh", args, { timeout: 12000 });
+}
+
+function parseSections(output) {
+  const sections = {};
+  let current = "";
+  for (const line of String(output || "").split(/\r?\n/)) {
+    const match = line.match(/^XRM10_SECTION:(.+)$/);
+    if (match) {
+      current = match[1].trim();
+      sections[current] = [];
+    } else if (current) {
+      sections[current].push(line);
+    }
+  }
+  return Object.fromEntries(Object.entries(sections).map(([key, lines]) => [key, lines.join("\n").trim()]));
+}
+
+function parseParamLines(output) {
+  const params = {};
+  for (const line of String(output || "").split(/\r?\n/)) {
+    const index = line.indexOf("=");
+    if (index <= 0) continue;
+    params[line.slice(0, index)] = line.slice(index + 1);
+  }
+  return params;
+}
+
+function parseDf(output) {
+  const lines = String(output || "").trim().split(/\r?\n/);
+  const row = lines.find((line) => line.includes(" /data")) || lines[1] || "";
+  const parts = row.trim().split(/\s+/);
+  return {
+    filesystem: parts[0] || "",
+    size: parts[1] || "",
+    used: parts[2] || "",
+    available: parts[3] || "",
+    usePercent: parts[4] || "",
+    mount: parts[5] || "/data"
+  };
+}
+
+async function collectBootHealth() {
+  const sshTarget = String(process.env.XRM10_SSH_TARGET || "").trim();
+  if (sshTarget) {
+    return collectRemoteBootHealth(sshTarget, String(process.env.XRM10_SSH_KEY || "").trim());
+  }
+
+  const current = currentDevice();
+  const repoRoot = resolveRepoRoot();
+  const [uptime, failed, processes, disk, gitStatus] = await Promise.all([
+    runCommand("uptime", []),
+    runCommand("systemctl", ["--failed", "--no-pager"]),
+    runCommand("pgrep", ["-af", "manager.py|selfdrive.ui.ui|controlsd|modeld|pandad|updated"]),
+    runCommand("df", ["-h", "/data"]),
+    runCommand("git", ["status", "--short", "--branch"], { cwd: repoRoot })
+  ]);
+
+  const processText = processes.stdout || "";
+  const failedText = failed.stdout || "";
+  const managerRunning = processText.includes("manager.py");
+  const uiRunning = processText.includes("selfdrive.ui.ui");
+  const failedServices = /0 loaded units listed/i.test(failedText)
+    ? 0
+    : failedText.split(/\r?\n/).filter((line) => /^\s*\S+\.service\s+/.test(line)).length;
+  const cleanRepo = /^## .+/m.test(gitStatus.stdout) && !/\n\s*[MADRCU?!]{1,2}\s+/.test(gitStatus.stdout);
+  const isStageOne = current.branch === "full" || current.branch.includes("stage1");
+  const stage = isStageOne ? "stage-1-safe-status" : "custom";
+  const healthScore = [
+    managerRunning,
+    uiRunning,
+    failedServices === 0,
+    cleanRepo,
+    Boolean(readParam("GithubUsername")),
+    Boolean(readParam("DongleId"))
+  ].filter(Boolean).length;
+
+  return {
+    ok: managerRunning && uiRunning && failedServices === 0,
+    stage,
+    score: Math.round((healthScore / 6) * 100),
+    repoRoot,
+    uptime: uptime.stdout,
+    disk: parseDf(disk.stdout),
+    gitStatus: gitStatus.stdout,
+    failedServices,
+    managerRunning,
+    uiRunning,
+    githubUsername: readParam("GithubUsername"),
+    dongleId: readParam("DongleId"),
+    sshKeysLoaded: Boolean(readParam("GithubSshKeys")),
+    checkedAt: new Date().toISOString()
+  };
+}
+
+async function collectRemoteBootHealth(target, keyPath) {
+  const script = [
+    "echo XRM10_SECTION:hostname",
+    "hostname",
+    "echo XRM10_SECTION:uptime",
+    "uptime",
+    "echo XRM10_SECTION:git",
+    "cd /data/openpilot && git status --short --branch && git rev-parse --short HEAD && git branch --show-current",
+    "echo XRM10_SECTION:failed",
+    "systemctl --failed --no-pager || true",
+    "echo XRM10_SECTION:processes",
+    "ps -eo pid,comm,args | grep -E 'manager.py|selfdrive.ui.ui|controlsd|modeld|pandad|updated' | grep -v grep || true",
+    "echo XRM10_SECTION:disk",
+    "df -h /data",
+    "echo XRM10_SECTION:params",
+    "for k in DongleId GithubUsername GithubSshKeys IsOffroad; do printf \"$k=\"; cat /data/params/d/$k 2>/dev/null | head -c 180; echo; done"
+  ].join("; ");
+  const result = await runSshCommand(target, keyPath, script);
+  const sections = parseSections(result.stdout);
+  const params = parseParamLines(sections.params);
+  const gitLines = String(sections.git || "").split(/\r?\n/);
+  const gitStatus = gitLines[0] || "";
+  const commit = gitLines[1] || "";
+  const branch = gitLines[2] || "";
+  const processText = sections.processes || "";
+  const failedText = sections.failed || "";
+  const managerRunning = processText.includes("manager.py");
+  const uiRunning = processText.includes("selfdrive.ui.ui");
+  const failedServices = /0 loaded units listed/i.test(failedText)
+    ? 0
+    : failedText.split(/\r?\n/).filter((line) => /^\s*\S+\.service\s+/.test(line)).length;
+  const cleanRepo = /^## .+/m.test(gitStatus) && !/\n\s*[MADRCU?!]{1,2}\s+/.test(sections.git || "");
+  const isStageOne = branch === "full" || branch.includes("stage1");
+  const healthScore = [
+    result.ok,
+    managerRunning,
+    uiRunning,
+    failedServices === 0,
+    cleanRepo,
+    Boolean(params.GithubUsername),
+    Boolean(params.DongleId)
+  ].filter(Boolean).length;
+  const remoteDevice = {
+    name: sections.hostname || device.name,
+    id: params.DongleId || device.id,
+    version: device.version,
+    branch: branch || device.branch,
+    commit: commit || device.commit,
+    offroad: params.IsOffroad !== "0"
+  };
+
+  return {
+    ok: result.ok && managerRunning && uiRunning && failedServices === 0,
+    stage: isStageOne ? "stage-1-safe-status" : "custom",
+    score: Math.round((healthScore / 7) * 100),
+    remote: true,
+    target,
+    device: remoteDevice,
+    repoRoot: "/data/openpilot",
+    uptime: sections.uptime || "",
+    disk: parseDf(sections.disk || ""),
+    gitStatus: sections.git || "",
+    failedServices,
+    managerRunning,
+    uiRunning,
+    githubUsername: params.GithubUsername || "",
+    dongleId: params.DongleId || "",
+    sshKeysLoaded: Boolean(params.GithubSshKeys),
+    checkedAt: new Date().toISOString()
+  };
 }
 
 function readPackedRef(gitDir, refName) {
@@ -534,14 +749,33 @@ const server = http.createServer(async (req, res) => {
   const parsed = new URL(req.url, "http://localhost");
 
   if (req.method === "GET" && parsed.pathname === "/api/xrm10/status") {
+    const latestProfile = readLatestProfile()?.profile || {};
+    const bootHealth = await collectBootHealth();
     sendJson(res, 200, {
       online: true,
-      device: currentDevice(),
+      device: {
+        ...currentDevice(),
+        ...(bootHealth.device || {})
+      },
       latestProfile: latestProfileMeta(),
       route: readCarRoute(),
       mapPackage: readMapPackage(),
       safetyEventCount: readSafetyEvents().length,
-      capabilities: buildCapabilityReport()
+      capabilities: buildCapabilityReport(latestProfile),
+      bootHealth
+    });
+    return;
+  }
+
+  if (req.method === "GET" && parsed.pathname === "/api/xrm10/boot-health") {
+    const bootHealth = await collectBootHealth();
+    sendJson(res, 200, {
+      ok: true,
+      device: {
+        ...currentDevice(),
+        ...(bootHealth.device || {})
+      },
+      bootHealth
     });
     return;
   }

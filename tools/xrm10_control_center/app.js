@@ -342,7 +342,8 @@ const defaultSyncState = {
     updatedAt: null,
     files: []
   },
-  capabilities: null
+  capabilities: null,
+  bootHealth: null
 };
 
 const textBindings = [
@@ -614,6 +615,9 @@ const els = {
   liveCapabilityBadge: document.querySelector("#liveCapabilityBadge"),
   liveCapabilitySummary: document.querySelector("#liveCapabilitySummary"),
   liveCapabilityList: document.querySelector("#liveCapabilityList"),
+  bootHealthBadge: document.querySelector("#bootHealthBadge"),
+  bootHealthSummary: document.querySelector("#bootHealthSummary"),
+  bootHealthList: document.querySelector("#bootHealthList"),
   toolbarRefreshSync: document.querySelector("#toolbarRefreshSync"),
   activeBranchLabel: document.querySelector("#activeBranchLabel"),
   activeBranchMeta: document.querySelector("#activeBranchMeta"),
@@ -858,7 +862,33 @@ function normalizeSyncState(input) {
     },
     route: normalizeRouteState(input.route || next.route),
     mapPackage: normalizeMapPackageState(input.mapPackage || next.mapPackage),
-    capabilities: input.capabilities || next.capabilities
+    capabilities: input.capabilities || next.capabilities,
+    bootHealth: normalizeBootHealth(input.bootHealth || next.bootHealth)
+  };
+}
+
+function normalizeBootHealth(input = null) {
+  if (!input || typeof input !== "object") return null;
+  const disk = input.disk && typeof input.disk === "object" ? input.disk : {};
+  return {
+    ok: Boolean(input.ok),
+    stage: String(input.stage || "unknown"),
+    score: clamp(Number(input.score ?? 0), 0, 100),
+    uptime: String(input.uptime || ""),
+    failedServices: Number(input.failedServices || 0),
+    managerRunning: Boolean(input.managerRunning),
+    uiRunning: Boolean(input.uiRunning),
+    sshKeysLoaded: Boolean(input.sshKeysLoaded),
+    githubUsername: String(input.githubUsername || ""),
+    dongleId: String(input.dongleId || ""),
+    gitStatus: String(input.gitStatus || ""),
+    checkedAt: input.checkedAt || null,
+    disk: {
+      size: String(disk.size || ""),
+      used: String(disk.used || ""),
+      available: String(disk.available || ""),
+      usePercent: String(disk.usePercent || "")
+    }
   };
 }
 
@@ -1294,6 +1324,7 @@ function renderConnection() {
   }
 
   renderCapabilitySummary();
+  renderBootHealth();
   renderCarRoute();
 }
 
@@ -1332,6 +1363,44 @@ function renderCapabilitySummary() {
     <div class="summary-row">
       <span>${label}</span>
       <strong>${value}</strong>
+    </div>
+  `).join("");
+}
+
+function renderBootHealth() {
+  const health = normalizeBootHealth(syncState.bootHealth);
+  if (!els.bootHealthSummary || !els.bootHealthList) return;
+
+  if (!health) {
+    setBadge(els.bootHealthBadge, "Waiting", "warn");
+    setText(els.bootHealthSummary, "Connect the HTTP bridge to confirm manager, UI, repo, SSH keys, and storage before adding more comma-side controls.");
+    els.bootHealthList.innerHTML = "";
+    return;
+  }
+
+  const badgeClass = health.ok ? "pass" : "stop";
+  setBadge(els.bootHealthBadge, `${health.score}%`, badgeClass);
+  setText(
+    els.bootHealthSummary,
+    health.ok
+      ? `Boot baseline is healthy on ${health.stage}. Manager and UI are running; storage and SSH keys are visible.`
+      : `Boot baseline needs attention on ${health.stage}. Check manager/UI state and failed services before installing more controls.`
+  );
+
+  const checkedAt = health.checkedAt ? new Date(health.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "not checked";
+  const gitLine = health.gitStatus.split(/\r?\n/)[0] || "unknown";
+  els.bootHealthList.innerHTML = [
+    ["Manager", health.managerRunning ? "running" : "missing"],
+    ["UI", health.uiRunning ? "running" : "missing"],
+    ["Failed services", String(health.failedServices)],
+    ["Git", gitLine.replace(/^##\s*/, "")],
+    ["SSH keys", health.sshKeysLoaded ? health.githubUsername || "loaded" : "missing"],
+    ["Storage", health.disk.usePercent ? `${health.disk.used}/${health.disk.size} (${health.disk.usePercent})` : "unknown"],
+    ["Checked", checkedAt]
+  ].map(([label, value]) => `
+    <div class="summary-row">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
     </div>
   `).join("");
 }
@@ -1508,6 +1577,7 @@ async function refreshConnection(showMessage = true) {
       if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
       syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
       if (status.capabilities) syncState.capabilities = status.capabilities;
+      if (status.bootHealth) syncState.bootHealth = normalizeBootHealth(status.bootHealth);
       markOffline(status.message || "");
       return false;
     }
@@ -1515,6 +1585,7 @@ async function refreshConnection(showMessage = true) {
     if (status.mapPackage) syncState.mapPackage = normalizeMapPackageState(status.mapPackage);
     syncState.safetyEventCount = clamp(status.safetyEventCount ?? syncState.safetyEventCount, 0, 9999);
     if (status.capabilities) syncState.capabilities = status.capabilities;
+    if (status.bootHealth) syncState.bootHealth = normalizeBootHealth(status.bootHealth);
     markOnline(status.device || status);
     await refreshCarRoute(false);
     if (profile.connection.autoSync && syncState.pending.length) syncNow("auto");
