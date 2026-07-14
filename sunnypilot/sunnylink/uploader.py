@@ -148,10 +148,24 @@ class Uploader:
     )
     if url_resp.status_code == 412:
       return url_resp
+    if url_resp.status_code != 200:
+      return url_resp
 
-    url_resp_json = json.loads(url_resp.text)
-    url = url_resp_json['url']
-    headers = url_resp_json['headers']
+    try:
+      url_resp_json = json.loads(url_resp.text)
+    except json.JSONDecodeError:
+      cloudlog.event("upload_url_invalid_json", key=key, status_code=url_resp.status_code, response=url_resp.text[:512])
+      return None
+
+    url = url_resp_json.get('url')
+    headers = url_resp_json.get('headers', {})
+    if not isinstance(url, str) or not url:
+      cloudlog.event("upload_url_missing", key=key, status_code=url_resp.status_code, response=url_resp.text[:512])
+      return None
+    if not isinstance(headers, dict):
+      cloudlog.event("upload_url_invalid_headers", key=key, status_code=url_resp.status_code, response=url_resp.text[:512])
+      headers = {}
+
     cloudlog.debug("sunnylink upload_url %s | Headers: %s", url, headers)
 
     if fake_upload:
