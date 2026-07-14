@@ -1,0 +1,266 @@
+# Page: navigation
+# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
+id: navigation
+label: Navigation
+icon: vehicle
+order: 3
+remote_configurable: true
+description: XRM10 v1.1 route, comfort, and assist controls backed by existing sunnypilot params
+sections:
+- id: v11_overview
+  title: XRM10 v1.1 Assist Hub
+  description: One place for route context, comfort, experimental assist, lane-change timing, and torque tuning.
+  items:
+  - key: Xrm10DmComfortProfile
+    widget: multiple_button
+    title: Driver Monitoring Comfort
+    description: Adjust early driver-monitoring prompt timing without disabling monitoring. Red alerts, phone checks, lockouts, and fallback monitoring stay unchanged.
+    options:
+    - {label: Standard, value: 0}
+    - {label: Comfort, value: 1}
+    - {label: Strict, value: 2}
+  - key: ExperimentalMode
+    widget: toggle
+    title: Experimental Mode
+    description: Enables alpha-level model-controlled longitudinal behavior where supported. Driver supervision is still required at all times.
+    enablement:
+    - $ref: '#/macros/longitudinal'
+- id: route_and_speed
+  title: Route and Speed Context
+  description: Map, road-name, speed-limit, and smart-cruise inputs.
+  items:
+  - key: RoadNameToggle
+    widget: toggle
+    title: Map Road Names
+    description: Show available mapd/OSM road-name context in the driving UI.
+  - key: OsmLocal
+    widget: toggle
+    title: Use Local OSM Data
+    description: Prefer downloaded local OSM map data when available for map context and speed-limit sources.
+  - key: SpeedLimitMode
+    widget: multiple_button
+    title: Speed Limit Assist
+    description: Controls speed-limit display, warning, and assisted cruise-speed adjustment where supported.
+    options:
+    - value: 0
+      label: 'Off'
+    - value: 1
+      label: Info
+    - value: 2
+      label: Warning
+    - value: 3
+      label: Assist
+      enablement:
+      - type: any
+        conditions:
+        - type: capability
+          field: has_longitudinal_control
+          equals: true
+        - type: capability
+          field: has_icbm
+          equals: true
+      - type: not
+        condition:
+          type: capability
+          field: brand
+          equals: rivian
+      - type: not
+        condition:
+          type: all
+          conditions:
+          - type: capability
+            field: brand
+            equals: tesla
+          - type: capability
+            field: is_sp_release
+            equals: true
+  - key: SpeedLimitPolicy
+    widget: multiple_button
+    title: Speed Limit Source
+    description: Choose whether speed limits prefer car state, map data, or a combined priority source.
+    options:
+    - value: 0
+      label: Car
+    - value: 1
+      label: Map
+    - value: 2
+      label: Car First
+    - value: 3
+      label: Map First
+    - value: 4
+      label: Combined
+  - key: SpeedLimitOffsetType
+    widget: multiple_button
+    title: Speed Limit Offset Type
+    options:
+    - value: 0
+      label: 'Off'
+    - value: 1
+      label: Fixed
+    - value: 2
+      label: Percent
+  - key: SpeedLimitValueOffset
+    widget: option
+    title: Speed Limit Offset Value
+    min: -30
+    max: 30
+    step: 1
+    unit:
+      metric: km/h
+      imperial: mph
+    visibility:
+    - type: param_compare
+      key: SpeedLimitOffsetType
+      op: '>'
+      value: 0
+- id: experimental_assist
+  title: Experimental Assist
+  description: These controls are enabled only while Experimental Mode is active and supported.
+  items:
+  - key: DynamicExperimentalControl
+    widget: toggle
+    title: Dynamic Experimental Control
+    description: Let the model decide when to use sunnypilot ACC or End-to-End longitudinal.
+    enablement:
+    - type: param
+      key: ExperimentalMode
+      equals: true
+    - $ref: '#/macros/longitudinal'
+  - key: SmartCruiseControlVision
+    widget: toggle
+    title: Smart Cruise - Vision
+    description: Use vision path predictions to estimate appropriate speed for curves ahead.
+    enablement:
+    - type: param
+      key: ExperimentalMode
+      equals: true
+    - type: any
+      conditions:
+      - type: capability
+        field: has_longitudinal_control
+        equals: true
+      - type: capability
+        field: has_icbm
+        equals: true
+  - key: SmartCruiseControlMap
+    widget: toggle
+    title: Smart Cruise - Map
+    description: Use map context to estimate appropriate speed for turns and road geometry.
+    enablement:
+    - type: param
+      key: ExperimentalMode
+      equals: true
+    - type: any
+      conditions:
+      - type: capability
+        field: has_longitudinal_control
+        equals: true
+      - type: capability
+        field: has_icbm
+        equals: true
+- id: lane_change
+  title: Lane Change
+  description: Automatic lane-change timing and blind-spot delay behavior.
+  items:
+  - key: AutoLaneChangeTimer
+    widget: option
+    title: Auto Lane Change by Blinker
+    description: Sets the blinker-to-lane-change timing. Nudgeless modes still require driver supervision and safe traffic conditions.
+    options:
+    - value: -1
+      label: 'Off'
+    - value: 0
+      label: Nudge
+    - value: 1
+      label: Nudgeless
+    - value: 2
+      label: 0.5 second
+    - value: 3
+      label: 1 second
+    - value: 4
+      label: 2 seconds
+    - value: 5
+      label: 3 seconds
+  - key: AutoLaneChangeBsmDelay
+    widget: toggle
+    title: Delay Lane Change with Blind Spot
+    description: Delay automatic lane-change timing when blind spot monitoring reports a vehicle.
+    enablement:
+    - type: capability
+      field: enable_bsm
+      equals: true
+    - type: param_compare
+      key: AutoLaneChangeTimer
+      op: '>'
+      value: 0
+- id: torque_tuning
+  title: Steering Torque
+  description: Steering torque learning and manual tuning controls.
+  enablement:
+  - type: capability
+    field: torque_allowed
+    equals: true
+  items:
+  - key: LiveTorqueParamsToggle
+    widget: toggle
+    title: Steering Torque Self-Tune
+    description: Allow torque lateral control to learn steering parameters on supported platforms.
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: LiveTorqueParamsRelaxedToggle
+    widget: toggle
+    title: Relaxed Torque Learning
+    description: Less restrictive self-tune learning. Use only after base torque self-tune is enabled.
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: param
+      key: LiveTorqueParamsToggle
+      equals: true
+  - key: CustomTorqueParams
+    widget: toggle
+    title: Custom Torque Tuning
+    description: Enable manual torque tuning values. These stay bounded by the platform safety model.
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: TorqueParamsOverrideEnabled
+    widget: toggle
+    title: Manual Real-Time Torque Tuning
+    description: Use fixed manual torque tuning values instead of learned self-tune values.
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: param
+      key: CustomTorqueParams
+      equals: true
+  - key: TorqueParamsOverrideLatAccelFactor
+    widget: option
+    title: Lateral Acceleration Factor
+    min: 0.1
+    max: 5.0
+    step: 0.1
+    unit: m/s^2
+    enablement:
+    - type: param
+      key: CustomTorqueParams
+      equals: true
+    - type: any
+      conditions:
+      - type: param
+        key: TorqueParamsOverrideEnabled
+        equals: true
+      - type: offroad_only
+  - key: TorqueParamsOverrideFriction
+    widget: option
+    title: Friction
+    min: 0.0
+    max: 1.0
+    step: 0.01
+    enablement:
+    - type: param
+      key: CustomTorqueParams
+      equals: true
+    - type: any
+      conditions:
+      - type: param
+        key: TorqueParamsOverrideEnabled
+        equals: true
+      - type: offroad_only
