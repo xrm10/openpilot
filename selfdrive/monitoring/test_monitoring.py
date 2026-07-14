@@ -7,6 +7,7 @@ from openpilot.selfdrive.monitoring.policy import (
   DriverMonitoring,
   DRIVER_MONITOR_SETTINGS,
   XRM10_DM_PROFILE_COMFORT,
+  XRM10_DM_PROFILE_LONG_DRIVE,
   XRM10_DM_PROFILE_STANDARD,
   XRM10_DM_PROFILE_STRICT,
 )
@@ -39,9 +40,11 @@ def make_msg(face_detected, distracted=False, model_uncertain=False):
 def test_xrm10_dm_comfort_profiles_are_bounded():
   base = DRIVER_MONITOR_SETTINGS()
   comfort = DRIVER_MONITOR_SETTINGS()
+  long_drive = DRIVER_MONITOR_SETTINGS()
   strict = DRIVER_MONITOR_SETTINGS()
 
   assert comfort.apply_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_COMFORT) == XRM10_DM_PROFILE_COMFORT
+  assert long_drive.apply_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_LONG_DRIVE) == XRM10_DM_PROFILE_LONG_DRIVE
   assert strict.apply_xrm10_dm_comfort_profile(XRM10_DM_PROFILE_STRICT) == XRM10_DM_PROFILE_STRICT
 
   assert comfort._VISION_POLICY_ALERT_1_TIMEOUT > base._VISION_POLICY_ALERT_1_TIMEOUT
@@ -50,6 +53,13 @@ def test_xrm10_dm_comfort_profiles_are_bounded():
   assert comfort._MAX_TERMINAL_ALERTS == base._MAX_TERMINAL_ALERTS
   assert comfort._MAX_TERMINAL_DURATION == base._MAX_TERMINAL_DURATION
   assert comfort._PHONE_THRESH == base._PHONE_THRESH
+
+  assert long_drive._VISION_POLICY_ALERT_1_TIMEOUT > comfort._VISION_POLICY_ALERT_1_TIMEOUT
+  assert long_drive._VISION_POLICY_ALERT_2_TIMEOUT > comfort._VISION_POLICY_ALERT_2_TIMEOUT
+  assert long_drive._VISION_POLICY_ALERT_3_TIMEOUT == base._VISION_POLICY_ALERT_3_TIMEOUT
+  assert long_drive._MAX_TERMINAL_ALERTS == base._MAX_TERMINAL_ALERTS
+  assert long_drive._MAX_TERMINAL_DURATION == base._MAX_TERMINAL_DURATION
+  assert long_drive._PHONE_THRESH == base._PHONE_THRESH
 
   assert strict._VISION_POLICY_ALERT_1_TIMEOUT < base._VISION_POLICY_ALERT_1_TIMEOUT
   assert strict._VISION_POLICY_ALERT_2_TIMEOUT < base._VISION_POLICY_ALERT_2_TIMEOUT

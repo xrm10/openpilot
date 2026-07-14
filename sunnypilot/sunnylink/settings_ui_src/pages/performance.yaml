@@ -1,0 +1,109 @@
+# Page: performance
+# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
+id: performance
+label: Performance
+icon: steering_wheel
+order: 0
+remote_configurable: true
+description: v1.2 performance profiles, diagnostics, snapshots, replay testing, and logging health
+sections:
+- id: profiles
+  title: Performance Profiles
+  description: Presets apply existing steering, cruise, lane-change, smart-cruise, and driver-monitoring comfort settings together.
+  items:
+  - key: Xrm10PerformanceProfile
+    widget: multiple_button
+    title: Active Profile
+    description: Comfort is softer for daily driving. Balanced is the default. Responsive uses quicker lane-change timing and aggressive cruise personality without bypassing safety.
+    details: Changing this profile writes existing safe sunnypilot params. Torque override values are not changed automatically; use the torque assistant to review learned values before manual tuning.
+    options:
+    - value: 0
+      label: Comfort
+    - value: 1
+      label: Balanced
+    - value: 2
+      label: Responsive
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: Xrm10SnapshotStatus
+    widget: info
+    blocked: true
+    title: Last Profile/Snapshot Result
+- id: live_drive_health
+  title: Live Drive Health
+  description: Live status for the device, car connection, network, and logging pipeline.
+  items:
+  - key: Xrm10DriveHealthStatus
+    widget: info
+    blocked: true
+    title: Status Bar
+  - key: Xrm10LoggingStatus
+    widget: info
+    blocked: true
+    title: Logging Status
+  - key: Xrm10RemoteLoggingMode
+    widget: multiple_button
+    title: Remote Logging Mode
+    description: Queue keeps upload enabled and retries after hotspot or Wi-Fi changes. Priority also keeps SunnyLink uploader enabled.
+    options:
+    - value: 0
+      label: Standard
+    - value: 1
+      label: Queue
+    - value: 2
+      label: Priority
+- id: torque_assistant
+  title: Torque Tuning Assistant
+  description: Uses live steering-torque learning data to summarize calibration and suggest whether manual torque values are ready for review.
+  items:
+  - key: Xrm10TorqueTuningStatus
+    widget: info
+    blocked: true
+    title: Torque Summary
+- id: route_confidence
+  title: Route Confidence
+  description: Map and speed-limit source quality for navigation-aware driving support.
+  items:
+  - key: Xrm10RouteConfidenceStatus
+    widget: info
+    blocked: true
+    title: Route Confidence
+  - key: Xrm10MapQualityStatus
+    widget: info
+    blocked: true
+    title: UAE/GCC Map Quality
+- id: snapshots
+  title: Settings Snapshots
+  description: Save or restore grouped settings before testing changes.
+  items:
+  - key: Xrm10SnapshotCommand
+    widget: multiple_button
+    title: Snapshot Action
+    description: The command resets to None after the comma applies it.
+    options:
+    - value: 0
+      label: None
+    - value: 1
+      label: Save
+    - value: 2
+      label: Restore
+    - value: 3
+      label: Safe
+    - value: 4
+      label: Sport
+    - value: 5
+      label: Comfort
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: Xrm10ReplayTestMode
+    widget: toggle
+    title: Replay/Test Mode
+    description: Marks changes as test-mode work so logs and status pages can compare behavior before road use.
+- id: event_history
+  title: Event History
+  description: Recent reasons for blocked or changed behavior.
+  items:
+  - key: Xrm10EventHistoryStatus
+    widget: info
+    blocked: true
+    title: Recent Events

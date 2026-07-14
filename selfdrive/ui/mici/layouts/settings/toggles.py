@@ -19,7 +19,7 @@ class TogglesLayoutMici(NavScroller):
     ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled")
     always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM")
     self._dm_comfort_toggle = BigMultiParamToggle(
-      "driver monitor comfort", "Xrm10DmComfortProfile", ["standard", "comfort", "strict"]
+      "driver monitor comfort", "Xrm10DmComfortProfile", ["standard", "comfort", "long drive", "strict"]
     )
     record_front = BigParamControl("record & upload driver camera", "RecordFront", toggle_callback=restart_needed_callback)
     record_mic = BigParamControl("record & upload mic audio", "RecordAudio", toggle_callback=restart_needed_callback)

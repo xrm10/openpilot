@@ -36,7 +36,8 @@ sections:
     options:
     - {label: Standard, value: 0}
     - {label: Comfort, value: 1}
-    - {label: Strict, value: 2}
+    - {label: Long Drive, value: 2}
+    - {label: Strict, value: 3}
   - key: IsMetric
     widget: toggle
     title: Use Metric System

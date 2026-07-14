@@ -113,7 +113,7 @@ class TogglesLayout(Widget):
     self._dm_comfort_setting = multiple_button_item(
       lambda: tr("Driver Monitoring Comfort"),
       lambda: tr(DESCRIPTIONS["Xrm10DmComfortProfile"]),
-      buttons=[lambda: tr("Standard"), lambda: tr("Comfort"), lambda: tr("Strict")],
+      buttons=[lambda: tr("Standard"), lambda: tr("Comfort"), lambda: tr("Long Drive"), lambda: tr("Strict")],
       button_width=260,
       callback=self._set_xrm10_dm_comfort_profile,
       selected_index=self._params.get("Xrm10DmComfortProfile", return_default=True),
