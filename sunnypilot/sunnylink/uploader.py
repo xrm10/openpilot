@@ -45,6 +45,13 @@ class FakeResponse:
     self.request = FakeRequest()
 
 
+def response_text(response) -> str:
+  try:
+    return response.content.decode("utf-8", errors="replace")
+  except Exception:
+    return ""
+
+
 def get_directory_sort(d: str) -> list[str]:
   # ensure old format is sorted sooner
   o = ["0", ] if d.startswith("2024-") else ["1", ]
@@ -219,8 +226,13 @@ class Uploader:
         success = True
       elif stat is not None:  # 401, 403... Not sure why they were up to begin with
         success = False
-        cloudlog.event("upload_failed with content", stat=stat, exc=last_exc, key=key, fn=fn, sz=sz, network_type=network_type, metered=metered,
-                       error=stat.content.decode("utf-8"))
+        error_text = response_text(stat)
+        if stat.status_code == 403 and "Upload only allowed for sponsors" in error_text:
+          cloudlog.event("upload_deferred_sponsor_required", stat=stat, key=key, fn=fn, sz=sz, network_type=network_type, metered=metered,
+                         detail=error_text)
+        else:
+          cloudlog.event("upload_failed with content", stat=stat, exc=last_exc, key=key, fn=fn, sz=sz, network_type=network_type, metered=metered,
+                         error=error_text)
       else:
         success = False
         cloudlog.event("upload_failed", stat=stat, exc=last_exc, key=key, fn=fn, sz=sz, network_type=network_type, metered=metered)
