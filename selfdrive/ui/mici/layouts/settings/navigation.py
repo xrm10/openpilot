@@ -1,9 +1,20 @@
-from cereal import car
-
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.mici.widgets.button import BigMultiParamToggle, BigMultiToggle, BigParamControl
+from openpilot.selfdrive.ui.mici.widgets.button import BigMultiToggle, BigParamControl, GreyBigButton
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.widgets.scroller import NavScroller
+
+
+class NavigationStatusCard(GreyBigButton):
+  def __init__(self, text: str, value_callback):
+    super().__init__(text, "")
+    self._value_callback = value_callback
+
+  def refresh(self):
+    self.set_value(self._value_callback())
+
+  def _update_state(self):
+    super()._update_state()
+    self.refresh()
 
 
 class BigMappedParamToggle(BigMultiToggle):
@@ -47,17 +58,17 @@ class NavigationLayoutMici(NavScroller):
     super().__init__()
     self._params = Params()
 
-    self._dm_comfort = BigMultiParamToggle(
-      "monitoring comfort", "Xrm10DmComfortProfile", ["standard", "comfort", "strict"]
-    )
-    self._dynamic_experimental = BigParamControl("dynamic experimental", "DynamicExperimentalControl")
-    self._smart_cruise_vision = BigParamControl("smart cruise vision", "SmartCruiseControlVision")
-    self._smart_cruise_map = BigParamControl("smart cruise map", "SmartCruiseControlMap")
+    self._map_status = NavigationStatusCard("map status", self._map_status_text)
+    self._speed_status = NavigationStatusCard("speed limit", self._speed_status_text)
+    self._source_status = NavigationStatusCard("source", self._source_status_text)
+
     self._road_names = BigParamControl("road names", "RoadNameToggle")
     self._local_osm = BigParamControl("local maps", "OsmLocal")
+    self._smart_cruise_map = BigParamControl("smart cruise map", "SmartCruiseControlMap")
+    self._smart_cruise_vision = BigParamControl("smart cruise vision", "SmartCruiseControlVision")
 
     self._speed_limit_mode = BigMappedParamToggle(
-      "speed limit assist",
+      "speed assist",
       "SpeedLimitMode",
       [(0, "off"), (1, "info"), (2, "warning"), (3, "assist")],
     )
@@ -66,51 +77,56 @@ class NavigationLayoutMici(NavScroller):
       "SpeedLimitPolicy",
       [(0, "car"), (1, "map"), (2, "car first"), (3, "map first"), (4, "combined")],
     )
-    self._lane_change = BigMappedParamToggle(
-      "lane change",
-      "AutoLaneChangeTimer",
-      [(-1, "off"), (0, "nudge"), (1, "nudgeless"), (2, "0.5s"), (3, "1s"), (4, "2s"), (5, "3s")],
-    )
-    self._bsm_delay = BigParamControl("blind spot delay", "AutoLaneChangeBsmDelay")
-
-    self._torque_self_tune = BigParamControl("torque self tune", "LiveTorqueParamsToggle")
-    self._torque_relaxed = BigParamControl("relaxed torque", "LiveTorqueParamsRelaxedToggle")
-    self._custom_torque = BigParamControl("custom torque", "CustomTorqueParams")
-    self._manual_torque = BigParamControl("manual torque", "TorqueParamsOverrideEnabled")
 
     self._refresh_controls = [
-      self._dm_comfort,
-      self._dynamic_experimental,
-      self._smart_cruise_vision,
-      self._smart_cruise_map,
+      self._map_status,
+      self._speed_status,
+      self._source_status,
       self._road_names,
       self._local_osm,
+      self._smart_cruise_map,
+      self._smart_cruise_vision,
       self._speed_limit_mode,
       self._speed_limit_source,
-      self._lane_change,
-      self._bsm_delay,
-      self._torque_self_tune,
-      self._torque_relaxed,
-      self._custom_torque,
-      self._manual_torque,
     ]
 
     self._scroller.add_widgets([
-      self._dm_comfort,
-      self._dynamic_experimental,
-      self._smart_cruise_vision,
-      self._smart_cruise_map,
+      self._map_status,
+      self._speed_status,
+      self._source_status,
       self._road_names,
       self._local_osm,
+      self._smart_cruise_map,
+      self._smart_cruise_vision,
       self._speed_limit_mode,
       self._speed_limit_source,
-      self._lane_change,
-      self._bsm_delay,
-      self._torque_self_tune,
-      self._torque_relaxed,
-      self._custom_torque,
-      self._manual_torque,
     ])
+
+  def _map_status_text(self) -> str:
+    version = self._params.get("MapdVersion") or "not installed"
+    area = self._params.get("OsmLocationName") or self._params.get("OsmStateName") or "no area"
+    return f"mapd {version}\n{area}"
+
+  def _speed_status_text(self) -> str:
+    try:
+      speed = float(self._params.get("MapSpeedLimit") or 0.0)
+    except ValueError:
+      speed = 0.0
+    if speed <= 0.0:
+      return "unavailable"
+    unit = "km/h" if ui_state.is_metric else "mph"
+    return f"{speed:.0f} {unit}"
+
+  def _source_status_text(self) -> str:
+    policy = self._int_param("SpeedLimitPolicy", 3)
+    policy_names = {
+      0: "car only",
+      1: "map only",
+      2: "car first",
+      3: "map first",
+      4: "combined",
+    }
+    return policy_names.get(policy, "map first")
 
   def _refresh(self):
     for control in self._refresh_controls:
@@ -128,12 +144,10 @@ class NavigationLayoutMici(NavScroller):
     has_cp = ui_state.CP is not None
     has_long = has_cp and ui_state.has_longitudinal_control
     has_icbm = has_cp and ui_state.has_icbm
-    experimental_enabled = self._params.get_bool("ExperimentalMode")
     cruise_available = has_cp and (has_long or has_icbm)
 
-    self._dynamic_experimental.set_enabled(has_long and experimental_enabled)
-    self._smart_cruise_vision.set_enabled(cruise_available and experimental_enabled)
-    self._smart_cruise_map.set_enabled(cruise_available and experimental_enabled)
+    self._smart_cruise_map.set_enabled(cruise_available)
+    self._smart_cruise_vision.set_enabled(cruise_available)
 
     if has_cp:
       sla_disallow_in_release = ui_state.CP.brand == "tesla" and ui_state.is_sp_release
@@ -144,21 +158,6 @@ class NavigationLayoutMici(NavScroller):
     if not sla_available and self._int_param("SpeedLimitMode", 1) > 2:
       self._params.put("SpeedLimitMode", 2)
       self._speed_limit_mode.refresh()
-
-    enable_bsm = has_cp and ui_state.CP.enableBsm and self._int_param("AutoLaneChangeTimer") > 0
-    self._bsm_delay.set_enabled(enable_bsm)
-    if not enable_bsm and self._params.get_bool("AutoLaneChangeBsmDelay"):
-      self._params.remove("AutoLaneChangeBsmDelay")
-      self._bsm_delay.set_checked(False)
-
-    torque_allowed = has_cp and ui_state.CP.steerControlType != car.CarParams.SteerControlType.angle
-    offroad = ui_state.is_offroad()
-    live_torque_enabled = self._params.get_bool("LiveTorqueParamsToggle")
-    self._torque_self_tune.set_enabled(offroad and torque_allowed)
-    self._torque_relaxed.set_enabled(offroad and torque_allowed and live_torque_enabled)
-    self._custom_torque.set_enabled(offroad and torque_allowed)
-    self._manual_torque.set_visible(self._params.get_bool("CustomTorqueParams"))
-    self._manual_torque.set_enabled(offroad and torque_allowed and self._params.get_bool("CustomTorqueParams"))
 
   def show_event(self):
     super().show_event()
