@@ -54,8 +54,12 @@ PROFILE_SETTINGS: dict[int, dict[str, Any]] = {
 }
 
 FACTORY_SAFE_SETTINGS: dict[str, Any] = {
+  "AlphaLongitudinalEnabled": False,
   "ExperimentalMode": False,
   "DynamicExperimentalControl": False,
+  "LongitudinalManeuverMode": False,
+  "LateralManeuverMode": False,
+  "JoystickDebugMode": False,
   "LongitudinalPersonality": 1,
   "Xrm10DmComfortProfile": 0,
   "AutoLaneChangeTimer": 0,
@@ -206,7 +210,7 @@ def restore_snapshot(params: Params) -> bool:
 def apply_factory_safe(params: Params) -> None:
   apply_setting_map(params, FACTORY_SAFE_SETTINGS)
   params.put("Xrm10PerformanceProfileApplied", -1, block=True)
-  params.put("Xrm10SnapshotStatus", "Factory safe applied", block=True)
+  params.put("Xrm10SnapshotStatus", "Factory safe applied; reboot if alpha long was on", block=True)
 
 
 def handle_snapshot_command(params: Params) -> None:
@@ -450,16 +454,16 @@ def build_tesla_assist_status(sm: Any, params: Params) -> tuple[dict[str, Any], 
     status = "blocked: Tesla Autosteer/FSD is on\nselect TACC on Tesla screen"
     setup_state = "stock_autosteer_conflict"
   elif experimental_active:
-    status = "comma Experimental active\nTesla screen: TACC / stock Autosteer off"
+    status = "alpha long active: closed-course only\nbrake manually on red alert"
     setup_state = "comma_experimental"
   elif has_longitudinal:
-    status = "comma longitudinal ready\nturn Experimental on in comma UI"
+    status = "alpha long ready: closed-course only\nturn Experimental on for testing"
     setup_state = "comma_longitudinal_ready"
   elif alpha_enabled:
-    status = "restart needed for alpha longitudinal\nthen use comma Experimental"
+    status = "restart needed to apply alpha change\nclosed-course testing only"
     setup_state = "restart_required"
   else:
-    status = "stock ACC path active\nTesla screen: TACC / stock Autosteer off"
+    status = "stock ACC: manual braking required\nlights, bumps, signs are not automatic"
     setup_state = "stock_acc_path"
 
   data = {

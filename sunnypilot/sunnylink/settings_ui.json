@@ -135,7 +135,7 @@
               "key": "Xrm10SnapshotCommand",
               "widget": "multiple_button",
               "title": "Snapshot Action",
-              "description": "The command resets to None after the comma applies it.",
+              "description": "The command resets to None after the comma applies it. Safe turns off Experimental, alpha longitudinal, joystick, and maneuver test modes; reboot if alpha longitudinal was on.",
               "options": [
                 {
                   "value": 0,
