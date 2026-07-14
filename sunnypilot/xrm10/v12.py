@@ -118,13 +118,13 @@ def _get_raw_param(params: Params, key: str) -> str | None:
 
 
 def _put_json(params: Params, key: str, value: Mapping[str, Any]) -> None:
-  params.put(key, json.dumps(value, separators=(",", ":")), block=True)
+  params.put(key, dict(value), block=True)
 
 
 def _put_json_if_changed(params: Params, key: str, value: Mapping[str, Any]) -> None:
-  raw = json.dumps(value, separators=(",", ":"))
-  if _get_raw_param(params, key) != raw:
-    params.put(key, raw, block=True)
+  value_dict = dict(value)
+  if params.get(key) != value_dict:
+    params.put(key, value_dict, block=True)
 
 
 def _put_str_if_changed(params: Params, key: str, value: str) -> None:
@@ -134,7 +134,11 @@ def _put_str_if_changed(params: Params, key: str, value: str) -> None:
 
 def _load_json_param(params: Params, key: str) -> dict[str, Any]:
   try:
-    value = _get_raw_param(params, key)
+    value = params.get(key)
+    if isinstance(value, dict):
+      return value
+    if isinstance(value, bytes):
+      value = value.decode("utf-8", errors="replace")
     return json.loads(value) if value else {}
   except (TypeError, ValueError, json.JSONDecodeError):
     return {}
