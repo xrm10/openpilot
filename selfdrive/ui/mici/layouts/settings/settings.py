@@ -46,8 +46,8 @@ class SettingsLayout(NavScroller):
 
     self._scroller.add_widgets([
       toggles_btn,
-      navigation_btn,
       network_btn,
+      navigation_btn,
       device_btn,
       PairBigButton(),
       #BigDialogButton("manual", "", "icons_mici/settings/manual_icon.png", "Check out the mici user\nmanual at comma.ai/setup"),
