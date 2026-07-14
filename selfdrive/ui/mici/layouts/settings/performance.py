@@ -60,7 +60,6 @@ class PerformanceLayoutMici(NavScroller):
 
     self._profile = PerformanceProfileToggle()
     self._health = NavigationStatusCard("drive health", lambda: self._status("Xrm10DriveHealthStatus"))
-    self._tesla_assist = NavigationStatusCard("tesla assist", lambda: self._status("Xrm10TeslaAssistStatus"))
     self._route = NavigationStatusCard("route confidence", lambda: self._status("Xrm10RouteConfidenceStatus"))
     self._torque = NavigationStatusCard("torque assistant", lambda: self._status("Xrm10TorqueTuningStatus"))
     self._map_quality = NavigationStatusCard("map quality", lambda: self._status("Xrm10MapQualityStatus"))
@@ -84,7 +83,6 @@ class PerformanceLayoutMici(NavScroller):
     self._refresh_controls = [
       self._profile,
       self._health,
-      self._tesla_assist,
       self._route,
       self._torque,
       self._map_quality,
@@ -99,7 +97,6 @@ class PerformanceLayoutMici(NavScroller):
     self._scroller.add_widgets([
       self._profile,
       self._health,
-      self._tesla_assist,
       self._route,
       self._torque,
       self._map_quality,

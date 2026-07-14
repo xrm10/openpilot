@@ -483,11 +483,14 @@ def build_tesla_assist_status(sm: Any, params: Params) -> tuple[dict[str, Any], 
 
 def update_status_params(params: Params, sm: Any, history: deque[str]) -> None:
   drive_health, drive_health_status = build_drive_health(sm, params)
+  tesla_assist, tesla_assist_status = build_tesla_assist_status(sm, params)
+  if tesla_assist.get("available"):
+    drive_health["tesla_assist"] = tesla_assist
+    drive_health_status = f"{drive_health_status}\n{tesla_assist_status}"
   torque, torque_status = build_torque_tuning(sm)
   route, route_status = build_route_confidence(sm, params)
   map_quality, map_quality_status = build_map_quality(params)
   events, event_status = update_event_history(sm, params, history)
-  tesla_assist, tesla_assist_status = build_tesla_assist_status(sm, params)
 
   _put_json_if_changed(params, "Xrm10DriveHealth", drive_health)
   _put_str_if_changed(params, "Xrm10DriveHealthStatus", drive_health_status)
@@ -499,5 +502,3 @@ def update_status_params(params: Params, sm: Any, history: deque[str]) -> None:
   _put_str_if_changed(params, "Xrm10MapQualityStatus", map_quality_status)
   _put_json_if_changed(params, "Xrm10EventHistory", events)
   _put_str_if_changed(params, "Xrm10EventHistoryStatus", event_status)
-  _put_json_if_changed(params, "Xrm10TeslaAssist", tesla_assist)
-  _put_str_if_changed(params, "Xrm10TeslaAssistStatus", tesla_assist_status)
