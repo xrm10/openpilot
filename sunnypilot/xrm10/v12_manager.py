@@ -15,6 +15,7 @@ from openpilot.sunnypilot.xrm10.v12 import (
 
 
 SERVICES = [
+  "carParams",
   "deviceState",
   "pandaStates",
   "carState",

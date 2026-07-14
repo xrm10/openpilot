@@ -416,12 +416,74 @@ def update_event_history(sm: Any, params: Params, history: deque[str]) -> tuple[
   return data, status
 
 
+def _current_event_names(sm: Any) -> set[str]:
+  if not _alive(sm, "onroadEvents"):
+    return set()
+
+  names = set()
+  for event in sm["onroadEvents"]:
+    try:
+      names.add(_enum_name(event.name))
+    except Exception:
+      continue
+  return names
+
+
+def build_tesla_assist_status(sm: Any, params: Params) -> tuple[dict[str, Any], str]:
+  if not _alive(sm, "carParams"):
+    data = {"available": False, "reason": "waiting for car params"}
+    return data, "waiting for car params"
+
+  cp = sm["carParams"]
+  brand = getattr(cp, "brand", "")
+  if brand != "tesla":
+    data = {"available": False, "brand": brand}
+    return data, "not a Tesla route"
+
+  has_longitudinal = bool(getattr(cp, "openpilotLongitudinalControl", False))
+  alpha_enabled = params.get_bool("AlphaLongitudinalEnabled")
+  experimental_enabled = params.get_bool("ExperimentalMode")
+  experimental_active = has_longitudinal and experimental_enabled
+  invalid_lkas = "invalidLkasSetting" in _current_event_names(sm)
+
+  if invalid_lkas:
+    status = "blocked: Tesla Autosteer/FSD is on\nselect TACC on Tesla screen"
+    setup_state = "stock_autosteer_conflict"
+  elif experimental_active:
+    status = "comma Experimental active\nTesla screen: TACC / stock Autosteer off"
+    setup_state = "comma_experimental"
+  elif has_longitudinal:
+    status = "comma longitudinal ready\nturn Experimental on in comma UI"
+    setup_state = "comma_longitudinal_ready"
+  elif alpha_enabled:
+    status = "restart needed for alpha longitudinal\nthen use comma Experimental"
+    setup_state = "restart_required"
+  else:
+    status = "stock ACC path active\nTesla screen: TACC / stock Autosteer off"
+    setup_state = "stock_acc_path"
+
+  data = {
+    "available": True,
+    "brand": brand,
+    "setup_state": setup_state,
+    "tesla_screen_required": "Traffic-Aware Cruise Control",
+    "stock_autosteer_beta_allowed": False,
+    "alpha_longitudinal_enabled": alpha_enabled,
+    "openpilot_longitudinal_control": has_longitudinal,
+    "experimental_mode_enabled": experimental_enabled,
+    "experimental_mode_active": experimental_active,
+    "invalid_lkas_setting_active": invalid_lkas,
+  }
+  return data, status
+
+
 def update_status_params(params: Params, sm: Any, history: deque[str]) -> None:
   drive_health, drive_health_status = build_drive_health(sm, params)
   torque, torque_status = build_torque_tuning(sm)
   route, route_status = build_route_confidence(sm, params)
   map_quality, map_quality_status = build_map_quality(params)
   events, event_status = update_event_history(sm, params, history)
+  tesla_assist, tesla_assist_status = build_tesla_assist_status(sm, params)
 
   _put_json_if_changed(params, "Xrm10DriveHealth", drive_health)
   _put_str_if_changed(params, "Xrm10DriveHealthStatus", drive_health_status)
@@ -433,3 +495,5 @@ def update_status_params(params: Params, sm: Any, history: deque[str]) -> None:
   _put_str_if_changed(params, "Xrm10MapQualityStatus", map_quality_status)
   _put_json_if_changed(params, "Xrm10EventHistory", events)
   _put_str_if_changed(params, "Xrm10EventHistoryStatus", event_status)
+  _put_json_if_changed(params, "Xrm10TeslaAssist", tesla_assist)
+  _put_str_if_changed(params, "Xrm10TeslaAssistStatus", tesla_assist_status)

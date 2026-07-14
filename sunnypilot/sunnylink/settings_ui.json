@@ -61,6 +61,12 @@
               "title": "Status Bar"
             },
             {
+              "key": "Xrm10TeslaAssistStatus",
+              "widget": "info",
+              "blocked": true,
+              "title": "Tesla Assist Compatibility"
+            },
+            {
               "key": "Xrm10LoggingStatus",
               "widget": "info",
               "blocked": true,
