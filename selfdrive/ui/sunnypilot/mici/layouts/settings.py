@@ -24,7 +24,10 @@ class SettingsLayoutSP(OP.SettingsLayout):
     OP.SettingsLayout.__init__(self)
 
     device_panel = DeviceLayoutMici()
-    self._scroller._items[2].set_click_callback(lambda: gui_app.push_widget(device_panel))
+    for item in self._scroller._items:
+      if getattr(item, "get_text", lambda: "")() == "device":
+        item.set_click_callback(lambda: gui_app.push_widget(device_panel))
+        break
 
     self.icon_offroad_enable = gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/always_offroad.png", BIG_ICON_SIZE,
                                                BIG_ICON_SIZE)
