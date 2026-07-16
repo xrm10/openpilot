@@ -215,6 +215,147 @@ class TestMonitoring:
     assert alert_lvls[int((INVISIBLE_SECONDS_TO_RED-1+DT_DMON*s._HI_STD_FALLBACK_TIME+0.1)/DT_DMON)] == 3
 
 
+class TestSensitivityProfileSettings:
+  # DriverMonitoringSensitivity: 0 relaxed, 1 standard (default), 2 strict
+  def _fresh(self):
+    return DRIVER_MONITOR_SETTINGS()
+
+  def test_default_profile_is_standard(self):
+    assert self._fresh()._sensitivity_profile == 1
+
+  def test_applying_same_profile_is_noop(self):
+    s = self._fresh()
+    assert s.apply_sensitivity_profile(1) is False
+
+  def test_comfort_profile_relaxes_and_returns_true(self):
+    s = self._fresh()
+    defaults = dict(s._sensitivity_defaults)
+    assert s.apply_sensitivity_profile(0) is True
+    assert s._sensitivity_profile == 0
+    # comfort delays warnings: timeouts grow, blink threshold rises
+    assert s._VISION_POLICY_ALERT_1_TIMEOUT > defaults["_VISION_POLICY_ALERT_1_TIMEOUT"]
+    assert s._VISION_POLICY_ALERT_2_TIMEOUT > defaults["_VISION_POLICY_ALERT_2_TIMEOUT"]
+    assert s._VISION_POLICY_ALERT_3_TIMEOUT > defaults["_VISION_POLICY_ALERT_3_TIMEOUT"]
+    assert s._BLINK_THRESHOLD > defaults["_BLINK_THRESHOLD"]
+    assert s._POSE_PITCH_THRESHOLD > defaults["_POSE_PITCH_THRESHOLD"]
+
+  def test_strict_profile_tightens_and_returns_true(self):
+    s = self._fresh()
+    defaults = dict(s._sensitivity_defaults)
+    assert s.apply_sensitivity_profile(2) is True
+    assert s._sensitivity_profile == 2
+    assert s._VISION_POLICY_ALERT_1_TIMEOUT < defaults["_VISION_POLICY_ALERT_1_TIMEOUT"]
+    assert s._VISION_POLICY_ALERT_2_TIMEOUT < defaults["_VISION_POLICY_ALERT_2_TIMEOUT"]
+    assert s._VISION_POLICY_ALERT_3_TIMEOUT < defaults["_VISION_POLICY_ALERT_3_TIMEOUT"]
+    assert s._BLINK_THRESHOLD < defaults["_BLINK_THRESHOLD"]
+    assert s._POSE_PITCH_THRESHOLD < defaults["_POSE_PITCH_THRESHOLD"]
+
+  def test_profile_clamped_high(self):
+    s = self._fresh()
+    s.apply_sensitivity_profile(5)
+    assert s._sensitivity_profile == 2
+
+  def test_profile_clamped_low(self):
+    s = self._fresh()
+    s.apply_sensitivity_profile(-3)
+    assert s._sensitivity_profile == 0
+
+  @pytest.mark.parametrize("bad", [None, "garbage", 1.9])
+  def test_invalid_profile_falls_back_to_standard(self, bad):
+    s = self._fresh()
+    s.apply_sensitivity_profile(2)  # move away from the default first
+    defaults = dict(s._sensitivity_defaults)
+    s.apply_sensitivity_profile(bad)
+    assert s._sensitivity_profile == 1
+    # standard restores every managed threshold to its registered default
+    for key, value in defaults.items():
+      assert getattr(s, key) == value
+
+  def test_returns_to_defaults_when_back_to_standard(self):
+    s = self._fresh()
+    defaults = dict(s._sensitivity_defaults)
+    s.apply_sensitivity_profile(2)
+    s.apply_sensitivity_profile(1)
+    for key, value in defaults.items():
+      assert getattr(s, key) == value
+
+  def test_reapply_does_not_compound(self):
+    # switching comfort -> strict must scale from defaults, not from the comfort values
+    chained = self._fresh()
+    chained.apply_sensitivity_profile(0)
+    chained.apply_sensitivity_profile(2)
+    direct = self._fresh()
+    direct.apply_sensitivity_profile(2)
+    for key in direct._sensitivity_defaults:
+      assert getattr(chained, key) == getattr(direct, key)
+
+  @pytest.mark.parametrize("profile", [0, 1, 2])
+  def test_alert_timeout_ordering_preserved(self, profile):
+    # monitoring stays well-formed in every profile: alerts escalate 1 -> 2 -> 3
+    s = self._fresh()
+    s.apply_sensitivity_profile(profile)
+    assert s._VISION_POLICY_ALERT_1_TIMEOUT < s._VISION_POLICY_ALERT_2_TIMEOUT < s._VISION_POLICY_ALERT_3_TIMEOUT
+
+  def test_comfort_stays_bounded(self):
+    # comfort must not disable monitoring: the red-alert timeout stays capped, not open-ended
+    s = self._fresh()
+    s.apply_sensitivity_profile(0)
+    assert s._VISION_POLICY_ALERT_1_TIMEOUT <= 3.5
+    assert s._VISION_POLICY_ALERT_2_TIMEOUT <= 5.5
+    assert s._VISION_POLICY_ALERT_3_TIMEOUT <= 12.0
+
+
+class TestSensitivityProfileMonitoring:
+  def _step(self, DM, msgs, engaged=True, interaction=False, standstill=False):
+    alert_lvls = []
+    for msg in msgs:
+      DM._update_states(msg, [0, 0, 0], 0, engaged, standstill)
+      DM._update_events(interaction, engaged, standstill, 0)
+      alert_lvls.append(DM.alert_level)
+    return alert_lvls
+
+  def test_set_profile_refreshes_thresholds(self):
+    DM = DriverMonitoring()
+    step_before = DM.step_change
+    t1_before = DM.threshold_alert_1
+    DM.set_sensitivity_profile(2)  # strict -> shorter red timeout -> faster decay
+    assert DM.step_change > step_before
+    assert DM.threshold_alert_1 != t1_before
+
+  def test_noop_profile_leaves_state_untouched(self):
+    DM = DriverMonitoring()
+    DM.awareness = 0.5
+    step_before, t1_before, t2_before = DM.step_change, DM.threshold_alert_1, DM.threshold_alert_2
+    DM.set_sensitivity_profile(1)  # already standard -> no-op
+    assert DM.awareness == 0.5
+    assert (DM.step_change, DM.threshold_alert_1, DM.threshold_alert_2) == (step_before, t1_before, t2_before)
+
+  def test_profile_change_cannot_downgrade_active_alert(self):
+    # a driver at the orange boundary must not be bumped to a less severe band by a profile switch
+    DM = DriverMonitoring()
+    DM.awareness = DM.threshold_alert_2
+    assert DM._current_alert_band() == 2
+    DM.set_sensitivity_profile(0)  # comfort shifts the thresholds
+    assert DM._current_alert_band() >= 2
+    assert DM.awareness <= DM.threshold_alert_2
+
+  @pytest.mark.parametrize("profile", [0, 2])
+  def test_monitoring_not_disabled_by_profile(self, profile):
+    # a permanently distracted driver still escalates to red regardless of sensitivity profile
+    DM = DriverMonitoring()
+    DM.set_sensitivity_profile(profile)
+    alert_lvls = self._step(DM, always_distracted)
+    assert max(alert_lvls) == 3
+
+  def test_strict_alerts_no_later_than_standard(self):
+    dm_standard = DriverMonitoring()
+    dm_strict = DriverMonitoring()
+    dm_strict.set_sensitivity_profile(2)
+    std = self._step(dm_standard, always_distracted)
+    strict = self._step(dm_strict, always_distracted)
+    assert strict.index(3) <= std.index(3)
+
+
 def _build_sm(selfdrive_enabled, lat_active, steering_pressed, gas_pressed):
   cs = car.CarState.new_message()
   cs.vEgo = 30.0
