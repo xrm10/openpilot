@@ -38,6 +38,7 @@ V_EGO_COST = 0.
 A_EGO_COST = 0.
 J_EGO_COST = 5.
 A_CHANGE_COST = 200.
+A_CHANGE_COST_IDX = 4  # index of the (a_ego - a_prev) term in the cost vector
 DANGER_ZONE_COST = 100.
 CRASH_DISTANCE = .25
 LEAD_DANGER_FACTOR = 0.75
@@ -254,9 +255,8 @@ class LongitudinalMpc:
   def set_cost_weights(self, cost_weights, constraint_cost_weights):
     W = np.asfortranarray(np.diag(cost_weights))
     for i in range(N):
-      # TODO don't hardcode A_CHANGE_COST idx
       # reduce the cost on (a-a_prev) later in the horizon.
-      W[4,4] = cost_weights[4] * np.interp(T_IDXS[i], [0.0, 1.0, 2.0], [1.0, 1.0, 0.0])
+      W[A_CHANGE_COST_IDX, A_CHANGE_COST_IDX] = cost_weights[A_CHANGE_COST_IDX] * np.interp(T_IDXS[i], [0.0, 1.0, 2.0], [1.0, 1.0, 0.0])
       self.solver.cost_set(i, 'W', W)
     # Setting the slice without the copy make the array not contiguous,
     # causing issues with the C interface.
